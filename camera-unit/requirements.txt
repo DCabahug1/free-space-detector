@@ -2,8 +2,10 @@
 # The monitor (--monitor) needs tkinter (apt: python3-tk) plus:
 qrcode>=7.4
 Pillow>=10
-# Real mode on the Raspberry Pi 5 also needs:
+# Real mode (Pi camera or --webcam) also needs:
 ultralytics>=8.2
+# --webcam on a laptop also needs OpenCV (not needed on the Pi):
+#   pip install opencv-python
 # picamera2 comes from apt on Raspberry Pi OS, not pip:
 #   sudo apt install -y python3-picamera2 python3-tk
 # Create the venv with --system-site-packages so it can see them.

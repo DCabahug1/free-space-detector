@@ -1,6 +1,7 @@
 """Camera unit entry point.
 
-Real mode (default): Picamera2 frames, YOLOv8n person detection, foot point
+Real mode (default): Picamera2 frames (or a laptop webcam with --webcam),
+YOLOv8n person detection, foot point
 per box, point-in-polygon per zone, POST counts every 30 s, and a JPEG still
 every few seconds for the admin zone editor.
 
@@ -15,6 +16,7 @@ until an admin assigns it to a room in the admin app.
     python main.py --fake
     python main.py --fake --once
     python main.py --dry-run -v          # real camera, print counts, never POST
+    python main.py --webcam -v           # laptop webcam instead of the Pi camera
     python main.py --monitor             # on the Pi, with the attached screen
     python main.py --pair --monitor      # ignore the configured key, pair fresh
 """
@@ -298,15 +300,26 @@ class Unit:
 
     def run_camera(self) -> int:
         try:
-            from detector import Detector  # lazy, needs picamera2 + ultralytics
+            from detector import Detector  # lazy, needs ultralytics plus picamera2 or opencv
+            detector = Detector(
+                self.cfg.frame_width,
+                self.cfg.frame_height,
+                self.cfg.confidence,
+                model=self.args.model,
+                webcam=self.args.webcam,
+                webcam_index=self.args.webcam_index,
+            )
         except ImportError as e:
-            log.error("camera mode needs picamera2, Pillow, and ultralytics: %s", e)
-            log.error("use --fake to run without a camera")
+            if self.args.webcam:
+                log.error("webcam mode needs Pillow, ultralytics, and opencv-python: %s", e)
+            else:
+                log.error("camera mode needs picamera2, Pillow, and ultralytics: %s", e)
+                log.error("use --webcam on a laptop, or --fake to run without a camera")
             return 1
 
-        detector = Detector(self.cfg.frame_width, self.cfg.frame_height, self.cfg.confidence, model=self.args.model)
         log.info(
-            "camera mode: %dx%d, model %s, posting every %.0fs, frame every %.0fs",
+            "%s mode: %dx%d, model %s, posting every %.0fs, frame every %.0fs",
+            "webcam" if self.args.webcam else "camera",
             self.cfg.frame_width, self.cfg.frame_height, self.args.model, self.post_interval, self.cfg.frame_interval_s,
         )
         detector.start()
@@ -350,6 +363,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--seed", type=int, default=None, help="random seed for --fake")
     p.add_argument("--frame-file", default=None, help="with --fake: upload this JPEG as the live frame")
     p.add_argument("--model", default="yolov8n.pt", help="Ultralytics model file (default yolov8n.pt)")
+    p.add_argument("--webcam", action="store_true", help="use an OpenCV webcam instead of Picamera2 (laptop testing)")
+    p.add_argument("--webcam-index", type=int, default=0, help="which webcam to open with --webcam (default 0)")
     p.add_argument("--monitor", action="store_true", help="show the attached monitor UI (pair code, then live counts)")
     p.add_argument("--pair", action="store_true", help="ignore the configured api_key and pair through the admin app")
     p.add_argument("--reset-pairing", action="store_true", help="forget the saved pairing and register again")

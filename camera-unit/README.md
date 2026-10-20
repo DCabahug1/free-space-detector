@@ -7,8 +7,8 @@ the admin zone editor can show a live frame. No video leaves the camera unit.
 
 ## Files
 
-- `main.py`: entry point. Real mode by default, `--fake` for no camera.
-- `detector.py`: Picamera2 capture + YOLOv8n person detection, foot point per box, JPEG encoding.
+- `main.py`: entry point. Real mode by default, `--webcam` for a laptop camera, `--fake` for no camera.
+- `detector.py`: Picamera2 or OpenCV webcam capture + YOLOv8n person detection, foot point per box, JPEG encoding.
 - `zones.py`: fetch zones from Supabase, point-in-polygon, dwell memory.
 - `api.py`: calls to `/api/ingest`, `/api/frame`, `/api/pair/register`, `/api/pair/status`.
 - `monitor.py`: fullscreen tkinter UI for the attached monitor.
@@ -37,6 +37,27 @@ Flags:
   the zone editor shows something to draw on without a Pi.
 - `--pair` ignores the configured api_key and goes through the pairing flow.
 - `--monitor` opens the monitor UI (needs tkinter, see below).
+
+## Webcam mode from a laptop (real detection, no Pi)
+
+Runs the real pipeline (YOLOv8n, foot points, point-in-polygon, dwell
+memory, live frame upload) against a laptop or USB webcam instead of the
+Pi camera. Use it to rehearse the demo: draw zones over the webcam frame in
+the admin app, then step in and out of them and watch the tiles flip.
+
+```bash
+cd camera-unit
+pip install ultralytics opencv-python Pillow
+python main.py --webcam --dry-run -v    # first run downloads yolov8n.pt
+python main.py --webcam --interval 5    # post for real, faster than 30 s
+```
+
+- `--webcam-index 1` picks a second camera if 0 is the wrong one.
+- Frames are resized to `frame_width` x `frame_height` (1280x720), so zone
+  polygons drawn in the admin app line up no matter what the webcam outputs.
+- Expect a few frames per second on a laptop CPU, more with a GPU.
+- Windows: `python` instead of `python3`, and set env vars with
+  `$env:SERVER_URL="https://..."` in PowerShell.
 
 ## Pairing
 
