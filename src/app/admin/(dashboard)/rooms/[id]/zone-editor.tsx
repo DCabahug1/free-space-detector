@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Camera,
   Check,
   ImageUp,
   Loader2,
+  Pause,
   PenLine,
+  Play,
   Plus,
   Trash2,
   Undo2,
@@ -60,11 +63,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { CLOSE_RADIUS, ZONE_COLORS, ZoneCanvas, distance } from "./zone-canvas";
+import { type LiveFrame, useLiveFrame } from "./live-frame";
 
 interface ZoneEditorProps {
   room: Room;
   zones: Zone[];
   counts: Record<string, number>;
+  liveFrame: LiveFrame | null;
 }
 
 interface ZoneFields {
@@ -93,16 +98,21 @@ function toInput(fields: ZoneFields, polygon: Polygon): ZoneInput {
   };
 }
 
-export function ZoneEditor({ room, zones, counts }: ZoneEditorProps) {
+export function ZoneEditor({ room, zones, counts, liveFrame }: ZoneEditorProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  // Frozen frame. Build step 5 will supply this from the camera unit.
-  const [frameSrc, setFrameSrc] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   // Drawing state. redrawId is set when replacing an existing zone's outline.
   const [drawing, setDrawing] = useState(false);
+
+  // Frame under the canvas. The camera unit's live frame is the default and
+  // freezes automatically while drawing. An uploaded photo overrides it.
+  const [uploadedSrc, setUploadedSrc] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const frozen = paused || drawing;
+  const live = useLiveFrame(liveFrame, frozen);
+  const frameSrc = uploadedSrc ?? live.src;
   const [draft, setDraft] = useState<Polygon>([]);
   const [redrawId, setRedrawId] = useState<string | null>(null);
 
@@ -149,9 +159,9 @@ export function ZoneEditor({ room, zones, counts }: ZoneEditorProps) {
 
   useEffect(() => {
     return () => {
-      if (frameSrc) URL.revokeObjectURL(frameSrc);
+      if (uploadedSrc) URL.revokeObjectURL(uploadedSrc);
     };
-  }, [frameSrc]);
+  }, [uploadedSrc]);
 
   function startDrawing(replaceId: string | null = null) {
     setDrawing(true);
@@ -218,7 +228,7 @@ export function ZoneEditor({ room, zones, counts }: ZoneEditorProps) {
   function onFrameChosen(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setFrameSrc(URL.createObjectURL(file));
+    setUploadedSrc(URL.createObjectURL(file));
     event.target.value = "";
   }
 
@@ -303,14 +313,40 @@ export function ZoneEditor({ room, zones, counts }: ZoneEditorProps) {
                 <Plus className="size-4" aria-hidden />
                 New zone
               </Button>
+              {liveFrame && !uploadedSrc ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setPaused((p) => !p)}
+                  disabled={!live.src}
+                >
+                  {paused ? (
+                    <Play className="size-4" aria-hidden />
+                  ) : (
+                    <Pause className="size-4" aria-hidden />
+                  )}
+                  {paused ? "Resume live frame" : "Freeze frame"}
+                </Button>
+              ) : null}
               <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
                 <ImageUp className="size-4" aria-hidden />
-                {frameSrc ? "Replace frame" : "Upload frame"}
+                {uploadedSrc ? "Replace photo" : "Upload photo"}
               </Button>
-              {frameSrc ? (
-                <Button variant="ghost" onClick={() => setFrameSrc(null)}>
-                  Clear frame
+              {uploadedSrc ? (
+                <Button variant="ghost" onClick={() => setUploadedSrc(null)}>
+                  {liveFrame ? "Back to live frame" : "Clear photo"}
                 </Button>
+              ) : null}
+              {liveFrame ? (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Camera className="size-3.5" aria-hidden />
+                  {uploadedSrc
+                    ? `Photo (live frame from ${liveFrame.unitName} hidden)`
+                    : live.available === false
+                      ? `${liveFrame.unitName} has not sent a frame yet`
+                      : paused
+                        ? `Frozen frame from ${liveFrame.unitName}`
+                        : `Live from ${liveFrame.unitName}`}
+                </span>
               ) : null}
               <input
                 ref={fileInputRef}
@@ -341,6 +377,7 @@ export function ZoneEditor({ room, zones, counts }: ZoneEditorProps) {
           A person is counted inside a zone when the bottom center of their
           detection box falls within the outline. Draw around the floor area,
           not the furniture top.
+          {liveFrame ? " The live frame freezes while you draw." : ""}
         </p>
       </div>
 

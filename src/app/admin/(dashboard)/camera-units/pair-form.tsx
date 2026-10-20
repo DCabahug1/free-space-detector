@@ -25,9 +25,10 @@ import type { Room } from "@/lib/types";
 
 interface PairFormProps {
   rooms: Pick<Room, "id" | "name">[];
+  initialCode?: string;
 }
 
-export function PairForm({ rooms }: PairFormProps) {
+export function PairForm({ rooms, initialCode = "" }: PairFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [roomId, setRoomId] = useState<string>("");
   const [pending, startTransition] = useTransition();
@@ -69,6 +70,7 @@ export function PairForm({ rooms }: PairFormProps) {
               pattern="\d{6}"
               maxLength={6}
               placeholder="123456"
+              defaultValue={initialCode}
               className="font-mono text-lg tracking-[0.3em]"
               required
             />

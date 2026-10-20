@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { frameUrl } from "@/lib/camera-units";
 import type { Room, Zone, ZoneCount } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RoomHeader } from "./room-header";
@@ -50,10 +51,24 @@ async function RoomContent({ params }: RoomPageProps) {
     ((counts ?? []) as ZoneCount[]).map((c) => [c.zone_id, c.count])
   ) as Record<string, number>;
 
+  // The camera unit assigned to this room, if any. Its latest frame lives in
+  // the public frames bucket and the editor polls it while live.
+  const { data: unit } = await supabase
+    .from("camera_units")
+    .select("id, name, last_seen")
+    .eq("room_id", id)
+    .order("last_seen", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  const liveFrame = unit
+    ? { url: frameUrl(unit.id), unitName: unit.name as string, lastSeen: unit.last_seen as string | null }
+    : null;
+
   return (
     <div className="space-y-6">
       <RoomHeader room={room as Room} zoneCount={zoneList.length} />
-      <ZoneEditor room={room as Room} zones={zoneList} counts={countMap} />
+      <ZoneEditor room={room as Room} zones={zoneList} counts={countMap} liveFrame={liveFrame} />
     </div>
   );
 }

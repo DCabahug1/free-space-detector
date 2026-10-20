@@ -6,7 +6,12 @@ import { PairForm } from "./pair-form";
 import { CameraUnitsTable } from "./camera-units-table";
 import type { CameraUnitRow } from "./types";
 
-export default function CameraUnitsPage() {
+interface CameraUnitsPageProps {
+  // The QR code on a camera unit's monitor links here with ?code=123456.
+  searchParams: Promise<{ code?: string }>;
+}
+
+export default function CameraUnitsPage({ searchParams }: CameraUnitsPageProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -17,13 +22,15 @@ export default function CameraUnitsPage() {
         </p>
       </div>
       <Suspense fallback={<Skeleton className="h-64" />}>
-        <CameraUnitsContent />
+        <CameraUnitsContent searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function CameraUnitsContent() {
+async function CameraUnitsContent({ searchParams }: CameraUnitsPageProps) {
+  const { code } = await searchParams;
+  const initialCode = code && /^\d{6}$/.test(code) ? code : "";
   const supabase = await createClient();
   const [{ data: units, error }, { data: rooms }] = await Promise.all([
     supabase
@@ -45,7 +52,7 @@ async function CameraUnitsContent() {
         units={(units ?? []) as unknown as CameraUnitRow[]}
         rooms={roomOptions}
       />
-      <PairForm rooms={roomOptions} />
+      <PairForm rooms={roomOptions} initialCode={initialCode} />
     </div>
   );
 }
