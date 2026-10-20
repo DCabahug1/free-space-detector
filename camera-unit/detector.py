@@ -29,6 +29,7 @@ class Person:
     """One detected person: the box and the single point used for counting."""
 
     box: tuple[float, float, float, float]  # x1, y1, x2, y2 in frame pixels
+    confidence: float = 0.0
 
     @property
     def foot(self) -> tuple[float, float]:
@@ -134,8 +135,8 @@ class Detector:
         for r in results:
             if r.boxes is None:
                 continue
-            for x1, y1, x2, y2 in r.boxes.xyxy.tolist():
-                people.append(Person((x1, y1, x2, y2)))
+            for (x1, y1, x2, y2), conf in zip(r.boxes.xyxy.tolist(), r.boxes.conf.tolist()):
+                people.append(Person((x1, y1, x2, y2), conf))
         return people
 
     def foot_points(self, frame) -> list[tuple[float, float]]:
@@ -165,6 +166,7 @@ def draw_people(image: Image.Image, people: list[Person], radius: int = 7) -> No
     for p in people:
         x1, y1, x2, y2 = p.box
         draw.rectangle((x1, y1, x2, y2), outline=BOX_COLOR, width=3)
+        draw.text((x1 + 4, max(0, y1 - 14)), f"{p.confidence:.2f}", fill=BOX_COLOR)
         fx, fy = p.foot
         # Keep the marker visible when the foot sits on the bottom edge.
         fy = min(fy, image.height - radius - 1)
@@ -179,6 +181,8 @@ def draw_people_cv(frame, people: list[Person]) -> None:
     for p in people:
         x1, y1, x2, y2 = (int(v) for v in p.box)
         cv2.rectangle(frame, (x1, y1), (x2, y2), BOX_COLOR[::-1], 3)
+        cv2.putText(frame, f"{p.confidence:.2f}", (x1 + 4, max(18, y1 - 6)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, BOX_COLOR[::-1], 2)
         fx, fy = p.foot
         fy = min(int(fy), h - 8)
         cv2.circle(frame, (int(fx), fy), 7, FOOT_COLOR[::-1], -1)

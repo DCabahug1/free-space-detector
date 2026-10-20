@@ -106,6 +106,10 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | `frame_width` / `frame_height` | `FRAME_WIDTH` / `FRAME_HEIGHT` | 1280 / 720 |
 | `confidence` | `CONFIDENCE` | 0.4 |
 
+`confidence` is the YOLO threshold. Each box in the overlay shows its score,
+so if clothing on a chair gets detected, raise it until those drop out
+(`set CONFIDENCE=0.6`). Real people usually score 0.7 or higher.
+
 Zone polygons are in frame pixels, so keep the frame size at 1280x720, the
 size the admin app draws on.
 
