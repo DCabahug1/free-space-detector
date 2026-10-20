@@ -60,6 +60,8 @@ python main.py --webcam --interval 5    # post for real, faster than 30 s
 ```
 
 - `--webcam-index 1` picks a second camera if 0 is the wrong one.
+- `--show` opens a local preview window with the person boxes and the red
+  foot point. Press q to quit.
 - Frames are resized to `frame_width` x `frame_height` (1280x720), so zone
   polygons drawn in the admin app line up no matter what the webcam outputs.
 - Expect a few frames per second on a laptop CPU, more with a GPU.
@@ -164,8 +166,12 @@ size the admin app draws on.
   An unpublished room returns no zones. Re-fetched every 20 seconds, so zones drawn in the admin app go live fast, and the
   server is asked which room the unit belongs to on the same schedule, so an
   admin can reassign a unit without restarting it.
-- Foot point = bottom center of each person box. Mount the camera unit high
-  and tilted down so feet land inside the table polygons.
+- Foot point = bottom center of each person box. That single point decides
+  which zone a person is in; box overlap is never checked. Mount the camera
+  unit high and tilted down so feet land inside the table polygons.
+- The uploaded frame has each person box (yellow) and foot point (red) drawn
+  on it, so the admin zone editor shows exactly where zones need to be.
+  `--no-overlay` uploads the raw frame instead.
 - Dwell memory: a seating zone keeps its last nonzero count for 10 minutes
   after the last person leaves (bags on tables). Line and open zones are live.
 - The live frame is one JPEG (quality 70, about 100 to 150 KB) every 4 s,

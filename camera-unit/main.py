@@ -331,7 +331,8 @@ class Unit:
                 self.recheck_room()
                 zones = self.cache.get()
                 frame = detector.capture()
-                feet = detector.foot_points(frame)
+                people = detector.detect(frame)
+                feet = [p.foot for p in people]
                 latest = self.counter.count(zones, feet)
                 self.status.rows = [ZoneRow(z.name, z.type, z.capacity, latest.get(z.id, 0)) for z in zones]
                 self.status.mode = "live"
@@ -340,8 +341,17 @@ class Unit:
                     log.info("frame: %d people, %s", len(feet), describe(zones, latest))
                     next_log = now + 1.0
 
+                if self.args.show:
+                    from detector import draw_people_cv
+                    import cv2
+
+                    preview = frame.copy()
+                    draw_people_cv(preview, people)
+                    cv2.imshow("camera unit (q to quit)", preview)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        return 0
                 if now >= next_frame:
-                    self.upload_frame(detector.jpeg(frame))
+                    self.upload_frame(detector.jpeg(frame, people if self.args.overlay else None))
                     next_frame = now + self.cfg.frame_interval_s
                 if now >= next_post:
                     self.publish(zones, latest)
@@ -350,6 +360,10 @@ class Unit:
                         return 0
         finally:
             detector.stop()
+            if self.args.show:
+                import cv2
+
+                cv2.destroyAllWindows()
         return 0
 
 
@@ -367,6 +381,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--model", default="yolov8n.pt", help="Ultralytics model file (default yolov8n.pt)")
     p.add_argument("--webcam", action="store_true", help="use an OpenCV webcam instead of Picamera2 (laptop testing)")
     p.add_argument("--webcam-index", type=int, default=0, help="which webcam to open with --webcam (default 0)")
+    p.add_argument("--show", action="store_true", help="open a preview window with person boxes and foot points (needs opencv)")
+    p.add_argument("--no-overlay", dest="overlay", action="store_false",
+                   help="upload the raw frame instead of drawing person boxes and foot points on it")
     p.add_argument("--monitor", action="store_true", help="show the attached monitor UI (pair code, then live counts)")
     p.add_argument("--pair", action="store_true", help="ignore the configured api_key and pair through the admin app")
     p.add_argument("--reset-pairing", action="store_true", help="forget the saved pairing and register again")

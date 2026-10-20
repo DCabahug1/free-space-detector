@@ -14,13 +14,27 @@ from __future__ import annotations
 
 import io
 import logging
+from dataclasses import dataclass
 
-from PIL import Image
+from PIL import Image, ImageDraw
 from ultralytics import YOLO
 
 log = logging.getLogger("camera-unit.detector")
 
 PERSON_CLASS = 0  # COCO class id for "person"
+
+
+@dataclass
+class Person:
+    """One detected person: the box and the single point used for counting."""
+
+    box: tuple[float, float, float, float]  # x1, y1, x2, y2 in frame pixels
+
+    @property
+    def foot(self) -> tuple[float, float]:
+        """Bottom center of the box. This point, and nothing else, decides which zone the person is in."""
+        x1, _, x2, y2 = self.box
+        return ((x1 + x2) / 2.0, y2)
 
 
 class PiCamera:
@@ -107,8 +121,8 @@ class Detector:
     def capture(self):
         return self.camera.capture()
 
-    def foot_points(self, frame) -> list[tuple[float, float]]:
-        """Bottom center of every person box, in frame pixels."""
+    def detect(self, frame) -> list[Person]:
+        """Every person in the frame, box in frame pixels."""
         results = self.model.predict(
             frame,
             classes=[PERSON_CLASS],
@@ -116,17 +130,56 @@ class Detector:
             imgsz=640,
             verbose=False,
         )
-        feet: list[tuple[float, float]] = []
+        people: list[Person] = []
         for r in results:
             if r.boxes is None:
                 continue
             for x1, y1, x2, y2 in r.boxes.xyxy.tolist():
-                feet.append(((x1 + x2) / 2.0, y2))
-        return feet
+                people.append(Person((x1, y1, x2, y2)))
+        return people
+
+    def foot_points(self, frame) -> list[tuple[float, float]]:
+        return [p.foot for p in self.detect(frame)]
 
     @staticmethod
-    def jpeg(frame, quality: int = 70) -> bytes:
-        """Encodes a captured frame as JPEG (flipping BGR to RGB for PIL)."""
+    def jpeg(frame, people: list[Person] | None = None, quality: int = 70) -> bytes:
+        """Encodes a captured frame as JPEG (flipping BGR to RGB for PIL).
+
+        With people given, draws each box and its foot point so staff can see
+        in the admin app exactly which point has to land inside a zone.
+        """
+        image = Image.fromarray(frame[:, :, ::-1])
+        if people:
+            draw_people(image, people)
         buf = io.BytesIO()
-        Image.fromarray(frame[:, :, ::-1]).save(buf, format="JPEG", quality=quality)
+        image.save(buf, format="JPEG", quality=quality)
         return buf.getvalue()
+
+
+BOX_COLOR = (250, 204, 21)  # yellow
+FOOT_COLOR = (239, 68, 68)  # red
+
+
+def draw_people(image: Image.Image, people: list[Person], radius: int = 7) -> None:
+    draw = ImageDraw.Draw(image)
+    for p in people:
+        x1, y1, x2, y2 = p.box
+        draw.rectangle((x1, y1, x2, y2), outline=BOX_COLOR, width=3)
+        fx, fy = p.foot
+        # Keep the marker visible when the foot sits on the bottom edge.
+        fy = min(fy, image.height - radius - 1)
+        draw.ellipse((fx - radius, fy - radius, fx + radius, fy + radius), fill=FOOT_COLOR, outline=(255, 255, 255), width=2)
+
+
+def draw_people_cv(frame, people: list[Person]) -> None:
+    """Same overlay on a BGR numpy frame, for the --show window."""
+    import cv2
+
+    h = frame.shape[0]
+    for p in people:
+        x1, y1, x2, y2 = (int(v) for v in p.box)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), BOX_COLOR[::-1], 3)
+        fx, fy = p.foot
+        fy = min(int(fy), h - 8)
+        cv2.circle(frame, (int(fx), fy), 7, FOOT_COLOR[::-1], -1)
+        cv2.circle(frame, (int(fx), fy), 7, (255, 255, 255), 2)
