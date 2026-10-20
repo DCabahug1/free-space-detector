@@ -8,7 +8,7 @@ import {
   touchLastSeen,
 } from "@/lib/camera-units";
 
-// Camera units POST a JPEG here every few seconds so the admin zone editor
+// Camera units POST a JPEG here about once a second so the admin zone editor
 // can show a live frame to draw over. Body is the raw image, the api_key
 // goes in a header. Only the latest frame is kept, one object per unit.
 

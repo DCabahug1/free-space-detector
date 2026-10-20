@@ -8,7 +8,7 @@ export interface LiveFrame {
   lastSeen: string | null;
 }
 
-export const LIVE_FRAME_INTERVAL_MS = 4000;
+export const LIVE_FRAME_INTERVAL_MS = 1000;
 
 // Polls the camera unit's latest frame by bumping a cache-busting query
 // string. Stops bumping while frozen so the admin can draw on a still image.

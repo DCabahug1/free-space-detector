@@ -26,7 +26,7 @@ DEFAULTS = {
     # Fallback room when the server cannot tell us one. Demo Classroom.
     "room_id": "f542505a-4a37-4612-a144-0f63c6f79cde",
     "post_interval_s": 30,
-    "frame_interval_s": 4,
+    "frame_interval_s": 1,
     "zone_refresh_s": 20,
     "pair_poll_s": 3,
     "dwell_s": 600,

@@ -5,7 +5,7 @@
   "api_key": "",
   "room_id": "",
   "post_interval_s": 30,
-  "frame_interval_s": 4,
+  "frame_interval_s": 1,
   "zone_refresh_s": 20,
   "pair_poll_s": 3,
   "dwell_s": 600,

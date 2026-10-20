@@ -2,7 +2,7 @@
 
 Python script for the Raspberry Pi 5 + Camera Module 3 with a small attached
 monitor. It counts people inside each zone of its room, POSTs the counts to
-`/api/ingest` every 30 seconds, and sends one JPEG still every few seconds so
+`/api/ingest` every 30 seconds, and sends one JPEG still every second so
 the admin zone editor can show a live frame. No video leaves the camera unit.
 
 ## Files
@@ -99,7 +99,7 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | `api_key` | `CAMERA_API_KEY` | demo camera unit key |
 | `room_id` | `ROOM_ID` | Demo Classroom (fallback only) |
 | `post_interval_s` | `POST_INTERVAL_S` | 30 |
-| `frame_interval_s` | `FRAME_INTERVAL_S` | 4 |
+| `frame_interval_s` | `FRAME_INTERVAL_S` | 1 |
 | `zone_refresh_s` | `ZONE_REFRESH_S` | 20 |
 | `pair_poll_s` | `PAIR_POLL_S` | 3 |
 | `dwell_s` | `DWELL_S` | 600 |
@@ -174,7 +174,7 @@ size the admin app draws on.
   `--no-overlay` uploads the raw frame instead.
 - Dwell memory: a seating zone keeps its last nonzero count for 10 minutes
   after the last person leaves (bags on tables). Line and open zones are live.
-- The live frame is one JPEG (quality 70, about 100 to 150 KB) every 4 s,
+- The live frame is one JPEG (quality 70, about 100 to 150 KB) every 1 s,
   overwritten in place in the `frames` storage bucket. Only the latest is kept.
 - YOLOv8n on the Pi 5 CPU runs at roughly 2 to 4 frames per second at 640 px,
   which is plenty for a 30 s posting interval.

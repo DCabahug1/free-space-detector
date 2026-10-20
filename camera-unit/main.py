@@ -3,7 +3,7 @@
 Real mode (default): Picamera2 frames (or a laptop webcam with --webcam),
 YOLOv8n person detection, foot point
 per box, point-in-polygon per zone, POST counts every 30 s, and a JPEG still
-every few seconds for the admin zone editor.
+every second for the admin zone editor.
 
 Fake mode (--fake): no camera, no model. Posts made up counts that drift
 over time so the public map visibly changes. Use it to demo the web app
@@ -249,14 +249,25 @@ class Unit:
             log.error("post failed: %s", e)
             self.status.message = f"Post failed: {e}"
 
+    _upload_thread: threading.Thread | None = None
+
     def upload_frame(self, jpeg: bytes) -> None:
+        """Uploads in the background so a slow network never stalls counting.
+        If the previous upload is still in flight this frame is skipped."""
         if self.args.dry_run:
             return
-        try:
-            post_frame(self.cfg.server_url, self.api_key, jpeg)
-            log.debug("frame uploaded (%d bytes)", len(jpeg))
-        except Exception as e:  # noqa: BLE001
-            log.warning("frame upload failed: %s", e)
+        if self._upload_thread is not None and self._upload_thread.is_alive():
+            return
+
+        def work() -> None:
+            try:
+                post_frame(self.cfg.server_url, self.api_key, jpeg)
+                log.debug("frame uploaded (%d bytes)", len(jpeg))
+            except Exception as e:  # noqa: BLE001
+                log.warning("frame upload failed: %s", e)
+
+        self._upload_thread = threading.Thread(target=work, daemon=True)
+        self._upload_thread.start()
 
     # ----- loops -----
 
@@ -278,7 +289,7 @@ class Unit:
         frame_file: bytes | None = None
         if self.args.frame_file:
             frame_file = Path(self.args.frame_file).read_bytes()
-            log.info("will upload %s as the live frame every %.0fs", self.args.frame_file, self.cfg.frame_interval_s)
+            log.info("will upload %s as the live frame every %.1fs", self.args.frame_file, self.cfg.frame_interval_s)
         log.info("fake mode: posting to %s every %.0fs", self.cfg.server_url, self.post_interval)
         next_frame = 0.0
         while not self.status.stop.is_set():
@@ -318,7 +329,7 @@ class Unit:
             return 1
 
         log.info(
-            "%s mode: %dx%d, model %s, posting every %.0fs, frame every %.0fs",
+            "%s mode: %dx%d, model %s, posting every %.0fs, frame every %.1fs",
             "webcam" if self.args.webcam else "camera",
             self.cfg.frame_width, self.cfg.frame_height, self.args.model, self.post_interval, self.cfg.frame_interval_s,
         )
