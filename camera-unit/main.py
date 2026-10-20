@@ -93,7 +93,7 @@ class FakeCounts:
         out: dict[str, int] = {}
         for z in zones:
             if z.type == "seating":
-                ceiling = (z.capacity or 4) + 1
+                ceiling = z.capacity or 4
             elif z.type == "line":
                 ceiling = 8
             else:
