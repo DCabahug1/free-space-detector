@@ -1,0 +1,8 @@
+# pnpm 11 defaults minimumReleaseAge to 24h, which rejects the pinned lockfile
+# built in the cloud sandbox. Relaxed for this hackathon repo.
+minimumReleaseAge: 0
+# unrs-resolver (eslint import resolver) ships a native build script we do not need.
+ignoredBuiltDependencies:
+  - unrs-resolver
+allowBuilds:
+  unrs-resolver: set this to true or false

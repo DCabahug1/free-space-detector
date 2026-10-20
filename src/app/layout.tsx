@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
-import { Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, DM_Serif_Text, DM_Mono } from "next/font/google";
 import "./globals.css";
 
-const fontSans = Inter({
+const fontSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
 });
 
-const fontSerif = Source_Serif_4({
+const fontSerif = DM_Serif_Text({
   subsets: ["latin"],
+  weight: "400",
   variable: "--font-serif",
 });
 
-const fontMono = JetBrains_Mono({
+const fontMono = DM_Mono({
   subsets: ["latin"],
+  weight: ["400", "500"],
   variable: "--font-mono",
 });
 
