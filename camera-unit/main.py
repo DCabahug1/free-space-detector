@@ -326,6 +326,7 @@ class Unit:
         try:
             next_post = time.time()
             next_frame = time.time()
+            next_log = 0.0
             while not self.status.stop.is_set():
                 self.recheck_room()
                 zones = self.cache.get()
@@ -334,10 +335,11 @@ class Unit:
                 latest = self.counter.count(zones, feet)
                 self.status.rows = [ZoneRow(z.name, z.type, z.capacity, latest.get(z.id, 0)) for z in zones]
                 self.status.mode = "live"
-                if self.args.verbose:
-                    log.info("frame: %d people, %s", len(feet), describe(zones, latest))
-
                 now = time.time()
+                if self.args.verbose and now >= next_log:
+                    log.info("frame: %d people, %s", len(feet), describe(zones, latest))
+                    next_log = now + 1.0
+
                 if now >= next_frame:
                     self.upload_frame(detector.jpeg(frame))
                     next_frame = now + self.cfg.frame_interval_s
