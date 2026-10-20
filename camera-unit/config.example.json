@@ -1,0 +1,13 @@
+{
+  "supabase_url": "https://vituloqfqfrjdlblkuis.supabase.co",
+  "supabase_anon_key": "sb_publishable_T-OApgS9A2f6lPjYH9jldw_Az0zv_NB",
+  "ingest_url": "https://YOUR-VERCEL-DEPLOYMENT.vercel.app/api/ingest",
+  "api_key": "paste the camera unit api_key here",
+  "room_id": "f542505a-4a37-4612-a144-0f63c6f79cde",
+  "post_interval_s": 30,
+  "zone_refresh_s": 180,
+  "dwell_s": 600,
+  "frame_width": 1280,
+  "frame_height": 720,
+  "confidence": 0.4
+}
