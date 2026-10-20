@@ -98,7 +98,7 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | `room_id` | `ROOM_ID` | Demo Classroom (fallback only) |
 | `post_interval_s` | `POST_INTERVAL_S` | 30 |
 | `frame_interval_s` | `FRAME_INTERVAL_S` | 4 |
-| `zone_refresh_s` | `ZONE_REFRESH_S` | 180 |
+| `zone_refresh_s` | `ZONE_REFRESH_S` | 20 |
 | `pair_poll_s` | `PAIR_POLL_S` | 3 |
 | `dwell_s` | `DWELL_S` | 600 |
 | `frame_width` / `frame_height` | `FRAME_WIDTH` / `FRAME_HEIGHT` | 1280 / 720 |
@@ -161,7 +161,7 @@ size the admin app draws on.
 ## Behavior notes
 
 - Zones are fetched with the anon key, which RLS allows for published rooms.
-  An unpublished room returns no zones. Re-fetched every 3 minutes, and the
+  An unpublished room returns no zones. Re-fetched every 20 seconds, so zones drawn in the admin app go live fast, and the
   server is asked which room the unit belongs to on the same schedule, so an
   admin can reassign a unit without restarting it.
 - Foot point = bottom center of each person box. Mount the camera unit high
