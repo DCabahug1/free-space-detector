@@ -19,7 +19,7 @@ DEFAULTS = {
     "supabase_url": "https://vituloqfqfrjdlblkuis.supabase.co",
     "supabase_anon_key": "sb_publishable_T-OApgS9A2f6lPjYH9jldw_Az0zv_NB",
     # Base URL of the web app. Endpoints are derived: /api/ingest, /api/frame, /api/pair/*.
-    "server_url": "http://localhost:3000",
+    "server_url": "https://free-space-detector.vercel.app",
     # Demo camera unit key, so fake mode works with zero setup. Set it to ""
     # (or run with --pair) and the unit registers itself and shows a pair code.
     "api_key": "2441c417480637b57a34c72aa05a98063f5e6649e25f64ca",

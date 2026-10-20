@@ -1,7 +1,7 @@
 {
   "supabase_url": "https://vituloqfqfrjdlblkuis.supabase.co",
   "supabase_anon_key": "sb_publishable_T-OApgS9A2f6lPjYH9jldw_Az0zv_NB",
-  "server_url": "https://YOUR-DEPLOYMENT.vercel.app",
+  "server_url": "https://free-space-detector.vercel.app",
   "api_key": "",
   "room_id": "",
   "post_interval_s": 30,

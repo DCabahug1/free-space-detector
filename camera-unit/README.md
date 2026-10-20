@@ -26,7 +26,14 @@ camera unit's api_key, so this works with zero setup against a dev server.
 ```bash
 cd camera-unit
 python3 main.py --fake --interval 5
-SERVER_URL=https://YOUR-DEPLOYMENT.vercel.app python3 main.py --fake
+```
+
+The default server is the live deployment, https://free-space-detector.vercel.app.
+To hit a local `pnpm dev` instead, set `SERVER_URL`:
+
+```bash
+SERVER_URL=http://localhost:3000 python3 main.py --fake     # macOS / Linux
+set SERVER_URL=http://localhost:3000 && python main.py --fake   # Windows cmd
 ```
 
 Flags:
@@ -56,8 +63,8 @@ python main.py --webcam --interval 5    # post for real, faster than 30 s
 - Frames are resized to `frame_width` x `frame_height` (1280x720), so zone
   polygons drawn in the admin app line up no matter what the webcam outputs.
 - Expect a few frames per second on a laptop CPU, more with a GPU.
-- Windows: `python` instead of `python3`, and set env vars with
-  `$env:SERVER_URL="https://..."` in PowerShell.
+- Windows: `python` instead of `python3`. Env vars are `set NAME=value` in
+  cmd or `$env:NAME="value"` in PowerShell.
 
 ## Pairing
 
@@ -86,7 +93,7 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | --- | --- | --- |
 | `supabase_url` | `SUPABASE_URL` | demo project |
 | `supabase_anon_key` | `SUPABASE_ANON_KEY` | demo anon key |
-| `server_url` | `SERVER_URL` | `http://localhost:3000` |
+| `server_url` | `SERVER_URL` | `https://free-space-detector.vercel.app` |
 | `api_key` | `CAMERA_API_KEY` | demo camera unit key |
 | `room_id` | `ROOM_ID` | Demo Classroom (fallback only) |
 | `post_interval_s` | `POST_INTERVAL_S` | 30 |
