@@ -26,11 +26,12 @@ class Zone:
 
 @dataclass
 class ZoneCounter:
-    """Turns foot points into a count per zone, with dwell memory.
+    """Turns foot points into a count per zone.
 
-    Dwell memory: a seating zone keeps its last nonzero count for dwell_s
-    seconds after the last person leaves, so a table with bags on it still
-    reads as taken. Line and open zones report the live count.
+    Counts are live by default (dwell_s=0): a person leaves, the spot is
+    free. With dwell_s > 0 a seating zone keeps its last nonzero count for
+    that many seconds after the last person leaves. Line and open zones
+    always report the live count.
     """
 
     dwell_s: float

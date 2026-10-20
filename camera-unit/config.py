@@ -29,7 +29,7 @@ DEFAULTS = {
     "frame_interval_s": 1,
     "zone_refresh_s": 20,
     "pair_poll_s": 3,
-    "dwell_s": 600,
+    "dwell_s": 0,
     "frame_width": 1280,
     "frame_height": 720,
     "confidence": 0.4,

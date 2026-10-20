@@ -9,7 +9,7 @@ the admin zone editor can show a live frame. No video leaves the camera unit.
 
 - `main.py`: entry point. Real mode by default, `--webcam` for a laptop camera, `--fake` for no camera.
 - `detector.py`: Picamera2 or OpenCV webcam capture + YOLOv8n person detection, foot point per box, JPEG encoding.
-- `zones.py`: fetch zones from Supabase, point-in-polygon, dwell memory.
+- `zones.py`: fetch zones from Supabase, point-in-polygon, optional dwell memory.
 - `api.py`: calls to `/api/ingest`, `/api/frame`, `/api/pair/register`, `/api/pair/status`.
 - `monitor.py`: fullscreen tkinter UI for the attached monitor.
 - `status.py`: shared state between the loop and the monitor, tile rules.
@@ -47,8 +47,8 @@ Flags:
 
 ## Webcam mode from a laptop (real detection, no Pi)
 
-Runs the real pipeline (YOLOv8n, foot points, point-in-polygon, dwell
-memory, live frame upload) against a laptop or USB webcam instead of the
+Runs the real pipeline (YOLOv8n, foot points, point-in-polygon, live frame
+upload) against a laptop or USB webcam instead of the
 Pi camera. Use it to rehearse the demo: draw zones over the webcam frame in
 the admin app, then step in and out of them and watch the tiles flip.
 
@@ -102,7 +102,7 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | `frame_interval_s` | `FRAME_INTERVAL_S` | 1 |
 | `zone_refresh_s` | `ZONE_REFRESH_S` | 20 |
 | `pair_poll_s` | `PAIR_POLL_S` | 3 |
-| `dwell_s` | `DWELL_S` | 600 |
+| `dwell_s` | `DWELL_S` | 0 |
 | `frame_width` / `frame_height` | `FRAME_WIDTH` / `FRAME_HEIGHT` | 1280 / 720 |
 | `confidence` | `CONFIDENCE` | 0.4 |
 
@@ -176,8 +176,10 @@ size the admin app draws on.
 - The uploaded frame has each person box (yellow) and foot point (red) drawn
   on it, so the admin zone editor shows exactly where zones need to be.
   `--no-overlay` uploads the raw frame instead.
-- Dwell memory: a seating zone keeps its last nonzero count for 10 minutes
-  after the last person leaves (bags on tables). Line and open zones are live.
+- Counts are live: when a person leaves a zone, the spot is free on the next
+  post. There is no grace period. `dwell_s` can turn one on for seating
+  zones (for example `DWELL_S=120` keeps a table marked taken for 2 minutes
+  after the last person leaves), but the default is 0.
 - The live frame is one JPEG (quality 70, about 100 to 150 KB) every 1 s,
   overwritten in place in the `frames` storage bucket. Only the latest is kept.
 - YOLOv8n on the Pi 5 CPU runs at roughly 2 to 4 frames per second at 640 px,
