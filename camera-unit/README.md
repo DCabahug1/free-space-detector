@@ -127,10 +127,14 @@ size the admin app draws on.
    git clone <repo url> && cd free-space-detector/camera-unit
    python3 -m venv --system-site-packages .venv
    source .venv/bin/activate
-   pip install -r requirements.txt
+   pip install "numpy<2" -r requirements.txt
    ```
-4. `cp config.example.json config.json`, set `server_url`. Leave `api_key`
-   empty to pair through the admin app, or paste the demo key to skip it.
+   The numpy pin matters: the apt picamera2 build breaks under numpy 2, and
+   pip would otherwise upgrade it while installing ultralytics. Torch for
+   aarch64 is about 200 MB, so the install takes a few minutes.
+4. `cp config.example.json config.json`. The defaults already point at the
+   live deployment. Leave `api_key` empty to pair through the admin app, or
+   paste the demo key to skip it.
 5. First run downloads `yolov8n.pt` (about 6 MB), so do it with internet:
    ```bash
    python3 main.py --dry-run -v
