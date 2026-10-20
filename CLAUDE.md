@@ -33,8 +33,8 @@ Zone types:
 
 - Next.js App Router, TypeScript, Tailwind, deployed on Vercel. One repo.
   - Routes: `/` public map, `/admin` admin app, `/api/ingest` POST route.
-- Frontend UI: **shadcn/ui**. Theme: https://tweakcn.com/themes/cmqzwwo3h000104l841fueqlv
-  - Install with `npx shadcn@latest add https://tweakcn.com/r/themes/cmqzwwo3h000104l841fueqlv.json` (run locally, the cloud sandbox cannot reach tweakcn.com).
+- Frontend UI: **shadcn/ui**. Theme: https://tweakcn.com/themes/cmvgcddyy000104jtc2lxai96
+  - Install with `npx shadcn@latest add https://tweakcn.com/r/themes/cmvgcddyy000104jtc2lxai96.json` (run locally, the cloud sandbox cannot reach tweakcn.com).
 - Supabase: Postgres, Realtime (public map subscribes to `zone_counts`), Auth for admins only, RLS.
   - Project ref `vituloqfqfrjdlblkuis`, region us-east-2, URL `https://vituloqfqfrjdlblkuis.supabase.co`.
   - Supabase MCP is connected. Use it for migrations. Mirror every migration into `supabase/migrations/` in the repo.
