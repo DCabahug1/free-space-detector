@@ -1,0 +1,6 @@
+# Fake mode (--fake) needs nothing beyond the Python standard library.
+# Real mode on the Raspberry Pi 5:
+ultralytics>=8.2
+# picamera2 comes from apt on Raspberry Pi OS, not pip:
+#   sudo apt install -y python3-picamera2
+# Create the venv with --system-site-packages so it can see it.
