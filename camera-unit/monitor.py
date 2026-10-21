@@ -153,6 +153,29 @@ class Monitor:
         self._buttons.append(b)
         return b
 
+    def grid_button(self, parent: tk.Misc, text: str, command, row: int, col: int) -> tk.Button:
+        """Like button(), but placed in a grid cell and stretched to fill it."""
+        b = tk.Button(
+            parent,
+            text=text,
+            command=command,
+            font=self.font(18, "bold"),
+            fg=FG,
+            bg=BUTTON_BG,
+            activeforeground=FG,
+            activebackground=BUTTON_ACTIVE,
+            disabledforeground=MUTED,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            padx=self.px(8),
+            cursor="hand2",
+        )
+        b.grid(row=row, column=col, sticky="ew", padx=(0, self.px(8)), pady=(0, self.px(8)),
+               ipady=max(0, (self.px(BUTTON_H) - self.fs(18) * 2) // 2))
+        self._buttons.append(b)
+        return b
+
     def footer_text(self) -> str:
         s = self.status
         if s.message:
@@ -410,22 +433,27 @@ class Monitor:
             tk.Label(row, text=label, font=self.font(16), fg=MUTED, bg=BG, anchor="w", width=12).pack(side="left")
             tk.Label(row, text=value, font=self.font(16), fg=FG, bg=BG, anchor="w").pack(side="left", fill="x", expand=True)
 
-        # Two rows of two so all four fit on the 800 px screen.
+        # A three column grid that shares the width evenly, so every button
+        # fits on the 800 px screen and grows with larger ones.
         actions = tk.Frame(top, bg=BG)
         actions.pack(fill="x", padx=pad)
-        row1 = tk.Frame(actions, bg=BG)
-        row1.pack(anchor="w", pady=(0, self.px(8)))
-        row2 = tk.Frame(actions, bg=BG)
-        row2.pack(anchor="w")
-        self._update_button = self.button(row1, "Updating" if self._updating else "Check for updates", self.start_update)
-        self.button(row1, "Refresh zones", self.refresh_zones)
-        self._sharing_button = self.button(row1, "Resume sharing" if not s.sharing.is_set() else "Pause sharing",
-                                           self.toggle_sharing)
-        self.button(row2, "Reboot", lambda: self.confirm("Reboot the camera unit?",
-                                                         "It is back in about a minute.", "Reboot", self.do_reboot))
-        self.button(row2, "Power off", lambda: self.confirm("Power off the camera unit?",
-                                                           "Unplug it after the screen goes dark.", "Power off",
-                                                           self.do_poweroff))
+        for col in range(3):
+            actions.columnconfigure(col, weight=1, uniform="actions")
+        cells = [
+            ("Updating" if self._updating else "Check for updates", self.start_update),
+            ("Refresh zones", self.refresh_zones),
+            ("Resume sharing" if not s.sharing.is_set() else "Pause sharing", self.toggle_sharing),
+            ("Reboot", lambda: self.confirm("Reboot the camera unit?", "It is back in about a minute.",
+                                            "Reboot", self.do_reboot)),
+            ("Power off", lambda: self.confirm("Power off the camera unit?",
+                                               "Unplug it after the screen goes dark.", "Power off",
+                                               self.do_poweroff)),
+        ]
+        made = []
+        for i, (text, command) in enumerate(cells):
+            b = self.grid_button(actions, text, command, row=i // 3, col=i % 3)
+            made.append(b)
+        self._update_button, _, self._sharing_button = made[0], made[1], made[2]
         self._buttons = saved
         if self._updating:
             for b in self._settings_buttons:
