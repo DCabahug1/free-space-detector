@@ -131,7 +131,17 @@ export function ZoneCanvas({
 
         {draft.length > 0 ? (
           <g style={{ pointerEvents: "none" }}>
-            {draft.length >= 2 ? (
+            {draft.length >= 3 ? (
+              <polygon
+                points={draft.map((p) => p.join(",")).join(" ")}
+                fill="var(--primary)"
+                fillOpacity={0.12}
+                stroke="var(--primary)"
+                strokeWidth={3}
+                strokeDasharray="10 8"
+                vectorEffect="non-scaling-stroke"
+              />
+            ) : draft.length === 2 ? (
               <polyline
                 points={draft.map((p) => p.join(",")).join(" ")}
                 fill="none"
@@ -139,14 +149,6 @@ export function ZoneCanvas({
                 strokeWidth={3}
                 strokeDasharray="10 8"
                 vectorEffect="non-scaling-stroke"
-              />
-            ) : null}
-            {draft.length >= 3 ? (
-              <polygon
-                points={draft.map((p) => p.join(",")).join(" ")}
-                fill="var(--primary)"
-                fillOpacity={0.12}
-                stroke="none"
               />
             ) : null}
             {draft.map(([x, y], i) => (

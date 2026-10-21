@@ -136,7 +136,7 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
         <PublishSwitch roomId={room.id} published={room.published} />
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="sm">
+            <Button variant="destructive" size="sm">
               Delete
             </Button>
           </AlertDialogTrigger>
