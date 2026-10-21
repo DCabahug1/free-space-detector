@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Room } from "@/lib/types";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreateRoomDialog } from "./create-room-dialog";
@@ -38,7 +37,7 @@ async function RoomsList() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("rooms")
-    .select("id, name, kind, published, zones(count), camera_units(id, name)")
+    .select("id, building_id, name, slug, description, published, zones(count), camera_units(id, name)")
     .order("created_at");
 
   if (error) {
@@ -84,9 +83,6 @@ async function RoomsList() {
                       : " · no camera unit"}
                   </CardDescription>
                 </div>
-                <Badge variant="secondary" className="shrink-0 capitalize">
-                  {room.kind}
-                </Badge>
               </div>
             </CardHeader>
             <CardContent className="flex items-center justify-between">

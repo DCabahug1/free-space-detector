@@ -1,15 +1,22 @@
-export type RoomKind = "seating" | "line";
-// "line" is deprecated. New zones cannot be created with it, but zones that
-// already have it keep rendering until they are retyped or deleted.
+// "line" is deprecated. New zones cannot be created with it. Rows that still
+// have it are counted and rendered like an open zone.
 export type ZoneType = "seating" | "line" | "open";
 
 // Polygon vertices in frame pixels, [x, y].
 export type Polygon = [number, number][];
 
-export interface Room {
+export interface Building {
   id: string;
   name: string;
-  kind: RoomKind;
+  slug: string;
+}
+
+export interface Room {
+  id: string;
+  building_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
   published: boolean;
 }
 
@@ -35,4 +42,20 @@ export interface CameraUnit {
   api_key: string;
   room_id: string | null;
   last_seen: string | null;
+}
+
+// What the public map and the room page need per room.
+export interface PublicRoom extends Room {
+  building: Building;
+  zones: Zone[];
+  // Camera units assigned to this room, heartbeat only.
+  units: { id: string; name: string; last_seen: string | null }[];
+}
+
+export function roomTitle(room: { name: string; building: { name: string } }) {
+  return `${room.building.name}, ${room.name}`;
+}
+
+export function roomPath(room: { slug: string; building: { slug: string } }) {
+  return `/rooms/${room.building.slug}/${room.slug}`;
 }

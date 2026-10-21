@@ -17,7 +17,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -104,9 +103,6 @@ export function RoomHeader({ room, zoneCount }: RoomHeaderProps) {
             </Dialog>
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant="secondary" className="capitalize">
-              {room.kind}
-            </Badge>
             {zoneCount === 1 ? "1 zone" : `${zoneCount} zones`}
             {room.published ? (
               <Link

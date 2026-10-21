@@ -1,178 +1,219 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { WifiOff } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import type { Room, Zone, ZoneCount } from "@/lib/types";
-import { durationText, isOffline, relativeTime, roomSummary } from "@/lib/occupancy";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import type { PublicRoom, ZoneCount } from "@/lib/types";
+import { roomPath, roomTitle } from "@/lib/types";
+import { durationText, freeSeats, relativeTime, roomSummary } from "@/lib/occupancy";
+import { usePins } from "@/lib/pins";
+import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { RoomRow } from "./room-row";
 import { ZoneTile } from "./zone-tile";
 
-export interface RoomWithZones extends Room {
-  zones: Zone[];
-}
-
 interface LiveMapProps {
-  rooms: RoomWithZones[];
+  rooms: PublicRoom[];
   initialCounts: ZoneCount[];
 }
 
-type CountMap = Record<string, ZoneCount>;
-
-// Realtime can be blocked on some networks. Poll as a fallback so the
-// demo still updates (slowly) if the websocket never connects.
-const POLL_MS = 45_000;
+type Filter = "all" | "free";
 
 export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
-  const [counts, setCounts] = useState<CountMap>(() =>
-    Object.fromEntries(initialCounts.map((c) => [c.zone_id, c]))
-  );
-  const [now, setNow] = useState(() => Date.now());
-  const [live, setLive] = useState(false);
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [filter, setFilter] = useState<Filter>("all");
+  const live = useLiveSnapshot(rooms, initialCounts);
+  const { pins, isPinned } = usePins();
 
-  useEffect(() => {
-    const supabase = createClient();
+  // Per room: free seats and whether its camera unit is offline.
+  const stats = new Map<string, { free: number; offlineFor: string | null }>();
+  for (const room of rooms) {
+    const offline = live.roomOffline(room);
+    stats.set(room.id, {
+      free: offline ? 0 : freeSeats(room.zones, live.countNumbers),
+      offlineFor: offline ? durationText(live.heartbeat(room), live.now) || "never" : null,
+    });
+  }
 
-    const channel = supabase
-      .channel("public:zone_counts")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "zone_counts" },
-        (payload) => {
-          if (payload.eventType === "DELETE") {
-            const old = payload.old as Partial<ZoneCount>;
-            if (!old.zone_id) return;
-            setCounts((prev) => {
-              const next = { ...prev };
-              delete next[old.zone_id!];
-              return next;
-            });
-            return;
-          }
-          const row = payload.new as ZoneCount;
-          setCounts((prev) => ({ ...prev, [row.zone_id]: row }));
-        }
-      )
-      .subscribe((status) => {
-        setLive(status === "SUBSCRIBED");
-      });
+  const totalFree = rooms.reduce((sum, r) => sum + (stats.get(r.id)?.free ?? 0), 0);
+  const buildingCount = new Set(rooms.map((r) => r.building_id)).size;
 
-    async function poll() {
-      const { data } = await supabase
-        .from("zone_counts")
-        .select("zone_id, count, updated_at");
-      if (data) {
-        setCounts(Object.fromEntries(data.map((c) => [c.zone_id, c])));
-      }
+  const q = query.trim().toLowerCase();
+  const visible = rooms.filter((room) => {
+    if (filter === "free" && (stats.get(room.id)?.free ?? 0) === 0) return false;
+    if (!q) return true;
+    return (
+      room.name.toLowerCase().includes(q) ||
+      room.building.name.toLowerCase().includes(q) ||
+      roomTitle(room).toLowerCase().includes(q)
+    );
+  });
+
+  const pinned = pins
+    .map((id) => visible.find((r) => r.id === id))
+    .filter((r): r is PublicRoom => Boolean(r));
+
+  // Directory: buildings by free seats, rooms by free seats.
+  const groups = (() => {
+    const byBuilding = new Map<string, { building: PublicRoom["building"]; rooms: PublicRoom[] }>();
+    for (const room of visible) {
+      const g = byBuilding.get(room.building_id) ?? { building: room.building, rooms: [] };
+      g.rooms.push(room);
+      byBuilding.set(room.building_id, g);
     }
-    const pollTimer = setInterval(poll, POLL_MS);
-    const clockTimer = setInterval(() => setNow(Date.now()), 5_000);
-
-    return () => {
-      clearInterval(pollTimer);
-      clearInterval(clockTimer);
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const countNumbers = useMemo(
-    () =>
-      Object.fromEntries(
-        Object.values(counts).map((c) => [c.zone_id, c.count])
-      ) as Record<string, number | undefined>,
-    [counts]
-  );
+    const freeOf = (r: PublicRoom) => stats.get(r.id)?.free ?? 0;
+    return [...byBuilding.values()]
+      .map((g) => ({
+        ...g,
+        rooms: [...g.rooms].sort((a, b) => freeOf(b) - freeOf(a) || a.name.localeCompare(b.name)),
+        free: g.rooms.reduce((sum, r) => sum + freeOf(r), 0),
+      }))
+      .sort((a, b) => b.free - a.free || a.building.name.localeCompare(b.building.name));
+  })();
 
   if (rooms.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>No rooms published yet</CardTitle>
-          <CardDescription>
-            Once staff publish a room in the admin app, it shows up here.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="py-16">
+        <h1 className="text-2xl font-semibold">No rooms yet</h1>
+        <p className="mt-1 text-muted-foreground">Rooms appear here once staff publish them.</p>
+      </div>
     );
   }
 
+  const reconnecting = live.connection === "reconnecting";
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span
-          className={`inline-block size-2 rounded-full ${
-            live ? "bg-state-empty" : "bg-muted-foreground/50"
-          }`}
-          aria-hidden
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">
+          <span className="text-state-empty">{totalFree}</span> free seats
+        </h1>
+        <p className={cn("mt-2 text-[13px]", reconnecting ? "text-state-shared" : "text-muted-foreground")}>
+          {reconnecting
+            ? `Reconnecting. Counts from ${durationText(live.latestUpdate, live.now) || "never"} ago`
+            : `${rooms.length} ${rooms.length === 1 ? "room" : "rooms"} in ${buildingCount} ${
+                buildingCount === 1 ? "building" : "buildings"
+              }. Updated ${relativeTime(live.latestUpdate, live.now)}`}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Room or building"
+          aria-label="Search rooms"
+          className="sm:max-w-xs"
         />
-        {live ? "Live updates connected" : "Connecting to live updates"}
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="free">Free now</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {rooms.map((room) => {
-          const latest = room.zones
-            .map((z) => counts[z.id]?.updated_at)
-            .filter(Boolean)
-            .sort()
-            .at(-1);
-          const stale = isOffline(latest, now);
+      {visible.length === 0 ? (
+        <div className="py-8">
+          <p className="text-muted-foreground">
+            {q ? `No rooms or buildings match "${query.trim()}".` : "No rooms with free seats right now."}
+          </p>
+          {q ? (
+            <Button variant="outline" className="mt-3" onClick={() => setQuery("")}>
+              Clear search
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
-          return (
-            <Card key={room.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <CardTitle className="truncate text-xl">
-                      {room.name}
-                    </CardTitle>
-                    <CardDescription className="mt-1 text-base text-foreground">
-                      {roomSummary(room.zones, countNumbers)}
-                    </CardDescription>
+      {pinned.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            Pinned
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            {pinned.map((room) => {
+              const s = stats.get(room.id)!;
+              return (
+                <div key={room.id} className="space-y-3">
+                  <div className="flex items-end justify-between gap-4">
+                    <div className="min-w-0">
+                      <Link href={roomPath(room)} className="block truncate text-[15px] font-medium hover:underline">
+                        {roomTitle(room)}
+                      </Link>
+                      <p className={cn("text-[13px]", s.offlineFor ? "text-state-full" : "text-muted-foreground")}>
+                        {s.offlineFor
+                          ? `Camera unit offline, ${s.offlineFor}`
+                          : roomSummary(room.zones, live.countNumbers)}
+                      </p>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span
+                        className="font-mono text-xl font-bold tabular-nums"
+                        style={{
+                          color: s.offlineFor
+                            ? "var(--state-unknown)"
+                            : s.free > 0
+                              ? "var(--state-empty)"
+                              : "var(--state-full)",
+                        }}
+                      >
+                        {s.offlineFor ? "?" : s.free}
+                      </span>
+                      <span className="text-[13px] text-muted-foreground">
+                        {s.offlineFor ? "unknown" : "free"}
+                      </span>
+                    </div>
                   </div>
-                  <Badge variant="secondary" className="shrink-0 capitalize">
-                    {room.kind}
-                  </Badge>
-                </div>
-                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {stale ? (
-                    <>
-                      <WifiOff className="size-3.5" aria-hidden />
-                      Stale, last update {relativeTime(latest, now)}
-                    </>
+                  {room.zones.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No zones yet</p>
                   ) : (
-                    <>Updated {relativeTime(latest, now)}</>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+                      {room.zones.map((zone) => (
+                        <ZoneTile
+                          key={zone.id}
+                          zone={zone}
+                          count={live.countNumbers[zone.id]}
+                          offlineFor={s.offlineFor}
+                        />
+                      ))}
+                    </div>
                   )}
-                </p>
-              </CardHeader>
-              <CardContent>
-                {room.zones.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No zones drawn yet.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {room.zones.map((zone) => (
-                      <ZoneTile
-                        key={zone.id}
-                        zone={zone}
-                        count={counts[zone.id]?.count}
-                        offlineFor={stale ? durationText(latest, now) || "never" : null}
-                      />
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {groups.length > 0 ? (
+        <section className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+          {groups.map((g) => (
+            <div key={g.building.id}>
+              <h2 className="text-xl font-semibold">{g.building.name}</h2>
+              <p className="text-[13px] text-muted-foreground">
+                {g.free} free in {g.rooms.length} {g.rooms.length === 1 ? "room" : "rooms"}
+              </p>
+              <div className="mt-2 divide-y border-t">
+                {g.rooms.map((room) => (
+                  <RoomRow
+                    key={room.id}
+                    room={room}
+                    counts={live.countNumbers}
+                    offlineFor={stats.get(room.id)?.offlineFor ?? null}
+                    className={isPinned(room.id) ? "" : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

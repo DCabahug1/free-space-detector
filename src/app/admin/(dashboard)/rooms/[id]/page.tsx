@@ -24,7 +24,7 @@ async function RoomContent({ params }: RoomPageProps) {
   const supabase = await createClient();
   const { data: room } = await supabase
     .from("rooms")
-    .select("id, name, kind, published")
+    .select("id, building_id, name, slug, description, published")
     .eq("id", id)
     .maybeSingle();
 
