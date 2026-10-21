@@ -12,7 +12,7 @@ interface OverviewCaptionProps {
 
 // "3 rooms in 2 buildings, 2 published. 1 camera unit offline."
 export function OverviewCaption({ rooms, buildings, published, unitsLastSeen }: OverviewCaptionProps) {
-  const now = useClock(5000);
+  const now = useClock();
   if (rooms === 0) {
     return (
       <p className="text-[13px] text-muted-foreground">

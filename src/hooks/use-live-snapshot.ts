@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useClock } from "@/hooks/use-clock";
 import { createClient } from "@/lib/supabase/client";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
 import { isOffline } from "@/lib/occupancy";
@@ -10,7 +11,6 @@ import { isOffline } from "@/lib/occupancy";
 // zone_counts and camera_units.last_seen as the fallback for networks that
 // block the websocket.
 const POLL_MS = 15_000;
-const CLOCK_MS = 1_000;
 
 export type Connection = "connecting" | "live" | "reconnecting";
 
@@ -33,7 +33,7 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
   const [lastSeen, setLastSeen] = useState<Record<string, string | null>>(() =>
     Object.fromEntries(rooms.flatMap((r) => r.units.map((u) => [u.id, u.last_seen])))
   );
-  const [now, setNow] = useState(() => Date.now());
+  const now = useClock();
   const [connection, setConnection] = useState<Connection>("connecting");
   const wasLive = useRef(false);
 
@@ -43,9 +43,11 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
   useEffect(() => {
     const unitIds = unitKey ? unitKey.split(",") : [];
     const zoneIds = zoneKey ? zoneKey.split(",") : [];
+    // The browser client is a singleton, so every subscriber needs its own
+    // channel name or the second .on() throws.
     const supabase = createClient();
     const channel = supabase
-      .channel("public:zone_counts")
+      .channel(`zone_counts:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "zone_counts" },
@@ -93,10 +95,8 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
       }
     }
     const pollTimer = setInterval(poll, POLL_MS);
-    const clockTimer = setInterval(() => setNow(Date.now()), CLOCK_MS);
     return () => {
       clearInterval(pollTimer);
-      clearInterval(clockTimer);
       supabase.removeChannel(channel);
     };
   }, [zoneKey, unitKey]);

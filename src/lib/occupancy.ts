@@ -81,14 +81,17 @@ export function stateColor(state: TileState): string {
   }
 }
 
+// now === 0 means the client clock has not started (server render and the
+// hydration pass), so nothing is reported offline or timed yet.
 export function isOffline(lastSeen: string | null | undefined, now: number) {
+  if (now === 0) return false;
   if (!lastSeen) return true;
   return now - new Date(lastSeen).getTime() > OFFLINE_AFTER_MS;
 }
 
 // "8 s", "4 min", "2 h", "3 d".
 export function durationText(since: string | null | undefined, now: number) {
-  if (!since) return "";
+  if (!since || now === 0) return "";
   const s = Math.max(0, Math.round((now - new Date(since).getTime()) / 1000));
   if (s < 60) return `${s} s`;
   const m = Math.round(s / 60);
@@ -101,6 +104,7 @@ export function durationText(since: string | null | undefined, now: number) {
 // "8 s ago", "4 min ago", or "never".
 export function relativeTime(iso: string | null | undefined, now: number) {
   if (!iso) return "never";
+  if (now === 0) return "";
   return `${durationText(iso, now)} ago`;
 }
 
