@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Camera units POST here every 30 s:
+// Camera units POST here whenever a count changes, plus a heartbeat every 15 s:
 //   { api_key, counts: [{ zone_id, count }] }
 // The api_key identifies the camera unit. Only zones belonging to that
 // camera unit's room are accepted, so a leaked key cannot write other rooms.

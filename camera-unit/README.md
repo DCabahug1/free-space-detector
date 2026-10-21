@@ -2,7 +2,7 @@
 
 Python script for the Raspberry Pi 5 + Camera Module 3 with a small attached
 monitor. It counts people inside each zone of its room, POSTs the counts to
-`/api/ingest` every 30 seconds, and sends one JPEG still every second so
+`/api/ingest` whenever they change (plus a 15 s heartbeat), and sends one JPEG still every second so
 the admin zone editor can show a live frame. No video leaves the camera unit.
 
 ## Files
@@ -39,7 +39,7 @@ set SERVER_URL=http://localhost:3000 && python main.py --fake   # Windows cmd
 Flags:
 
 - `--once` posts one batch and exits, `--dry-run` prints without posting.
-- `--interval 5` posts faster, `--seed 1` makes the sequence repeatable.
+- `--interval 5` posts every 5 s (fake mode has no changes to react to), `--seed 1` makes the sequence repeatable.
 - `--frame-file classroom.jpg` also uploads that photo as the live frame, so
   the zone editor shows something to draw on without a Pi.
 - `--pair` ignores the configured api_key and goes through the pairing flow.
@@ -56,7 +56,7 @@ the admin app, then step in and out of them and watch the tiles flip.
 cd camera-unit
 pip install ultralytics opencv-python Pillow
 python main.py --webcam --dry-run -v    # first run downloads yolov8n.pt
-python main.py --webcam --interval 5    # post for real, faster than 30 s
+python main.py --webcam                 # post for real
 ```
 
 - `--webcam-index 1` picks a second camera if 0 is the wrong one.
@@ -98,7 +98,8 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | `server_url` | `SERVER_URL` | `https://free-space-detector.vercel.app` |
 | `api_key` | `CAMERA_API_KEY` | demo camera unit key |
 | `room_id` | `ROOM_ID` | Demo Classroom (fallback only) |
-| `post_interval_s` | `POST_INTERVAL_S` | 30 |
+| `post_interval_s` | `POST_INTERVAL_S` | 15 |
+| `confirm_frames` | `CONFIRM_FRAMES` | 2 |
 | `frame_interval_s` | `FRAME_INTERVAL_S` | 1 |
 | `zone_refresh_s` | `ZONE_REFRESH_S` | 20 |
 | `pair_poll_s` | `PAIR_POLL_S` | 3 |
@@ -117,6 +118,8 @@ size the admin app draws on.
 
 1. Raspberry Pi OS (64-bit, Bookworm, with desktop so the monitor UI can
    run). Plug in Camera Module 3 and check it: `rpicam-hello -t 2000`.
+   Using a USB webcam instead? Skip that check (`rpicam-hello` only sees CSI
+   cameras) and add `--webcam` to every `main.py` command below.
 2. System packages:
    ```bash
    sudo apt update
@@ -156,6 +159,7 @@ size the admin app draws on.
    WorkingDirectory=%h/free-space-detector/camera-unit
    Environment=DISPLAY=:0
    ExecStart=%h/free-space-detector/camera-unit/.venv/bin/python main.py --monitor
+   # USB webcam instead of Camera Module 3: add --webcam to ExecStart.
    Restart=always
    RestartSec=5
 
@@ -169,6 +173,15 @@ size the admin app draws on.
    ```
 
 ## Behavior notes
+
+- Counts post the moment they change. A new set of counts has to hold for
+  `confirm_frames` consecutive frames (2 by default) so a single missed
+  detection does not flicker a tile, then it is POSTed immediately. On top of
+  that a heartbeat post every `post_interval_s` (15 s) keeps `last_seen` and
+  `updated_at` fresh. The public map subscribes to Realtime, so a tile flips
+  within about a second of the change.
+- The monitor UI scales to the screen. On screens shorter than 600 px (the
+  Pi touchscreen) the pairing view puts the QR and pair code side by side.
 
 - Zones are fetched with the anon key, which RLS allows for published rooms.
   An unpublished room returns no zones. Re-fetched every 20 seconds, so zones drawn in the admin app go live fast, and the
@@ -187,6 +200,6 @@ size the admin app draws on.
 - The live frame is one JPEG (quality 70, about 100 to 150 KB) every 1 s,
   overwritten in place in the `frames` storage bucket. Only the latest is kept.
 - YOLOv8n on the Pi 5 CPU runs at roughly 2 to 4 frames per second at 640 px,
-  which is plenty for a 30 s posting interval.
+  which is plenty: a count change is confirmed and posted within about a second.
 - The ingest route ignores zone ids outside the camera unit's room, so a
   wrong room shows up as `accepted=0` in the log.

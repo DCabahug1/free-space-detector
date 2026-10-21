@@ -2,8 +2,9 @@
 
 Real mode (default): Picamera2 frames (or a laptop webcam with --webcam),
 YOLOv8n person detection, foot point
-per box, point-in-polygon per zone, POST counts every 30 s, and a JPEG still
-every second for the admin zone editor.
+per box, point-in-polygon per zone, POST counts the moment they change (plus
+a heartbeat every 15 s), and a JPEG still every second for the admin zone
+editor.
 
 Fake mode (--fake): no camera, no model. Posts made up counts that drift
 over time so the public map visibly changes. Use it to demo the web app
@@ -329,7 +330,7 @@ class Unit:
             return 1
 
         log.info(
-            "%s mode: %dx%d, model %s, posting every %.0fs, frame every %.1fs",
+            "%s mode: %dx%d, model %s, posting on change plus every %.0fs, frame every %.1fs",
             "webcam" if self.args.webcam else "camera",
             self.cfg.frame_width, self.cfg.frame_height, self.args.model, self.post_interval, self.cfg.frame_interval_s,
         )
@@ -338,6 +339,14 @@ class Unit:
             next_post = time.time()
             next_frame = time.time()
             next_log = 0.0
+            frames_since_log = 0
+            # Post on change: a new set of counts is posted as soon as it has
+            # held for confirm_frames consecutive frames (so one missed
+            # detection does not flicker the tile). Otherwise a heartbeat
+            # post every post_interval_s keeps last_seen and updated_at fresh.
+            last_posted: dict[str, int] | None = None
+            candidate: dict[str, int] | None = None
+            candidate_frames = 0
             while not self.status.stop.is_set():
                 self.recheck_room()
                 zones = self.cache.get()
@@ -348,9 +357,21 @@ class Unit:
                 self.status.rows = [ZoneRow(z.name, z.type, z.capacity, latest.get(z.id, 0)) for z in zones]
                 self.status.mode = "live"
                 now = time.time()
+                frames_since_log += 1
                 if self.args.verbose and now >= next_log:
-                    log.info("frame: %d people, %s", len(feet), describe(zones, latest))
+                    log.info("frame: %d people, %s  (%d fps)", len(feet), describe(zones, latest), frames_since_log)
                     next_log = now + 1.0
+                    frames_since_log = 0
+
+                changed = False
+                if latest != last_posted:
+                    if latest == candidate:
+                        candidate_frames += 1
+                    else:
+                        candidate, candidate_frames = dict(latest), 1
+                    changed = candidate_frames >= self.cfg.confirm_frames
+                else:
+                    candidate, candidate_frames = None, 0
 
                 if self.args.show:
                     from detector import draw_people_cv
@@ -364,8 +385,10 @@ class Unit:
                 if now >= next_frame:
                     self.upload_frame(detector.jpeg(frame, people if self.args.overlay else None))
                     next_frame = now + self.cfg.frame_interval_s
-                if now >= next_post:
+                if changed or now >= next_post:
                     self.publish(zones, latest)
+                    last_posted = dict(latest)
+                    candidate, candidate_frames = None, 0
                     next_post = now + self.post_interval
                     if self.args.once:
                         return 0
@@ -386,7 +409,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--fake", action="store_true", help="post made up counts, no camera or model needed")
     p.add_argument("--once", action="store_true", help="post one batch and exit")
     p.add_argument("--dry-run", action="store_true", help="print counts but never POST")
-    p.add_argument("--interval", type=float, default=None, help="seconds between posts (default from config, 30)")
+    p.add_argument("--interval", type=float, default=None,
+                   help="seconds between heartbeat posts (default from config, 15). Camera mode also posts on every change")
     p.add_argument("--seed", type=int, default=None, help="random seed for --fake")
     p.add_argument("--frame-file", default=None, help="with --fake: upload this JPEG as the live frame")
     p.add_argument("--model", default="yolov8n.pt", help="Ultralytics model file (default yolov8n.pt)")

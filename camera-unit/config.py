@@ -25,7 +25,10 @@ DEFAULTS = {
     "api_key": "2441c417480637b57a34c72aa05a98063f5e6649e25f64ca",
     # Fallback room when the server cannot tell us one. Demo Classroom.
     "room_id": "f542505a-4a37-4612-a144-0f63c6f79cde",
-    "post_interval_s": 30,
+    # Heartbeat. Camera mode also posts immediately whenever counts change.
+    "post_interval_s": 15,
+    # A changed count must hold for this many consecutive frames before it is posted.
+    "confirm_frames": 2,
     "frame_interval_s": 1,
     "zone_refresh_s": 20,
     "pair_poll_s": 3,
@@ -42,6 +45,7 @@ ENV_NAMES = {
     "api_key": "CAMERA_API_KEY",
     "room_id": "ROOM_ID",
     "post_interval_s": "POST_INTERVAL_S",
+    "confirm_frames": "CONFIRM_FRAMES",
     "frame_interval_s": "FRAME_INTERVAL_S",
     "zone_refresh_s": "ZONE_REFRESH_S",
     "pair_poll_s": "PAIR_POLL_S",
@@ -60,6 +64,7 @@ class Config:
     api_key: str
     room_id: str
     post_interval_s: float
+    confirm_frames: int
     frame_interval_s: float
     zone_refresh_s: float
     pair_poll_s: float
@@ -89,6 +94,7 @@ def load_config() -> Config:
         api_key=str(values["api_key"]).strip(),
         room_id=str(values["room_id"]).strip(),
         post_interval_s=float(values["post_interval_s"]),
+        confirm_frames=max(1, int(values["confirm_frames"])),
         frame_interval_s=float(values["frame_interval_s"]),
         zone_refresh_s=float(values["zone_refresh_s"]),
         pair_poll_s=float(values["pair_poll_s"]),

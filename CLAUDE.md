@@ -62,7 +62,7 @@ RLS:
 
 - Boot: load zones for its room from Supabase, re-fetch every few minutes.
 - Loop: capture frame, YOLOv8n person detection, bottom-center of each box is the foot point, point-in-polygon per zone, count.
-- Every 30 s POST `{ api_key, counts: [{ zone_id, count }] }` to `/api/ingest`.
+- POST `{ api_key, counts: [{ zone_id, count }] }` to `/api/ingest` as soon as counts change (held for 2 frames), plus a 15 s heartbeat.
 - No grace period: a person leaves a zone, the spot is free on the next post. `dwell_s` exists as an opt-in knob for seating zones but defaults to 0.
 - No video leaves the camera unit, only counts.
 - Small monitor on the camera unit: shows a QR code + 6-digit pair code during pairing, then a live per-zone count readout once paired.
