@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import random
 import sys
 import threading
@@ -487,7 +488,15 @@ def main(argv: list[str] | None = None) -> int:
             result.append(1)
 
     monitor = Monitor(status)
-    monitor.run(threading.Thread(target=worker, daemon=True))
+    thread = threading.Thread(target=worker, daemon=True)
+    monitor.run(thread)
+    if status.restart.is_set():
+        # The Update button pulled new code. Let the worker release the camera,
+        # then replace this process with a fresh one on the same arguments.
+        # Under systemd this looks like a normal restart.
+        thread.join(timeout=15)
+        log.info("restarting after update")
+        os.execv(sys.executable, [sys.executable] + sys.argv)
     return result[0] if result else 0
 
 

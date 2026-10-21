@@ -48,6 +48,9 @@ class Status:
     # Set by the monitor's "Refresh zones" button. The worker re-fetches the
     # room and its zones right away instead of waiting for zone_refresh_s.
     refresh_zones: threading.Event = field(default_factory=threading.Event)
+    # Set by the monitor's "Update" button once new code has been pulled.
+    # main.py re-executes itself after the monitor closes.
+    restart: threading.Event = field(default_factory=threading.Event)
 
 
 def tile_state(zone_type: str, count: int, capacity: int | None) -> str:

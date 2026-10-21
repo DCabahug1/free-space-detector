@@ -70,6 +70,8 @@ class Monitor:
         self._preview_label: tk.Label | None = None
         self._preview_photo = None
         self._preview_shown = None
+        self._update_button: tk.Button | None = None
+        self._updating = False
 
     # ----- lifecycle -----
 
@@ -109,6 +111,7 @@ class Monitor:
         self._row_widgets = []
         self._footer = None
         self._header = None
+        self._update_button = None
 
     def render(self) -> None:
         s = self.status
@@ -164,6 +167,7 @@ class Monitor:
         self._footer = tk.Label(self.frame, text=s.message, font=("Helvetica", self.fs(14)), fg=MUTED, bg=BG,
                                 wraplength=self.screen_w - 40)
         self._footer.pack(side="bottom", pady=self.pad(20))
+        self.build_update_row(self.pad(8))
 
     def build_pairing_compact(self) -> None:
         """QR on the left, title, pair code and help on the right. For the Pi touchscreen."""
@@ -171,6 +175,7 @@ class Monitor:
         self._footer = tk.Label(self.frame, text=s.message, font=("Helvetica", self.fs(14)), fg=MUTED, bg=BG,
                                 wraplength=self.screen_w - 40)
         self._footer.pack(side="bottom", pady=self.pad(8))
+        self.build_update_row(self.pad(6))
 
         body = tk.Frame(self.frame, bg=BG)
         body.pack(fill="both", expand=True, padx=self.pad(24), pady=self.pad(16))
@@ -217,6 +222,7 @@ class Monitor:
         buttons.pack(side="bottom", pady=(0, self.pad(4)))
         self.touch_button(buttons, "View camera", self.open_preview, self.pad(12))
         self.touch_button(buttons, "Refresh zones", self.refresh_zones, self.pad(12))
+        self._update_button = self.touch_button(buttons, "Update", self.start_update, self.pad(12))
 
         # Shrink rows further when there are more zones than fit at full size.
         header_h = self.fs(32) * 1.6 + self.pad(40)
@@ -264,6 +270,52 @@ class Monitor:
         )
         button.pack(side="left", padx=self.pad(10))
         return button
+
+    def build_update_row(self, pady: int) -> None:
+        """A lone Update button along the bottom, for screens without a button row."""
+        buttons = tk.Frame(self.frame, bg=BG)
+        buttons.pack(side="bottom", pady=(0, self.pad(4)))
+        self._update_button = self.touch_button(buttons, "Update", self.start_update, pady)
+
+    def say(self, text: str) -> None:
+        """Footer text. Call on the tk thread."""
+        self.status.message = text
+        if self._footer:
+            try:
+                self._footer.configure(text=text)
+            except tk.TclError:
+                pass
+
+    def start_update(self) -> None:
+        """Pull the latest code in the background, then restart the unit if
+        anything changed. The worker keeps counting meanwhile."""
+        if self._updating:
+            return
+        self._updating = True
+        if self._update_button:
+            self._update_button.configure(state="disabled", text="Updating")
+        self.say("Checking for updates")
+
+        def work() -> None:
+            from updater import update
+
+            result = update(progress=lambda text: self.root.after(0, self.say, text))
+            self.root.after(0, self.finish_update, result)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def finish_update(self, result) -> None:
+        self._updating = False
+        self.say(result.message)
+        if result.ok and result.updated:
+            self.status.restart.set()
+            self.root.after(1500, self.quit)
+            return
+        if self._update_button:
+            try:
+                self._update_button.configure(state="normal", text="Update")
+            except tk.TclError:
+                pass
 
     def refresh_zones(self) -> None:
         """Ask the worker to re-fetch zones now, after an admin edits them in the web app."""

@@ -15,9 +15,12 @@ the admin zone editor can show a live frame. No video leaves the camera unit.
 - `status.py`: shared state between the loop and the monitor, tile rules.
 - `overlay.py`: draws person boxes and state-colored zones on a frame, for
   the monitor's camera popup.
+- `updater.py`: the monitor's Update button. `git pull`, then pip install if
+  `requirements.txt` changed.
 - `state.py`: `state.json`, the api_key issued at pairing (gitignored).
 - `config.py`: config from env vars, then `config.json`, then demo defaults.
-- `test_zones.py`: offline unit tests (`python3 -m unittest test_zones.py`).
+- `test_zones.py`, `test_updater.py`: offline unit tests
+  (`python3 -m unittest test_zones.py test_updater.py`).
 
 ## Fake mode from a laptop (no camera)
 
@@ -192,6 +195,14 @@ size the admin app draws on.
   rest of the time. With `--fake --frame-file photo.jpg` the popup shows
   that photo with the fake counts, handy for testing the monitor on a laptop.
 
+- The "Update" button (on the live and pairing screens) runs `git pull
+  --ff-only` on the repo, installs packages if `requirements.txt` changed,
+  and restarts the unit with the same arguments, so new code can be picked up
+  from the touchscreen without SSH. Counting keeps running during the pull.
+  "Already up to date" means nothing happened. If the pull fails (no network,
+  or local edits on the Pi that conflict), the footer shows the git error and
+  the unit keeps running the old code. Under systemd the restart is just a
+  process replacement, so the service stays up.
 - Zones are fetched with the anon key, which RLS allows for published rooms.
   An unpublished room returns no zones. Re-fetched every 20 seconds, so zones drawn in the admin app go live fast, and the
   server is asked which room the unit belongs to on the same schedule, so an
