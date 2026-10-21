@@ -110,7 +110,7 @@ Status lines are text only: "Online, 3 s ago", "Offline, 4 min" in state-full. N
 Header: "Spot" text wordmark left. Right: theme toggle (moon in light, sun in dark), account control. Signed out: person outline icon, opens a popup with one item, "Staff sign in". Signed in: moss circle with the user's first initial, opens: "Signed in as {name}", "Admin", "Sign out". No admin link in plain view.
 
 Body, in order:
-1. Headline: `{free} free seats` with the number in state-empty, 44px. Caption: `{rooms} rooms in {buildings} buildings. Updated {ago}`. While realtime is reconnecting the caption turns state-shared: "Reconnecting. Counts from 1 min ago".
+1. Headline: `{free} free seats` ("1 free seat") with the number in state-empty, or state-full when it is 0, 44px. Caption: `{rooms} rooms in {buildings} buildings. Updated {ago}`. While realtime is reconnecting the caption turns state-shared: "Reconnecting. Counts from 1 min ago".
 2. Search input, placeholder "Room or building". Tabs: All, Free now.
 3. Directory grouped by building. Pinned areas sort first, and a building with a pinned area sorts first; both carry a small pin. Then buildings by free seats and areas by free seats. Building heading 20px 600 on the accent background with "{n} free in {m} areas". RoomRows beneath.
 5. Footer privacy line.

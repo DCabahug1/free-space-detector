@@ -91,7 +91,7 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
             ) : (
               <>
                 <h2 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">
-                  <span className="text-state-empty">{free}</span> free seats
+                  <span className={free > 0 ? "text-state-empty" : "text-state-full"}>{free}</span> free {free === 1 ? "seat" : "seats"}
                 </h2>
                 <p className="mt-2 text-[13px] text-muted-foreground">
                   {roomSummary(room.zones, live.countNumbers)}. Updated {relativeTime(heartbeat, live.now)}

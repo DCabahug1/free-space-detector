@@ -95,7 +95,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     <div className="space-y-8">
       <div>
         <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">
-          <span className="text-state-empty">{totalFree}</span> free seats
+          <span className={totalFree > 0 ? "text-state-empty" : "text-state-full"}>{totalFree}</span> free {totalFree === 1 ? "seat" : "seats"}
         </h1>
         <p className={cn("mt-2 text-[13px]", reconnecting ? "text-state-shared" : "text-muted-foreground")}>
           {reconnecting
