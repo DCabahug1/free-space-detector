@@ -109,5 +109,5 @@ Redesign order (follow `docs/DESIGN.md`):
 - UI copy states facts and times only ("Updated 8 s ago", "Camera unit offline, 4 min"). No taglines, no explanations.
 - Status is text and color, never a dot, square or icon beside it.
 - Small, frequent commits. Work on branches named with standard prefixes (`feat/`, `fix/`, `refactor/`, `chore/`, `docs/`), never `claude/`. Merge to `main` often.
-- Commit as the repo owner only (Duane Cabahug, justforai017@gmail.com). No co-author trailers, no model identifiers in commits.
+- Commit as the repo owner only (Duane Cabahug, duanecabahug6@gmail.com). No co-author trailers, no model identifiers in commits.
 - Env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never exposed to the client).
