@@ -172,7 +172,7 @@ class Unit:
 
     def wait_until_paired(self) -> bool:
         """Blocks until the server reports a room. Returns False if stopped."""
-        pair_url = f"{self.cfg.server_url}/admin/camera-units?code={self.state.pair_code}"
+        pair_url = f"{self.cfg.server_url}/admin?code={self.state.pair_code}"
         announced = False
         while not self.status.stop.is_set():
             try:
@@ -183,7 +183,7 @@ class Unit:
                     log.warning("server does not know this api_key, registering again")
                     self.state.clear()
                     self.register()
-                    pair_url = f"{self.cfg.server_url}/admin/camera-units?code={self.state.pair_code}"
+                    pair_url = f"{self.cfg.server_url}/admin?code={self.state.pair_code}"
                     continue
                 log.error("pair status failed: %s", e)
                 data = None

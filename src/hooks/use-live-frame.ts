@@ -10,16 +10,21 @@ export interface LiveFrame {
 
 export const LIVE_FRAME_INTERVAL_MS = 1000;
 
-// Polls the camera unit's latest frame by bumping a cache-busting query
+// Polls a camera unit's latest frame by bumping a cache-busting query
 // string. Stops bumping while frozen so the admin can draw on a still image.
-// Returns null until the first frame loads, so the placeholder shows when
-// the camera unit has never uploaded anything.
-export function useLiveFrame(frame: LiveFrame | null, frozen: boolean) {
+// src stays null until the first frame loads, so a placeholder can show
+// when the camera unit has never uploaded anything.
+export function useLiveFrame(
+  frame: LiveFrame | null,
+  frozen: boolean,
+  intervalMs: number = LIVE_FRAME_INTERVAL_MS
+) {
   const [src, setSrc] = useState<string | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!frame) return;
+    if (!frame || frozen) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -30,30 +35,23 @@ export function useLiveFrame(frame: LiveFrame | null, frozen: boolean) {
         if (cancelled) return;
         setSrc(candidate);
         setAvailable(true);
-        schedule();
+        setLoadedAt(Date.now());
+        timer = setTimeout(load, intervalMs);
       };
       img.onerror = () => {
         if (cancelled) return;
         setAvailable((a) => (a === null ? false : a));
-        schedule();
+        timer = setTimeout(load, intervalMs);
       };
       img.src = candidate;
     }
 
-    function schedule() {
-      timer = setTimeout(load, LIVE_FRAME_INTERVAL_MS);
-    }
-
-    if (frozen) {
-      // Keep whatever is on screen. Resume polling once unfrozen.
-      return;
-    }
     load();
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [frame, frozen]);
+  }, [frame, frozen, intervalMs]);
 
-  return { src, available };
+  return { src, available, loadedAt };
 }

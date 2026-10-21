@@ -63,7 +63,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { CLOSE_RADIUS, ZONE_COLORS, ZoneCanvas, distance } from "./zone-canvas";
-import { type LiveFrame, useLiveFrame } from "./live-frame";
+import { type LiveFrame, useLiveFrame } from "@/hooks/use-live-frame";
 import { useZoneCounts } from "@/hooks/use-zone-counts";
 
 interface ZoneEditorProps {
