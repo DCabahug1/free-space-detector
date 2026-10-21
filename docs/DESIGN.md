@@ -82,8 +82,9 @@ Three custom components:
 - When state changes, flash the bar for 300 ms. No other motion anywhere.
 
 **RoomRow** (map directory)
-- Grid: name, summary caption, free count (mono 20px state colored, "free" caption), and a 4px segmented strip with one segment per zone in its state color.
-- Hairline between rows. The whole row links to the room page.
+- Grid: name, summary caption, free count (mono 20px state colored, "free" caption), a chevron, and a 4px segmented strip with one segment per zone in its state color.
+- The chevron opens the area's spots as ZoneTiles beneath the row, closed by default. The name links to the area page.
+- Hairline between rows. Building headers sit on the accent background.
 
 **StepRail** (admin setup)
 - Number in the margin (mono 12), step title, status caption. Current step gets a 2px primary left rule and bold title. Statuses: Done, In progress, Waiting, Needs attention, Ready.
