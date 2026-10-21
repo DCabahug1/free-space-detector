@@ -10,7 +10,7 @@ export interface PublicSnapshot {
   counts: ZoneCount[];
 }
 
-type UnitRow = { id: string; name: string; room_id: string | null; last_seen: string | null };
+type UnitRow = { id: string; name: string; room_id: string | null; last_seen: string | null; paused: boolean };
 
 export async function loadPublicSnapshot(
   supabase: SupabaseClient,
@@ -45,7 +45,7 @@ export async function loadPublicSnapshot(
       .order("created_at"),
     supabase
       .from("camera_units")
-      .select("id, name, room_id, last_seen")
+      .select("id, name, room_id, last_seen, paused")
       .in("room_id", roomIds),
   ]);
   const zoneList = (zones ?? []) as Zone[];
@@ -67,7 +67,7 @@ export async function loadPublicSnapshot(
     zones: zoneList.filter((z) => z.room_id === r.id),
     units: unitList
       .filter((u) => u.room_id === r.id)
-      .map((u) => ({ id: u.id, name: u.name, last_seen: u.last_seen })),
+      .map((u) => ({ id: u.id, name: u.name, last_seen: u.last_seen, paused: u.paused })),
   }));
   return { rooms: publicRooms, counts: (counts ?? []) as ZoneCount[] };
 }

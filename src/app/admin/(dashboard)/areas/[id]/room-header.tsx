@@ -49,7 +49,9 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
   const offline = unit ? isOffline(unit.last_seen, now) : false;
   const unitStatus = !unit
     ? "No camera unit paired"
-    : offline
+    : unit.paused
+      ? `${unit.name}, sharing paused`
+      : offline
       ? `${unit.name} offline, ${unit.last_seen ? durationText(unit.last_seen, now) : "never seen"}`
       : `${unit.name} online, ${durationText(unit.last_seen, now)} ago`;
 
@@ -127,7 +129,7 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
         </div>
         <p className="mt-1 text-[13px] text-muted-foreground">
           {room.description ? `${room.description}. ` : ""}
-          <span className={cn(offline && "text-state-full")}>{unitStatus}</span>
+          <span className={cn(unit?.paused ? "text-state-shared" : offline && "text-state-full")}>{unitStatus}</span>
         </p>
       </div>
       <div className="flex items-center gap-3">

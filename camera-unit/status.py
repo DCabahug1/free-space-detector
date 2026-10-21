@@ -61,6 +61,9 @@ class Status:
     # on the monitor's Settings screen: the unit keeps counting for its own
     # screen and posts nothing, so the area reads offline after a minute.
     sharing: threading.Event = field(default_factory=lambda: _set_event())
+    # Set by the monitor when sharing is toggled, so the worker reports the
+    # new flag to the server at once instead of on the next zone refresh.
+    resync: threading.Event = field(default_factory=threading.Event)
     # Camera preview popup on the monitor. The monitor sets preview_open while
     # the popup is up, and the worker renders the latest frame with boxes and
     # zones into preview only then, so the Pi does no extra work otherwise.

@@ -78,7 +78,7 @@ Three custom components:
 - Top: zone name, 12px muted. Middle: count in mono, state colored. Bottom: state word, 14px 600 ink.
 - A 6px solid bar along the bottom edge in the state color. This bar and the numeral are what change state.
 - Count text: seating `{count}/{capacity}`, open `{count}`.
-- State words: Empty, Shared, Full, Some people, Busy. Unknown tile when the camera unit is offline: count in state-unknown, word "Unknown, 4 min", bar state-unknown. Never falsely reassuring.
+- State words: Empty, Shared, Full, Some people, Busy. Unknown tile when the camera unit is offline: count in state-unknown, word "Unknown, 4 min", bar state-unknown. Paused tile when the camera unit paused sharing: same look, word "Paused". Never falsely reassuring.
 - When state changes, flash the bar for 300 ms. No other motion anywhere.
 
 **RoomRow** (map directory)

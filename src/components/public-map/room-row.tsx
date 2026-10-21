@@ -15,6 +15,8 @@ interface RoomRowProps {
   counts: Record<string, number | undefined>;
   // "4 min" while the camera unit is offline, otherwise null.
   offlineFor: string | null;
+  // The camera unit paused sharing.
+  paused?: boolean;
   pinned?: boolean;
   className?: string;
 }
@@ -23,11 +25,12 @@ interface RoomRowProps {
 // one segment per zone in its state color, and a chevron that opens the
 // area's spots as tiles beneath the row. Closed by default. The name links
 // to the area page. Hairlines come from the parent (divide-y).
-export function RoomRow({ room, counts, offlineFor, pinned, className }: RoomRowProps) {
+export function RoomRow({ room, counts, offlineFor, paused, pinned, className }: RoomRowProps) {
   const [open, setOpen] = useState(false);
   const offline = offlineFor != null;
+  const unknown = paused || offline;
   const free = freeSeats(room.zones, counts);
-  const freeColor = offline
+  const freeColor = unknown
     ? "var(--state-unknown)"
     : free > 0
       ? "var(--state-empty)"
@@ -42,15 +45,26 @@ export function RoomRow({ room, counts, offlineFor, pinned, className }: RoomRow
             <span className="truncate">{room.name}</span>
             {pinned ? <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned" /> : null}
           </div>
-          <div className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
-            {offline ? `Camera unit offline, ${offlineFor}` : roomSummary(room.zones, counts)}
+          <div
+            className={cn(
+              "text-[13px]",
+              paused ? "text-state-shared" : offline ? "text-state-full" : "text-muted-foreground"
+            )}
+          >
+            {paused
+              ? "Sharing paused"
+              : offline
+                ? `Camera unit offline, ${offlineFor}`
+                : roomSummary(room.zones, counts)}
           </div>
         </Link>
         <div className="flex items-baseline gap-1">
           <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
-            {offline ? "?" : free}
+            {unknown ? "?" : free}
           </span>
-          <span className="text-[13px] text-muted-foreground">{offline ? "unknown" : "free"}</span>
+          <span className="text-[13px] text-muted-foreground">
+            {paused ? "paused" : offline ? "unknown" : "free"}
+          </span>
         </div>
         <Button
           variant="ghost"
@@ -70,7 +84,7 @@ export function RoomRow({ room, counts, offlineFor, pinned, className }: RoomRow
               key={z.id}
               className="flex-1"
               style={{
-                backgroundColor: offline
+                backgroundColor: unknown
                   ? "var(--state-unknown)"
                   : stateColor(tileState(z.type, counts[z.id] ?? 0, z.capacity)),
               }}
@@ -81,7 +95,7 @@ export function RoomRow({ room, counts, offlineFor, pinned, className }: RoomRow
       {open && hasZones ? (
         <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
           {room.zones.map((zone) => (
-            <ZoneTile key={zone.id} zone={zone} count={counts[zone.id]} offlineFor={offlineFor} />
+            <ZoneTile key={zone.id} zone={zone} count={counts[zone.id]} offlineFor={offlineFor} paused={paused} />
           ))}
         </div>
       ) : null}

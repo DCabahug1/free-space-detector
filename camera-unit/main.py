@@ -227,7 +227,7 @@ class Unit:
             return
         self.last_status_check = time.time()
         try:
-            data = pair_status(self.cfg.server_url, self.api_key)
+            data = pair_status(self.cfg.server_url, self.api_key, sharing=self.status.sharing.is_set())
         except Exception as e:  # noqa: BLE001
             log.warning("room re-check failed: %s", e)
             return
@@ -244,6 +244,10 @@ class Unit:
         button skips the zone_refresh_s wait for both the room and its zones."""
         force = self.status.refresh_zones.is_set()
         self.status.refresh_zones.clear()
+        # Pause or Resume sharing: tell the server right away.
+        if self.status.resync.is_set():
+            self.status.resync.clear()
+            self.recheck_room(True)
         self.recheck_room(force)
         zones = self.cache.get(force)
         if force:

@@ -4,6 +4,7 @@ export interface UnitHeartbeat {
   id: string;
   name: string;
   last_seen: string | null;
+  paused: boolean;
 }
 
 export interface AdminRoom extends Room {

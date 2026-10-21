@@ -49,7 +49,7 @@ export interface PublicRoom extends Room {
   building: Building;
   zones: Zone[];
   // Camera units assigned to this room, heartbeat only.
-  units: { id: string; name: string; last_seen: string | null }[];
+  units: { id: string; name: string; last_seen: string | null; paused: boolean }[];
 }
 
 export function roomTitle(room: { name: string; building: { name: string } }) {

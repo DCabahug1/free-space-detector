@@ -25,7 +25,8 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
   const { isPinned, toggle } = usePins();
   const pinned = isPinned(room.id);
   const heartbeat = live.heartbeat(room);
-  const offline = room.zones.length > 0 && live.roomOffline(room);
+  const paused = room.zones.length > 0 && live.roomPaused(room);
+  const offline = !paused && room.zones.length > 0 && live.roomOffline(room);
   const offlineFor = offline ? durationText(heartbeat, live.now) || "never" : null;
   const free = freeSeats(room.zones, live.countNumbers);
 
@@ -77,7 +78,16 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
       ) : (
         <>
           <div>
-            {offline ? (
+            {paused ? (
+              <>
+                <h2 className="text-[44px] font-semibold leading-none tracking-[-0.02em] text-state-shared">
+                  Sharing paused
+                </h2>
+                <p className="mt-2 text-[13px] text-muted-foreground">
+                  Staff paused the camera unit. Counts come back when it resumes.
+                </p>
+              </>
+            ) : offline ? (
               <>
                 <h2 className="text-[44px] font-semibold leading-none tracking-[-0.02em] text-state-full">
                   Camera unit offline
@@ -113,6 +123,7 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
                 zone={zone}
                 count={live.countNumbers[zone.id]}
                 offlineFor={offlineFor}
+                paused={paused}
                 size={embedded ? "sm" : "md"}
               />
             ))}

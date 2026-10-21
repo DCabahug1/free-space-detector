@@ -473,6 +473,7 @@ class Monitor:
         else:
             s.sharing.set()
             text = "Pause sharing"
+        s.resync.set()
         if self._sharing_button is not None:
             try:
                 self._sharing_button.configure(text=text)

@@ -100,7 +100,7 @@ function DeviceCard({
   const [pending, startTransition] = useTransition();
   const offline = isOffline(unit.last_seen, now);
   const frame = useLiveFrame(
-    offline ? null : { url: unit.frameUrl, unitName: unit.name, lastSeen: unit.last_seen },
+    offline || unit.paused ? null : { url: unit.frameUrl, unitName: unit.name, lastSeen: unit.last_seen },
     false,
     THUMB_INTERVAL_MS
   );
@@ -150,7 +150,11 @@ function DeviceCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={frame.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : null}
-        {offline ? (
+        {unit.paused ? (
+          <span className="absolute inset-0 flex items-center justify-center text-[13px] text-muted-foreground">
+            No frame, sharing paused
+          </span>
+        ) : offline ? (
           <span className="absolute inset-0 flex items-center justify-center text-[13px] text-muted-foreground">
             No frame, offline
           </span>
@@ -170,8 +174,15 @@ function DeviceCard({
           <div className="truncate text-[13px] text-muted-foreground">
             {unit.room ? `${unit.room.building.name}, ${unit.room.name}` : "Not paired to an area"}
           </div>
-          <div className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
-            {offline
+          <div
+            className={cn(
+              "text-[13px]",
+              unit.paused ? "text-state-shared" : offline ? "text-state-full" : "text-muted-foreground"
+            )}
+          >
+            {unit.paused
+              ? "Sharing paused"
+              : offline
               ? unit.last_seen
                 ? `Offline, ${durationText(unit.last_seen, now)}`
                 : "Offline, never seen"

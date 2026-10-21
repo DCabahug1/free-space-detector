@@ -21,6 +21,8 @@ export interface LiveSnapshot {
   // room's zone_counts.updated_at, whichever is newer.
   heartbeat: (room: PublicRoom) => string | null;
   roomOffline: (room: PublicRoom) => boolean;
+  // Every camera unit in the room has paused sharing.
+  roomPaused: (room: PublicRoom) => boolean;
   latestUpdate: string | null;
   connection: Connection;
   now: number;
@@ -32,6 +34,9 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
   );
   const [lastSeen, setLastSeen] = useState<Record<string, string | null>>(() =>
     Object.fromEntries(rooms.flatMap((r) => r.units.map((u) => [u.id, u.last_seen])))
+  );
+  const [paused, setPaused] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(rooms.flatMap((r) => r.units.map((u) => [u.id, u.paused])))
   );
   const now = useClock();
   const [connection, setConnection] = useState<Connection>("connecting");
@@ -87,10 +92,14 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
         }
       }
       if (unitIds.length > 0) {
-        const { data } = await supabase.from("camera_units").select("id, last_seen").in("id", unitIds);
+        const { data } = await supabase
+          .from("camera_units")
+          .select("id, last_seen, paused")
+          .in("id", unitIds);
         if (data) {
-          const rows = data as { id: string; last_seen: string | null }[];
+          const rows = data as { id: string; last_seen: string | null; paused: boolean }[];
           setLastSeen((prev) => ({ ...prev, ...Object.fromEntries(rows.map((u) => [u.id, u.last_seen])) }));
+          setPaused((prev) => ({ ...prev, ...Object.fromEntries(rows.map((u) => [u.id, u.paused])) }));
         }
       }
     }
@@ -128,6 +137,7 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
     countNumbers,
     heartbeat,
     roomOffline: (room) => isOffline(heartbeat(room), now),
+    roomPaused: (room) => room.units.length > 0 && room.units.every((u) => paused[u.id] ?? u.paused),
     latestUpdate,
     connection,
     now,

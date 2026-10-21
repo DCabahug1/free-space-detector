@@ -51,6 +51,7 @@ def register(server_url: str) -> dict:
     return _post_json(f"{server_url}/api/pair/register", {})
 
 
-def pair_status(server_url: str, api_key: str) -> dict:
-    """Returns paired (bool) plus room_id and room_name once an admin assigned a room."""
-    return _post_json(f"{server_url}/api/pair/status", {"api_key": api_key})
+def pair_status(server_url: str, api_key: str, sharing: bool = True) -> dict:
+    """Returns paired (bool) plus room_id, room_name and building_name once an
+    admin assigned an area. sharing=False tells the server the unit paused."""
+    return _post_json(f"{server_url}/api/pair/status", {"api_key": api_key, "sharing": sharing})

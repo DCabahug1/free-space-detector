@@ -6,7 +6,8 @@ import { findUnitByApiKey } from "@/lib/camera-units";
 // Camera units poll this with their api_key until an admin assigns a room.
 // Also used after pairing to learn the current room (admins can reassign).
 
-const bodySchema = z.object({ api_key: z.string().min(1) });
+// sharing is optional: the camera unit sends false while Pause sharing is on.
+const bodySchema = z.object({ api_key: z.string().min(1), sharing: z.boolean().optional() });
 
 export async function POST(req: Request) {
   let json: unknown;
@@ -26,8 +27,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown api_key" }, { status: 401 });
   }
 
-  // Not a heartbeat on purpose: only count posts and frames bump last_seen,
-  // so a unit that paused sharing reads offline on the map.
+  // Not a heartbeat on purpose: only count posts and frames bump last_seen.
+  // The sharing flag lands in camera_units.paused so the map can say Paused.
+  if (parsed.data.sharing !== undefined) {
+    await supabase
+      .from("camera_units")
+      .update({ paused: !parsed.data.sharing })
+      .eq("id", unit.id)
+      .neq("paused", !parsed.data.sharing);
+  }
 
   if (!unit.room_id) {
     return NextResponse.json({ ok: true, paired: false, unit_id: unit.id, name: unit.name });

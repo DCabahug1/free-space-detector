@@ -63,6 +63,9 @@ function UnitStatus({ units, now }: { units: UnitHeartbeat[]; now: number }) {
   if (units.length === 0) return <span className="text-state-shared">Not paired</span>;
   const unit = [...units].sort((a, b) => (b.last_seen ?? "").localeCompare(a.last_seen ?? ""))[0];
   const offline = isOffline(unit.last_seen, now);
+  if (unit.paused) {
+    return <span className="text-state-shared">{unit.name}, sharing paused</span>;
+  }
   return (
     <span className={cn(offline ? "text-state-full" : "text-muted-foreground")}>
       {unit.name},{" "}

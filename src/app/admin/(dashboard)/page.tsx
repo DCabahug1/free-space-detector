@@ -34,7 +34,7 @@ type RoomRow = {
   published: boolean;
   buildings: Building | Building[] | null;
   zones: { count: number }[];
-  camera_units: { id: string; name: string; last_seen: string | null }[];
+  camera_units: { id: string; name: string; last_seen: string | null; paused: boolean }[];
 };
 
 type UnitRow = {
@@ -43,6 +43,7 @@ type UnitRow = {
   pair_code: string | null;
   room_id: string | null;
   last_seen: string | null;
+  paused: boolean;
   rooms: { id: string; name: string; buildings: { name: string } | { name: string }[] | null } | null;
 };
 
@@ -61,12 +62,12 @@ async function Overview({ searchParams }: OverviewProps) {
     supabase
       .from("rooms")
       .select(
-        "id, building_id, name, slug, description, published, buildings(id, name, slug), zones(count), camera_units(id, name, last_seen)"
+        "id, building_id, name, slug, description, published, buildings(id, name, slug), zones(count), camera_units(id, name, last_seen, paused)"
       )
       .order("name"),
     supabase
       .from("camera_units")
-      .select("id, name, pair_code, room_id, last_seen, rooms(id, name, buildings(name))")
+      .select("id, name, pair_code, room_id, last_seen, paused, rooms(id, name, buildings(name))")
       .order("created_at"),
     supabase.from("buildings").select("id, name, slug").order("name"),
   ]);
@@ -102,6 +103,7 @@ async function Overview({ searchParams }: OverviewProps) {
       pair_code: u.pair_code,
       room_id: u.room_id,
       last_seen: u.last_seen,
+      paused: u.paused,
       room: room && building ? { id: room.id, name: room.name, building } : null,
     };
   });
