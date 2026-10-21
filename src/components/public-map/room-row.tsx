@@ -28,7 +28,7 @@ export function RoomRow({ room, counts, offlineFor, className }: RoomRowProps) {
     <Link
       href={roomPath(room)}
       className={cn(
-        "grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 py-3 hover:bg-card",
+        "grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-3 hover:bg-card",
         className
       )}
     >
