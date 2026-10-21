@@ -261,3 +261,13 @@ export async function renameCameraUnit(
   revalidatePath("/admin/camera-units");
   return {};
 }
+
+// Removes a camera unit's record. The physical unit re-registers itself with
+// a fresh pair code the next time its script starts.
+export async function deleteCameraUnit(unitId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("camera_units").delete().eq("id", unitId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/camera-units");
+  return {};
+}
