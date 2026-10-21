@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicRoom } from "@/lib/types";
 import { roomPath } from "@/lib/types";
@@ -15,6 +15,7 @@ interface RoomRowProps {
   counts: Record<string, number | undefined>;
   // "4 min" while the camera unit is offline, otherwise null.
   offlineFor: string | null;
+  pinned?: boolean;
   className?: string;
 }
 
@@ -22,7 +23,7 @@ interface RoomRowProps {
 // one segment per zone in its state color, and a chevron that opens the
 // area's spots as tiles beneath the row. Closed by default. The name links
 // to the area page. Hairlines come from the parent (divide-y).
-export function RoomRow({ room, counts, offlineFor, className }: RoomRowProps) {
+export function RoomRow({ room, counts, offlineFor, pinned, className }: RoomRowProps) {
   const [open, setOpen] = useState(false);
   const offline = offlineFor != null;
   const free = freeSeats(room.zones, counts);
@@ -37,7 +38,10 @@ export function RoomRow({ room, counts, offlineFor, className }: RoomRowProps) {
     <div className={cn("px-4 py-3", className)}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3">
         <Link href={roomPath(room)} className="min-w-0 hover:underline">
-          <div className="truncate text-[15px] font-medium">{room.name}</div>
+          <div className="flex items-center gap-2 text-[15px] font-medium">
+            <span className="truncate">{room.name}</span>
+            {pinned ? <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned" /> : null}
+          </div>
           <div className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
             {offline ? `Camera unit offline, ${offlineFor}` : roomSummary(room.zones, counts)}
           </div>

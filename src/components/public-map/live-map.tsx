@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Pin } from "lucide-react";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
-import { roomPath, roomTitle } from "@/lib/types";
-import { durationText, freeSeats, relativeTime, roomSummary } from "@/lib/occupancy";
+import { roomTitle } from "@/lib/types";
+import { durationText, freeSeats, relativeTime } from "@/lib/occupancy";
 import { usePins } from "@/lib/pins";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { RoomRow } from "./room-row";
-import { ZoneTile } from "./zone-tile";
 
 interface LiveMapProps {
   rooms: PublicRoom[];
@@ -27,7 +26,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [filter, setFilter] = useState<Filter>("all");
   const live = useLiveSnapshot(rooms, initialCounts);
-  const { pins, isPinned } = usePins();
+  const { isPinned } = usePins();
 
   // Per room: free seats and whether its camera unit is offline.
   const stats = new Map<string, { free: number; offlineFor: string | null }>();
@@ -53,11 +52,8 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     );
   });
 
-  const pinned = pins
-    .map((id) => visible.find((r) => r.id === id))
-    .filter((r): r is PublicRoom => Boolean(r));
-
-  // Directory: buildings by free seats, rooms by free seats.
+  // Directory: pinned areas first, then by free seats. A building with a
+  // pinned area comes first too.
   const groups = (() => {
     const byBuilding = new Map<string, { building: PublicRoom["building"]; rooms: PublicRoom[] }>();
     for (const room of visible) {
@@ -66,13 +62,22 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       byBuilding.set(room.building_id, g);
     }
     const freeOf = (r: PublicRoom) => stats.get(r.id)?.free ?? 0;
+    const pinOf = (r: PublicRoom) => (isPinned(r.id) ? 1 : 0);
     return [...byBuilding.values()]
       .map((g) => ({
         ...g,
-        rooms: [...g.rooms].sort((a, b) => freeOf(b) - freeOf(a) || a.name.localeCompare(b.name)),
+        rooms: [...g.rooms].sort(
+          (a, b) => pinOf(b) - pinOf(a) || freeOf(b) - freeOf(a) || a.name.localeCompare(b.name)
+        ),
         free: g.rooms.reduce((sum, r) => sum + freeOf(r), 0),
+        pinned: g.rooms.some((r) => isPinned(r.id)),
       }))
-      .sort((a, b) => b.free - a.free || a.building.name.localeCompare(b.building.name));
+      .sort(
+        (a, b) =>
+          Number(b.pinned) - Number(a.pinned) ||
+          b.free - a.free ||
+          a.building.name.localeCompare(b.building.name)
+      );
   })();
 
   if (rooms.length === 0) {
@@ -131,72 +136,15 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
         </div>
       ) : null}
 
-      {pinned.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Pinned
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            {pinned.map((room) => {
-              const s = stats.get(room.id)!;
-              return (
-                <div key={room.id} className="space-y-3">
-                  <div className="flex items-end justify-between gap-4">
-                    <div className="min-w-0">
-                      <Link href={roomPath(room)} className="block truncate text-[15px] font-medium hover:underline">
-                        {roomTitle(room)}
-                      </Link>
-                      <p className={cn("text-[13px]", s.offlineFor ? "text-state-full" : "text-muted-foreground")}>
-                        {s.offlineFor
-                          ? `Camera unit offline, ${s.offlineFor}`
-                          : roomSummary(room.zones, live.countNumbers)}
-                      </p>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span
-                        className="font-mono text-xl font-bold tabular-nums"
-                        style={{
-                          color: s.offlineFor
-                            ? "var(--state-unknown)"
-                            : s.free > 0
-                              ? "var(--state-empty)"
-                              : "var(--state-full)",
-                        }}
-                      >
-                        {s.offlineFor ? "?" : s.free}
-                      </span>
-                      <span className="text-[13px] text-muted-foreground">
-                        {s.offlineFor ? "unknown" : "free"}
-                      </span>
-                    </div>
-                  </div>
-                  {room.zones.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No zones yet</p>
-                  ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
-                      {room.zones.map((zone) => (
-                        <ZoneTile
-                          key={zone.id}
-                          zone={zone}
-                          count={live.countNumbers[zone.id]}
-                          offlineFor={s.offlineFor}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
       {groups.length > 0 ? (
         <section className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((g) => (
             <div key={g.building.id}>
               <div className="bg-accent px-4 py-3">
-                <h2 className="text-xl font-semibold">{g.building.name}</h2>
+                <h2 className="flex items-center gap-2 text-xl font-semibold">
+                  {g.building.name}
+                  {g.pinned ? <Pin className="size-4 text-muted-foreground" aria-label="Pinned" /> : null}
+                </h2>
                 <p className="text-[13px] text-muted-foreground">
                   {g.free} free in {g.rooms.length} {g.rooms.length === 1 ? "area" : "areas"}
                 </p>
@@ -208,7 +156,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                     room={room}
                     counts={live.countNumbers}
                     offlineFor={stats.get(room.id)?.offlineFor ?? null}
-                    className={isPinned(room.id) ? "" : undefined}
+                    pinned={isPinned(room.id)}
                   />
                 ))}
               </div>

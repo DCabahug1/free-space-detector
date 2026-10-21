@@ -112,13 +112,12 @@ Header: "Spot" text wordmark left. Right: theme toggle (moon in light, sun in da
 Body, in order:
 1. Headline: `{free} free seats` with the number in state-empty, 44px. Caption: `{rooms} rooms in {buildings} buildings. Updated {ago}`. While realtime is reconnecting the caption turns state-shared: "Reconnecting. Counts from 1 min ago".
 2. Search input, placeholder "Room or building". Tabs: All, Free now.
-3. "Pinned" section: pinned rooms with full ZoneTile grids (auto-fill, min 150px). Title "{building}, {room}", caption summary, free count on the right.
-4. Directory grouped by building, buildings sorted by free seats, then rooms by free seats. Building heading 20px 600 with "{n} free in {m} rooms". RoomRows beneath.
+3. Directory grouped by building. Pinned areas sort first, and a building with a pinned area sorts first; both carry a small pin. Then buildings by free seats and areas by free seats. Building heading 20px 600 on the accent background with "{n} free in {m} areas". RoomRows beneath.
 5. Footer privacy line.
 
 States: loading (skeletons), no rooms published ("No rooms yet" / "Rooms appear here once staff publish them."), no search results (`No rooms or buildings match "{q}".` + Clear search), stale (reconnecting caption, offline rooms show "Camera unit offline, 4 min" and "?" with "unknown").
 
-Laptop: container max 1120, pinned rooms in a 2 column grid, directory in 2 to 3 columns.
+Laptop: container max 1120, directory in 2 to 3 columns.
 
 ### `/areas/[building]/[area]` area page
 
