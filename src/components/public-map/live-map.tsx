@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
-import { durationText, freeSeats, relativeTime } from "@/lib/occupancy";
+import { durationText, freeSeats } from "@/lib/occupancy";
 import { usePins } from "@/lib/pins";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
 import { Button } from "@/components/ui/button";
@@ -37,9 +37,6 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       offlineFor: offline ? durationText(live.heartbeat(room), live.now) || "never" : null,
     });
   }
-
-  const totalFree = rooms.reduce((sum, r) => sum + (stats.get(r.id)?.free ?? 0), 0);
-  const buildingCount = new Set(rooms.map((r) => r.building_id)).size;
 
   const q = query.trim().toLowerCase();
   const visible = rooms.filter((room) => {
@@ -95,15 +92,11 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">
-          <span className={totalFree > 0 ? "text-state-empty" : "text-state-full"}>{totalFree}</span> free {totalFree === 1 ? "seat" : "seats"}
-        </h1>
+        <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">Find a free spot</h1>
         <p className={cn("mt-2 text-[13px]", reconnecting ? "text-state-shared" : "text-muted-foreground")}>
           {reconnecting
             ? `Reconnecting. Counts from ${durationText(live.latestUpdate, live.now) || "never"} ago`
-            : `${rooms.length} ${rooms.length === 1 ? "area" : "areas"} in ${buildingCount} ${
-                buildingCount === 1 ? "building" : "buildings"
-              }. Updated ${relativeTime(live.latestUpdate, live.now)}`}
+            : "Camera units count people in each area and update this map live. Counts only, no video."}
         </p>
       </div>
 
