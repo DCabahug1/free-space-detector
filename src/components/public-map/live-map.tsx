@@ -147,7 +147,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                   <PinButton
                     pinned={g.pinned}
                     name={g.building.name}
-                    onClick={() => toggleBuilding(g.building.id)}
+                    onClick={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id))}
                     className="hover:bg-background dark:hover:bg-background"
                   />
                 </h2>
@@ -163,7 +163,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                     counts={live.countNumbers}
                     offlineFor={stats.get(room.id)?.offlineFor ?? null}
                     pinned={isPinned(room.id)}
-                    onTogglePin={() => toggle(room.id)}
+                    onTogglePin={() => toggle(room.id, room.building_id)}
                   />
                 ))}
               </div>

@@ -57,7 +57,7 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
         {room.description ? <p className="mt-1 text-muted-foreground">{room.description}</p> : null}
         {!embedded ? (
           <div className="mt-4 flex gap-2">
-            <Button variant="outline" onClick={() => toggle(room.id)} aria-pressed={pinned}>
+            <Button variant="outline" onClick={() => toggle(room.id, room.building_id)} aria-pressed={pinned}>
               <Pin
                 className={cn(pinned && "text-state-empty")}
                 fill={pinned ? "currentColor" : "none"}

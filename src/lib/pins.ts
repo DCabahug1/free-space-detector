@@ -51,17 +51,39 @@ function subscribe(onChange: () => void) {
   };
 }
 
-function toggleIn(key: string, id: string) {
+function add(key: string, ids: string[]) {
   const current = read(key);
-  write(key, current.includes(id) ? current.filter((x) => x !== id) : [...current, id]);
+  const missing = ids.filter((id) => !current.includes(id));
+  if (missing.length) write(key, [...current, ...missing]);
+}
+
+function remove(key: string, ids: string[]) {
+  const current = read(key);
+  if (ids.some((id) => current.includes(id))) write(key, current.filter((id) => !ids.includes(id)));
 }
 
 export function usePins() {
   const pins = useSyncExternalStore(subscribe, () => read(AREA_KEY), () => EMPTY);
   const buildingPins = useSyncExternalStore(subscribe, () => read(BUILDING_KEY), () => EMPTY);
 
-  const toggle = useCallback((roomId: string) => toggleIn(AREA_KEY, roomId), []);
-  const toggleBuilding = useCallback((buildingId: string) => toggleIn(BUILDING_KEY, buildingId), []);
+  // A pinned area keeps its building pinned. Unpinning a building unpins
+  // its areas, so the rule always holds.
+  const toggle = useCallback((roomId: string, buildingId: string) => {
+    if (read(AREA_KEY).includes(roomId)) {
+      remove(AREA_KEY, [roomId]);
+    } else {
+      add(AREA_KEY, [roomId]);
+      add(BUILDING_KEY, [buildingId]);
+    }
+  }, []);
+  const toggleBuilding = useCallback((buildingId: string, roomIds: string[]) => {
+    if (read(BUILDING_KEY).includes(buildingId)) {
+      remove(BUILDING_KEY, [buildingId]);
+      remove(AREA_KEY, roomIds);
+    } else {
+      add(BUILDING_KEY, [buildingId]);
+    }
+  }, []);
 
   return {
     pins,
