@@ -96,7 +96,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
         <p className={cn("mt-2 text-[13px]", reconnecting ? "text-state-shared" : "text-muted-foreground")}>
           {reconnecting
             ? `Reconnecting. Counts from ${durationText(live.latestUpdate, live.now) || "never"} ago`
-            : "Camera units count people in each area and update this map live. Counts only, no video."}
+            : "Live seat availability across campus."}
         </p>
       </div>
 

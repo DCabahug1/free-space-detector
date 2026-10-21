@@ -109,7 +109,7 @@ Status lines are text only: "Online, 3 s ago", "Offline, 4 min" in state-full. N
 Header: "Spot" text wordmark left. Right: theme toggle (moon in light, sun in dark), account control. Signed out: person outline icon, opens a popup with one item, "Staff sign in". Signed in: moss circle with the user's first initial, opens: "Signed in as {name}", "Admin", "Sign out". No admin link in plain view.
 
 Body, in order:
-1. Headline: "Find a free spot", 44px. Caption: "Camera units count people in each area and update this map live. Counts only, no video." While realtime is reconnecting the caption turns state-shared: "Reconnecting. Counts from 1 min ago". The old `{free} free seats` total is retired here; per-building and per-area counts stay in the directory.
+1. Headline: "Find a free spot", 44px. Caption: "Live seat availability across campus." While realtime is reconnecting the caption turns state-shared: "Reconnecting. Counts from 1 min ago". The old `{free} free seats` total is retired here; per-building and per-area counts stay in the directory.
 2. Search input, placeholder "Room or building". Tabs: All, Free now.
 3. Directory grouped by building. Buildings and areas can both be pinned, each with a pin toggle beside the name (filled in state-empty when on). Pinning an area pins its building; unpinning a building unpins its areas. A pinned building sorts first, then a building with a pinned area; pinned areas sort first within a building. Then buildings by free seats and areas by free seats. Building heading 20px 600 on the accent background with "{n} free in {m} areas". RoomRows beneath.
 
