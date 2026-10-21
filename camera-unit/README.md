@@ -15,7 +15,7 @@ the admin zone editor can show a live frame. No video leaves the camera unit.
 - `status.py`: shared state between the loop and the monitor, tile rules.
 - `overlay.py`: draws person boxes and state-colored zones on a frame, for
   the monitor's camera popup.
-- `updater.py`: the monitor's Update button. `git pull`, then pip install if
+- `updater.py`: Check for updates on the monitor's Settings screen. `git pull`, then pip install if
   `requirements.txt` changed.
 - `state.py`: `state.json`, the api_key issued at pairing (gitignored).
 - `config.py`: config from env vars, then `config.json`, then demo defaults.
@@ -198,7 +198,10 @@ size the admin app draws on.
   rest of the time. With `--fake --frame-file photo.jpg` the popup shows
   that photo with the fake counts, handy for testing the monitor on a laptop.
 
-- The "Update" button (on the live and pairing screens) runs `git pull
+- The Settings button (on the live and pairing screens) opens Check for
+  updates, Refresh zones, Reboot and Turn off. Reboot and Turn off ask first,
+  then run `systemctl reboot` or `systemctl poweroff` (`sudo -n` as the
+  fallback). Check for updates runs `git pull
   --ff-only` on the repo, installs packages if `requirements.txt` changed,
   and restarts the unit with the same arguments, so new code can be picked up
   from the touchscreen without SSH. Counting keeps running during the pull.

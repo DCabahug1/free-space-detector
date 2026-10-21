@@ -430,6 +430,18 @@ class Unit:
 # ---------------------------------------------------------------------------
 
 
+def current_version() -> str:
+    """Short git hash of the checkout, or "" when git is unavailable."""
+    import subprocess
+
+    try:
+        out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).resolve().parent,
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Camera unit: counts people per zone and posts to the web app.")
     p.add_argument("--fake", action="store_true", help="post made up counts, no camera or model needed")
@@ -462,6 +474,8 @@ def main(argv: list[str] | None = None) -> int:
         cfg.confirm_s = max(0.0, args.confirm)
     log.info("server %s, confirm hold %.1fs", cfg.server_url, cfg.confirm_s)
     status = Status()
+    status.server_url = cfg.server_url
+    status.version = current_version()
     unit = Unit(cfg, args, status)
 
     if not args.monitor:

@@ -45,6 +45,8 @@ class Status:
     pair_code: str = ""
     pair_url: str = ""
     unit_name: str = ""
+    server_url: str = ""
+    version: str = ""  # short git hash of the running code
     building_name: str = ""
     room_name: str = ""
     rows: list[ZoneRow] = field(default_factory=list)

@@ -4,7 +4,8 @@ Fullscreen tkinter window, designed at 800x480 and scaled up to 1280x800:
   starting: "Spot" and a status line while Wi-Fi and the server come up.
   pairing:  a QR code plus the 6-digit pair code, until an admin claims the unit.
   live:     one row per zone (name, count, state), a status line, and the
-            View camera, Refresh zones and Update buttons.
+            View camera, Refresh zones and Settings buttons. Settings holds
+            Check for updates, Reboot and Turn off.
             View camera opens a fullscreen overlay with the live frame, person
             boxes, foot dots, and each zone colored by its state.
 
@@ -21,6 +22,7 @@ import time
 import tkinter as tk
 import tkinter.font as tkfont
 
+import power
 from status import ACCENT, BG, BUTTON_ACTIVE, BUTTON_BG, FG, MUTED, STATE_COLORS, Status, count_text, tile_label, tile_state
 
 log = logging.getLogger("camera-unit.monitor")
@@ -72,6 +74,10 @@ class Monitor:
         self._unit: tk.Label | None = None
         self._buttons: list[tk.Button] = []
         self._update_button: tk.Button | None = None
+        self._settings: tk.Frame | None = None
+        self._settings_buttons: list[tk.Button] = []
+        self._settings_footer: tk.Label | None = None
+        self._confirm: tk.Frame | None = None
         self._preview: tk.Frame | None = None
         self._preview_label: tk.Label | None = None
         self._preview_status: tk.Label | None = None
@@ -191,12 +197,12 @@ class Monitor:
         tk.Label(self.frame, text="Pair this camera unit", font=self.font(28, "bold"), fg=FG, bg=BG,
                  anchor="w").pack(fill="x", padx=pad, pady=(pad, self.px(12)))
 
-        # Footer first so it claims the bottom edge: status left, Update right.
+        # Footer first so it claims the bottom edge: status left, Settings right.
         footer = tk.Frame(self.frame, bg=BG)
         footer.pack(side="bottom", fill="x", padx=pad, pady=(0, self.px(16)))
         buttons = tk.Frame(footer, bg=BG)
         buttons.pack(side="right")
-        self._update_button = self.button(buttons, "Update", self.start_update)
+        self.button(buttons, "Settings", self.open_settings)
         self._footer = tk.Label(footer, text=self.footer_text(), font=self.font(16), fg=MUTED, bg=BG,
                                 anchor="w", justify="left", wraplength=int(self.screen_w * 0.6))
         self._footer.pack(side="left", fill="x", expand=True)
@@ -251,7 +257,7 @@ class Monitor:
         buttons.pack(side="right")
         self.button(buttons, "View camera", self.open_preview)
         self.button(buttons, "Refresh zones", self.refresh_zones)
-        self._update_button = self.button(buttons, "Update", self.start_update)
+        self.button(buttons, "Settings", self.open_settings)
         self._footer = tk.Label(bottom, text="", font=self.font(16), fg=MUTED, bg=BG, anchor="w",
                                 justify="left", wraplength=int(self.screen_w * 0.45))
         self._footer.pack(side="left", fill="x", expand=True)
@@ -306,11 +312,12 @@ class Monitor:
     def say(self, text: str) -> None:
         """Footer text. Call on the tk thread."""
         self.status.message = text
-        if self._footer:
-            try:
-                self._footer.configure(text=text)
-            except tk.TclError:
-                pass
+        for label in (self._footer, self._settings_footer):
+            if label:
+                try:
+                    label.configure(text=text)
+                except tk.TclError:
+                    pass
 
     # ----- actions -----
 
@@ -320,12 +327,13 @@ class Monitor:
         if self._updating:
             return
         self._updating = True
-        for b in self._buttons:
+        for b in self._buttons + self._settings_buttons:
             b.configure(state="disabled")
         if self._update_button:
             self._update_button.configure(text="Updating")
-        if self._footer:
-            self._footer.configure(fg=SHARED)
+        for label in (self._footer, self._settings_footer):
+            if label:
+                label.configure(fg=SHARED)
         self.say("Checking for updates")
 
         def work() -> None:
@@ -344,12 +352,13 @@ class Monitor:
             self.root.after(1500, self.quit)
             return
         try:
-            for b in self._buttons:
+            for b in self._buttons + self._settings_buttons:
                 b.configure(state="normal")
             if self._update_button:
-                self._update_button.configure(text="Update")
-            if self._footer:
-                self._footer.configure(fg=MUTED)
+                self._update_button.configure(text="Check for updates")
+            for label in (self._footer, self._settings_footer):
+                if label:
+                    label.configure(fg=MUTED)
         except tk.TclError:
             pass
         # Keep the result on screen for a moment, then go back to the post status.
@@ -359,6 +368,132 @@ class Monitor:
         """Ask the worker to re-fetch zones now, after an admin edits them in the web app."""
         self.status.refresh_zones.set()
         self.say("Refreshing zones")
+
+
+    # ----- settings screen -----
+
+    def open_settings(self) -> None:
+        """Fullscreen overlay: Check for updates, Refresh zones, Reboot, Turn off."""
+        if self._settings is not None:
+            return
+        pad = self.px(24)
+        top = tk.Frame(self.root, bg=BG)
+        top.place(x=0, y=0, relwidth=1, relheight=1)
+        top.lift()
+        self._settings = top
+        self._settings_buttons = []
+
+        header = tk.Frame(top, bg=BG)
+        header.pack(fill="x", padx=pad, pady=(pad, self.px(8)))
+        tk.Label(header, text="Settings", font=self.font(28, "bold"), fg=FG, bg=BG, anchor="w").pack(side="left")
+        close_row = tk.Frame(header, bg=BG)
+        close_row.pack(side="right")
+        saved = self._buttons
+        self._buttons = self._settings_buttons
+        self.button(close_row, "Close", self.close_settings)
+
+        s = self.status
+        facts = tk.Frame(top, bg=BG)
+        facts.pack(fill="x", padx=pad, pady=(0, self.px(16)))
+        for label, value in (
+            ("Camera unit", s.unit_name or "Not paired"),
+            ("Area", f"{s.building_name}, {s.room_name}" if s.room_name else "Not paired"),
+            ("Server", s.server_url),
+            ("Version", s.version or "unknown"),
+        ):
+            row = tk.Frame(facts, bg=BG)
+            row.pack(fill="x", pady=self.px(2))
+            tk.Label(row, text=label, font=self.font(16), fg=MUTED, bg=BG, anchor="w", width=12).pack(side="left")
+            tk.Label(row, text=value, font=self.font(16), fg=FG, bg=BG, anchor="w").pack(side="left", fill="x", expand=True)
+
+        actions = tk.Frame(top, bg=BG)
+        actions.pack(fill="x", padx=pad)
+        self._update_button = self.button(actions, "Updating" if self._updating else "Check for updates", self.start_update)
+        self.button(actions, "Refresh zones", self.refresh_zones)
+        self.button(actions, "Reboot", lambda: self.confirm("Reboot the camera unit?",
+                                                            "It is back in about a minute.", "Reboot", self.do_reboot))
+        self.button(actions, "Turn off", lambda: self.confirm("Turn off the camera unit?",
+                                                              "Unplug it after the screen goes dark.", "Turn off",
+                                                              self.do_poweroff))
+        self._buttons = saved
+        if self._updating:
+            for b in self._settings_buttons:
+                b.configure(state="disabled")
+
+        self._settings_footer = tk.Label(top, text=self.footer_text(), font=self.font(16),
+                                         fg=SHARED if self._updating else MUTED, bg=BG, anchor="w", justify="left",
+                                         wraplength=self.screen_w - pad * 2)
+        self._settings_footer.pack(side="bottom", fill="x", padx=pad, pady=(0, self.px(16)))
+
+    def close_settings(self) -> None:
+        top, self._settings = self._settings, None
+        self._settings_buttons = []
+        self._settings_footer = None
+        self._update_button = None
+        self._confirm = None
+        if top is not None:
+            try:
+                top.destroy()
+            except tk.TclError:
+                pass
+
+    def confirm(self, question: str, detail: str, action: str, run) -> None:
+        """A prompt over the settings screen: Cancel, or the named action."""
+        if self._settings is None or self._confirm is not None:
+            return
+        pad = self.px(24)
+        box = tk.Frame(self._settings, bg=BUTTON_BG)
+        box.place(relx=0.5, rely=0.5, anchor="center")
+        self._confirm = box
+        inner = tk.Frame(box, bg=BUTTON_BG)
+        inner.pack(padx=pad, pady=pad)
+        tk.Label(inner, text=question, font=self.font(24, "bold"), fg=FG, bg=BUTTON_BG, anchor="w").pack(anchor="w")
+        tk.Label(inner, text=detail, font=self.font(16), fg=MUTED, bg=BUTTON_BG, anchor="w",
+                 wraplength=int(self.screen_w * 0.6)).pack(anchor="w", pady=(self.px(4), self.px(16)))
+        row = tk.Frame(inner, bg=BUTTON_BG)
+        row.pack(anchor="e")
+        saved = self._buttons
+        self._buttons = []
+        self.button(row, "Cancel", self.close_confirm)
+        go = self.button(row, action, lambda: (self.close_confirm(), run()))
+        go.configure(fg=STATE_COLORS["full"], activeforeground=STATE_COLORS["full"], bg=BG, activebackground=BUTTON_ACTIVE)
+        self._buttons = saved
+
+    def close_confirm(self) -> None:
+        box, self._confirm = self._confirm, None
+        if box is not None:
+            try:
+                box.destroy()
+            except tk.TclError:
+                pass
+
+    def do_reboot(self) -> None:
+        self.power("Rebooting", power.reboot)
+
+    def do_poweroff(self) -> None:
+        self.power("Turning off", power.poweroff)
+
+    def power(self, verb: str, run) -> None:
+        for b in self._settings_buttons:
+            b.configure(state="disabled")
+        self.say(verb)
+
+        def work() -> None:
+            error = run()
+            if error is None:
+                self.status.stop.set()
+                return
+            self.root.after(0, self.power_failed, error)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def power_failed(self, error: str) -> None:
+        self.say(f"Could not do that. {error}")
+        for b in self._settings_buttons:
+            try:
+                b.configure(state="normal")
+            except tk.TclError:
+                pass
 
     # ----- camera preview popup -----
 
