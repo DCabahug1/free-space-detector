@@ -79,7 +79,7 @@ A camera unit with no api_key (empty `api_key` in `config.json`, or
 `--pair`) registers itself on first boot, saves the issued key in
 `state.json`, and shows a QR code plus a 6-digit pair code on the monitor.
 An admin scans the QR (it opens the admin app with the code filled in) or
-types the code under Camera units and picks a room. The unit polls every 3
+types the code on the admin overview (or on the room setup page, step 2) and picks a room. The unit polls every 3
 seconds until a room is assigned, then starts counting.
 
 - `--reset-pairing` forgets `state.json` and registers a new camera unit.
