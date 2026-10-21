@@ -1,10 +1,12 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[360px] flex-col justify-center px-4 py-12">
+      <BackLink href="/" label="Back to map" className="mb-6 self-start" />
       <Link href="/" className="text-lg font-semibold">
         Spot
       </Link>

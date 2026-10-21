@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { Pin } from "lucide-react";
 import { toast } from "sonner";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
@@ -47,6 +48,7 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
   return (
     <div className="space-y-8">
       <div>
+        {!embedded ? <BackLink href="/" label="Back to map" className="mb-4" /> : null}
         <Link
           href={`/?q=${encodeURIComponent(room.building.name)}`}
           className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground"

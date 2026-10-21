@@ -13,7 +13,7 @@ interface RoomPageProps {
 export default function PublicRoomPage({ params }: RoomPageProps) {
   return (
     <>
-      <SiteHeader back />
+      <SiteHeader />
       <main className="mx-auto w-full max-w-[1120px] px-4 py-6 md:py-10">
         <Suspense fallback={<RoomSkeleton />}>
           <RoomLoader params={params} />

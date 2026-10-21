@@ -15,6 +15,7 @@ import { RoomView } from "@/components/public-map/room-view";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PairCard } from "../../device-cards";
+import { BackLink } from "@/components/back-link";
 import { RoomHeader } from "./room-header";
 import { ZoneEditor } from "./zone-editor";
 
@@ -60,7 +61,10 @@ export function SetupPage({ room, initialCounts, liveFrame }: SetupPageProps) {
 
   return (
     <div className="space-y-6">
-      <RoomHeader room={room} zoneCount={zones.length} now={live.now} />
+      <div className="space-y-4">
+        <BackLink href="/admin" label="Back to areas" />
+        <RoomHeader room={room} zoneCount={zones.length} now={live.now} />
+      </div>
       <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
         <StepRail steps={steps} current={step} onSelect={setStep} />
         <div className="min-w-0">
