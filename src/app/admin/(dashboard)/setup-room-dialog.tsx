@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createRoom } from "@/app/admin/actions";
@@ -16,9 +16,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
-// Building is free text with the existing names as suggestions. A new name
-// makes a new building.
+// Building is free text with the existing names offered in a dropdown as the
+// admin types. Picking one reuses that building, any other name makes a new one.
 export function SetupRoomDialog({ buildings }: { buildings: Building[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -55,19 +56,7 @@ export function SetupRoomDialog({ buildings }: { buildings: Building[] }) {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="room-building">Building</Label>
-              <Input
-                id="room-building"
-                name="building"
-                list="building-names"
-                placeholder="University Library"
-                required
-                autoFocus
-              />
-              <datalist id="building-names">
-                {buildings.map((b) => (
-                  <option key={b.id} value={b.name} />
-                ))}
-              </datalist>
+              <BuildingInput buildings={buildings} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="room-name">Area</Label>
@@ -91,5 +80,96 @@ export function SetupRoomDialog({ buildings }: { buildings: Building[] }) {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Text input with an in-app suggestion list of existing buildings. Matches
+// anywhere in the name, case-insensitive. Arrow keys move, Enter picks,
+// Escape closes. Submits as the plain "building" field.
+function BuildingInput({ buildings }: { buildings: Building[] }) {
+  const listId = useId();
+  const [value, setValue] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+
+  const q = value.trim().toLowerCase();
+  const matches = q
+    ? buildings.filter((b) => b.name.toLowerCase().includes(q) && b.name !== value)
+    : [];
+  const show = open && matches.length > 0;
+
+  function pick(name: string) {
+    setValue(name);
+    setOpen(false);
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!show) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => (i + 1) % matches.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => (i - 1 + matches.length) % matches.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      pick(matches[active].name);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <Input
+        id="room-building"
+        name="building"
+        placeholder="University Library"
+        required
+        autoFocus
+        autoComplete="off"
+        value={value}
+        onChange={(e) => {
+          setValue(e.target.value);
+          setOpen(true);
+          setActive(0);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={onKeyDown}
+        role="combobox"
+        aria-expanded={show}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={show ? `${listId}-${active}` : undefined}
+      />
+      {show ? (
+        <ul
+          id={listId}
+          role="listbox"
+          aria-label="Existing buildings"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto border bg-popover py-1 text-popover-foreground shadow-md"
+        >
+          {matches.map((b, i) => (
+            <li
+              key={b.id}
+              id={`${listId}-${i}`}
+              role="option"
+              aria-selected={i === active}
+              className={cn("cursor-pointer px-3 py-2 text-sm", i === active && "bg-accent")}
+              // Mouse down fires before the input's blur, so the pick lands.
+              onMouseDown={(e) => {
+                e.preventDefault();
+                pick(b.name);
+              }}
+              onMouseEnter={() => setActive(i)}
+            >
+              {b.name}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
