@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
 import { durationText, freeSeats } from "@/lib/occupancy";
@@ -67,6 +68,8 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           (a, b) => pinOf(b) - pinOf(a) || freeOf(b) - freeOf(a) || a.name.localeCompare(b.name)
         ),
         free: g.rooms.reduce((sum, r) => sum + freeOf(r), 0),
+        // Every camera unit in the building is offline, so the total is unknown.
+        offline: g.rooms.every((r) => stats.get(r.id)?.offlineFor != null),
         pinned: isBuildingPinned(g.building.id),
         rank: isBuildingPinned(g.building.id) ? 2 : g.rooms.some((r) => isPinned(r.id)) ? 1 : 0,
       }))
@@ -131,39 +134,89 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       ) : null}
 
       {groups.length > 0 ? (
-        <section className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+        <section className="grid items-start gap-8 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((g) => (
-            <div key={g.building.id} className="border">
-              <div className="bg-accent px-4 py-3">
-                <h2 className="flex items-center gap-1 text-xl font-semibold">
-                  {g.building.name}
-                  <PinButton
-                    pinned={g.pinned}
-                    name={g.building.name}
-                    onClick={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id))}
-                    className="hover:bg-background dark:hover:bg-background"
-                  />
-                </h2>
-                <p className="text-[13px] text-muted-foreground">
-                  {g.free} free in {g.rooms.length} {g.rooms.length === 1 ? "area" : "areas"}
-                </p>
-              </div>
-              <div className="divide-y">
-                {g.rooms.map((room) => (
-                  <RoomRow
-                    key={room.id}
-                    room={room}
-                    counts={live.countNumbers}
-                    offlineFor={stats.get(room.id)?.offlineFor ?? null}
-                    pinned={isPinned(room.id)}
-                    onTogglePin={() => toggle(room.id, room.building_id)}
-                  />
-                ))}
-              </div>
-            </div>
+            <BuildingGroup
+              key={g.building.id}
+              name={g.building.name}
+              areaCount={g.rooms.length}
+              free={g.free}
+              offline={g.offline}
+              pinned={g.pinned}
+              onTogglePin={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id))}
+              forceOpen={q.length > 0}
+            >
+              {g.rooms.map((room) => (
+                <RoomRow
+                  key={room.id}
+                  room={room}
+                  counts={live.countNumbers}
+                  offlineFor={stats.get(room.id)?.offlineFor ?? null}
+                  pinned={isPinned(room.id)}
+                  onTogglePin={() => toggle(room.id, room.building_id)}
+                />
+              ))}
+            </BuildingGroup>
           ))}
         </section>
       ) : null}
     </div>
+  );
+}
+
+interface BuildingGroupProps {
+  name: string;
+  areaCount: number;
+  free: number;
+  offline: boolean;
+  pinned: boolean;
+  onTogglePin: () => void;
+  // A search keeps every matching building open so its results show.
+  forceOpen: boolean;
+  children: React.ReactNode;
+}
+
+// One building in the directory: header on the accent background with the
+// name, pin, area count, free total on the right, and a chevron. Closed by
+// default, the same way an area row's spots are.
+function BuildingGroup({ name, areaCount, free, offline, pinned, onTogglePin, forceOpen, children }: BuildingGroupProps) {
+  const [opened, setOpened] = useState(false);
+  const open = opened || forceOpen;
+  const freeColor = offline ? "var(--state-unknown)" : free > 0 ? "var(--state-empty)" : "var(--state-full)";
+  return (
+    <section className="border">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-accent px-4 py-3">
+        <h2 className="flex min-w-0 items-center gap-1 text-xl font-semibold">
+          <span className="truncate">{name}</span>
+          <PinButton
+            pinned={pinned}
+            name={name}
+            onClick={onTogglePin}
+            className="hover:bg-background dark:hover:bg-background"
+          />
+        </h2>
+        <p className="col-start-1 row-start-2 text-[13px] text-muted-foreground">
+          {areaCount} {areaCount === 1 ? "area" : "areas"}
+        </p>
+        <div className="row-span-2 flex items-baseline gap-1">
+          <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
+            {offline ? "?" : free}
+          </span>
+          <span className="text-[13px] text-muted-foreground">{offline ? "unknown" : "free"}</span>
+        </div>
+        <Button
+          className="row-span-2 hover:bg-background dark:hover:bg-background"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={open ? `Hide areas in ${name}` : `Show areas in ${name}`}
+          aria-expanded={open}
+          disabled={forceOpen}
+          onClick={() => setOpened((o) => !o)}
+        >
+          <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
+        </Button>
+      </div>
+      {open ? <div className="divide-y border-t">{children}</div> : null}
+    </section>
   );
 }
