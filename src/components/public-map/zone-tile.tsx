@@ -1,84 +1,78 @@
-import { Armchair, Footprints, Users } from "lucide-react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Zone } from "@/lib/types";
-import { displayCount, tileLabel, tileState, type TileState } from "@/lib/occupancy";
+import {
+  countText,
+  stateColor,
+  stateWord,
+  tileState,
+  type TileState,
+} from "@/lib/occupancy";
 
-const STATE_STYLES: Record<TileState, string> = {
-  empty: "border-state-empty/40 bg-state-empty/10",
-  shared: "border-state-shared/50 bg-state-shared/15",
-  full: "border-state-full/50 bg-state-full/15",
-  some: "border-state-shared/50 bg-state-shared/15",
-  busy: "border-state-full/50 bg-state-full/15",
-  line: "border-state-line/40 bg-state-line/10",
-};
+const FLASH_MS = 300;
 
-const DOT_STYLES: Record<TileState, string> = {
-  empty: "bg-state-empty",
-  shared: "bg-state-shared",
-  full: "bg-state-full",
-  some: "bg-state-shared",
-  busy: "bg-state-full",
-  line: "bg-state-line",
-};
+const COUNT_SIZE = {
+  sm: "text-[34px] leading-none",
+  md: "text-[44px] leading-none",
+  lg: "text-[76px] leading-none",
+} as const;
 
 interface ZoneTileProps {
   zone: Zone;
   count: number | undefined;
-  stale?: boolean;
-  compact?: boolean;
+  // "4 min" while the camera unit is offline, otherwise null.
+  offlineFor?: string | null;
+  size?: keyof typeof COUNT_SIZE;
+  className?: string;
 }
 
-export function ZoneTile({ zone, count, stale, compact }: ZoneTileProps) {
+// Card background, zone name, mono count in the state color, state word,
+// and a 6 px bar along the bottom edge. The bar and the numeral are the
+// only things that change. On a state change the bar flashes for 300 ms.
+export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: ZoneTileProps) {
   const raw = count ?? 0;
-  const state = tileState(zone.type, raw, zone.capacity);
-  const label = tileLabel(state, raw);
-  const n = displayCount(zone.type, raw, zone.capacity);
-  const Icon =
-    zone.type === "seating" ? Armchair : zone.type === "line" ? Footprints : Users;
+  const offline = offlineFor != null;
+  const state: TileState = offline ? "unknown" : tileState(zone.type, raw, zone.capacity);
+  const color = stateColor(state);
+  const word = offline ? `Unknown, ${offlineFor}` : stateWord(state);
 
-  let detail: string;
-  if (zone.type === "seating") {
-    detail =
-      zone.capacity != null ? `${n} of ${zone.capacity} seats taken` : `${n} here`;
-  } else if (zone.type === "line") {
-    detail = n === 1 ? "1 person in line" : `${n} people in line`;
-  } else {
-    detail = n === 1 ? "1 person" : `${n} people`;
-  }
+  const previous = useRef<TileState>(state);
+  const [flashKey, setFlashKey] = useState(0);
+  useEffect(() => {
+    if (previous.current === state) return;
+    previous.current = state;
+    setFlashKey((k) => k + 1);
+    const t = setTimeout(() => setFlashKey(0), FLASH_MS);
+    return () => clearTimeout(t);
+  }, [state]);
 
   return (
     <div
       className={cn(
-        "relative flex flex-col justify-between rounded-lg border text-card-foreground shadow-xs transition-colors",
-        compact ? "min-h-20 p-3" : "min-h-28 p-4",
-        STATE_STYLES[state],
-        stale && "opacity-60 saturate-50"
+        "relative flex flex-col gap-2 overflow-hidden bg-card px-4 pt-3 pb-[22px] text-card-foreground",
+        className
       )}
-      aria-label={`${zone.name}: ${label}`}
+      style={{ "--bar": color } as React.CSSProperties}
+      aria-label={`${zone.name}: ${word}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className="truncate text-sm font-medium">{zone.name}</span>
-        <Icon className="size-4 shrink-0 opacity-70" aria-hidden />
-      </div>
-      <div className="mt-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "inline-block size-2.5 rounded-full",
-              DOT_STYLES[state],
-              !stale && state !== "empty" && "animate-pulse"
-            )}
-            aria-hidden
-          />
-          <span className={cn("font-semibold", compact ? "text-base" : "text-lg")}>
-            {label}
-          </span>
-        </div>
-        <p className="mt-0.5 text-xs opacity-80">
-          {detail}
-          {zone.type === "line" && n > 0 ? " (estimate)" : ""}
-        </p>
-      </div>
+      <span className="truncate text-xs text-muted-foreground">{zone.name}</span>
+      <span
+        className={cn("font-mono font-bold tabular-nums", COUNT_SIZE[size])}
+        style={{ color }}
+      >
+        {countText(zone, raw)}
+      </span>
+      <span className="text-sm font-semibold">{word}</span>
+      <span
+        key={flashKey}
+        aria-hidden
+        className={cn(
+          "absolute inset-x-0 bottom-0 h-[6px] bg-[var(--bar)]",
+          flashKey > 0 && "animate-[bar-flash_300ms_ease-out]"
+        )}
+      />
     </div>
   );
 }

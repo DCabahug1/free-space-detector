@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { WifiOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Room, Zone, ZoneCount } from "@/lib/types";
-import { isStale, relativeTime, roomSummary } from "@/lib/occupancy";
+import { durationText, isOffline, relativeTime, roomSummary } from "@/lib/occupancy";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -122,7 +122,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
             .filter(Boolean)
             .sort()
             .at(-1);
-          const stale = isStale(latest, now);
+          const stale = isOffline(latest, now);
 
           return (
             <Card key={room.id}>
@@ -163,7 +163,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                         key={zone.id}
                         zone={zone}
                         count={counts[zone.id]?.count}
-                        stale={stale}
+                        offlineFor={stale ? durationText(latest, now) || "never" : null}
                       />
                     ))}
                   </div>

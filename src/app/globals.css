@@ -198,3 +198,14 @@
     font-feature-settings: "tnum" 1;
   }
 }
+
+/* ZoneTile: the bottom bar flashes to ink for 300 ms when the state changes. */
+@keyframes bar-flash {
+  0%,
+  100% {
+    background-color: var(--bar);
+  }
+  40% {
+    background-color: var(--foreground);
+  }
+}

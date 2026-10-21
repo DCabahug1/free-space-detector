@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import type { Polygon, Zone, ZoneType } from "@/lib/types";
-import { displayCount, tileState, type TileState } from "@/lib/occupancy";
+import { displayCount, stateColor, tileState } from "@/lib/occupancy";
 
 // Camera frames are 1280x720. Polygons are stored in this pixel space so
 // the camera unit can test foot points against them directly.
@@ -18,17 +18,6 @@ export const ZONE_COLORS: Record<ZoneType, string> = {
   seating: "var(--state-empty)",
   line: "var(--state-line)",
   open: "var(--state-shared)",
-};
-
-// Zones on the canvas are colored by state, the same as the public map and
-// the camera unit's monitor: green vacant, orange occupied, red full.
-export const STATE_COLORS: Record<TileState, string> = {
-  empty: "var(--state-empty)",
-  shared: "var(--state-shared)",
-  some: "var(--state-shared)",
-  full: "var(--state-full)",
-  busy: "var(--state-full)",
-  line: "var(--state-line)",
 };
 
 // "Table 3 (1/4)" for seating with a capacity, "Lounge (2)" otherwise, and
@@ -101,7 +90,7 @@ export function ZoneCanvas({
         {zones.map((zone) => {
           if (zone.id === hiddenId) return null;
           const raw = counts[zone.id];
-          const color = STATE_COLORS[tileState(zone.type, raw ?? 0, zone.capacity)];
+          const color = stateColor(tileState(zone.type, raw ?? 0, zone.capacity));
           const selected = zone.id === selectedId;
           const [cx, cy] = centroid(zone.polygon);
           return (

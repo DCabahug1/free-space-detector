@@ -1,32 +1,33 @@
 import type { Zone, ZoneType } from "@/lib/types";
 
-// Tile state rules shared by the public map and the admin preview.
-//   seating: empty (0) / shared (0 < count < capacity) / full (count >= capacity)
-//   line:    count plus a wait estimate (deprecated, kept for existing zones)
-//   open:    empty (0) / some (1 to 3) / busy (4+)
+// Tile state rules shared by the public map, the admin canvas, and the
+// camera unit monitor (mirrored in camera-unit/status.py).
+//   seating: Empty (0) / Shared (0 < count < capacity) / Full (count >= capacity)
+//   open:    Empty (0) / Some people (1 to 3) / Busy (4+)
+//   line:    deprecated, counted like an open zone
+//   unknown: the camera unit has not posted for OFFLINE_AFTER_MS
 
-export type TileState = "empty" | "shared" | "full" | "some" | "busy" | "line";
+export type TileState = "empty" | "shared" | "full" | "some" | "busy" | "unknown";
 
-export const SECONDS_PER_PERSON = 45;
-export const STALE_AFTER_MS = 2 * 60 * 1000;
+export const OFFLINE_AFTER_MS = 60 * 1000;
+export const BUSY_FROM = 4;
 
 export function tileState(
   type: ZoneType,
   count: number,
   capacity: number | null
 ): TileState {
-  if (type === "line") return "line";
   if (count <= 0) return "empty";
   if (type === "seating") {
     if (capacity != null && count >= capacity) return "full";
     return "shared";
   }
-  return count >= 4 ? "busy" : "some";
+  return count >= BUSY_FROM ? "busy" : "some";
 }
 
 // Count as shown to people. A seating zone never displays more than its
-// capacity (two people squeezed at a one seat table reads 1 of 1, not 2 of
-// 1). The raw count is still stored and still drives the tile state.
+// capacity (two people squeezed at a one seat table reads 1/1, not 2/1).
+// The raw count is still stored and still drives the tile state.
 export function displayCount(
   type: ZoneType,
   count: number,
@@ -38,7 +39,16 @@ export function displayCount(
   return count;
 }
 
-export function tileLabel(state: TileState, count: number): string {
+// "2/4" for seating with a capacity, "2" otherwise.
+export function countText(zone: Zone, count: number): string {
+  const n = displayCount(zone.type, count, zone.capacity);
+  if (zone.type === "seating" && zone.capacity != null) {
+    return `${n}/${zone.capacity}`;
+  }
+  return String(n);
+}
+
+export function stateWord(state: TileState): string {
   switch (state) {
     case "empty":
       return "Empty";
@@ -50,56 +60,95 @@ export function tileLabel(state: TileState, count: number): string {
       return "Some people";
     case "busy":
       return "Busy";
-    case "line":
-      return count === 0 ? "No line" : waitEstimate(count);
+    case "unknown":
+      return "Unknown";
   }
 }
 
-export function waitEstimate(count: number): string {
-  if (count <= 0) return "No wait";
-  const seconds = count * SECONDS_PER_PERSON;
-  if (seconds < 60) return `~${seconds} s wait`;
-  const minutes = Math.round(seconds / 60);
-  return `~${minutes} min wait`;
+// CSS color for a state, from the tokens in globals.css.
+export function stateColor(state: TileState): string {
+  switch (state) {
+    case "empty":
+      return "var(--state-empty)";
+    case "shared":
+    case "some":
+      return "var(--state-shared)";
+    case "full":
+    case "busy":
+      return "var(--state-full)";
+    case "unknown":
+      return "var(--state-unknown)";
+  }
 }
 
-export function isStale(updatedAt: string | null | undefined, now: number) {
-  if (!updatedAt) return true;
-  return now - new Date(updatedAt).getTime() > STALE_AFTER_MS;
+export function isOffline(lastSeen: string | null | undefined, now: number) {
+  if (!lastSeen) return true;
+  return now - new Date(lastSeen).getTime() > OFFLINE_AFTER_MS;
 }
 
+// "8 s", "4 min", "2 h", "3 d".
+export function durationText(since: string | null | undefined, now: number) {
+  if (!since) return "";
+  const s = Math.max(0, Math.round((now - new Date(since).getTime()) / 1000));
+  if (s < 60) return `${s} s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} h`;
+  return `${Math.round(h / 24)} d`;
+}
+
+// "8 s ago", "4 min ago", or "never".
 export function relativeTime(iso: string | null | undefined, now: number) {
   if (!iso) return "never";
-  const diff = Math.max(0, now - new Date(iso).getTime());
-  const s = Math.round(diff / 1000);
-  if (s < 5) return "just now";
-  if (s < 60) return `${s} s ago`;
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m} min ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h} h ago`;
-  return `${Math.round(h / 24)} d ago`;
+  return `${durationText(iso, now)} ago`;
 }
 
-// Short summary for a room card, for example "2 of 3 spots free".
+// "4:12 PM"
+export function clockTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+// Seats nobody is using. A seating zone without a capacity counts as one
+// seat. Open zones have no seats.
+export function freeSeats(
+  zones: Zone[],
+  counts: Record<string, number | undefined>
+): number {
+  return zones.reduce((sum, z) => {
+    if (z.type !== "seating") return sum;
+    const count = counts[z.id] ?? 0;
+    if (z.capacity == null) return sum + (count === 0 ? 1 : 0);
+    return sum + Math.max(0, z.capacity - count);
+  }, 0);
+}
+
+export function totalSeats(zones: Zone[]): number {
+  return zones.reduce((sum, z) => {
+    if (z.type !== "seating") return sum;
+    return sum + (z.capacity ?? 1);
+  }, 0);
+}
+
+// One line for a room: "2 of 4 tables open", or for rooms with no seating
+// "3 people" / "Empty".
 export function roomSummary(
   zones: Zone[],
   counts: Record<string, number | undefined>
 ): string {
   const seating = zones.filter((z) => z.type === "seating");
   if (seating.length > 0) {
-    const free = seating.filter((z) => (counts[z.id] ?? 0) === 0).length;
-    const noun = seating.length === 1 ? "spot" : "spots";
-    return `${free} of ${seating.length} ${noun} free`;
+    const open = seating.filter((z) => (counts[z.id] ?? 0) === 0).length;
+    const noun = seating.length === 1 ? "table" : "tables";
+    return `${open} of ${seating.length} ${noun} open`;
   }
-  const line = zones.find((z) => z.type === "line");
-  if (line) return waitEstimate(counts[line.id] ?? 0);
   const total = zones.reduce((sum, z) => sum + (counts[z.id] ?? 0), 0);
-  return total === 0 ? "Empty" : `${total} people here`;
+  if (total === 0) return "Empty";
+  return total === 1 ? "1 person" : `${total} people`;
 }
 
 export const ZONE_TYPE_LABEL: Record<ZoneType, string> = {
   seating: "Seating",
-  line: "Line (deprecated)",
+  line: "Open area",
   open: "Open area",
 };

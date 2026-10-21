@@ -47,7 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { isStale, relativeTime } from "@/lib/occupancy";
+import { isOffline, relativeTime } from "@/lib/occupancy";
 import type { Room } from "@/lib/types";
 import type { CameraUnitRow } from "./types";
 
@@ -124,7 +124,7 @@ export function CameraUnitsTable({ units, rooms }: CameraUnitsTableProps) {
         </TableHeader>
         <TableBody>
           {units.map((unit) => {
-            const online = !isStale(unit.last_seen, now);
+            const online = !isOffline(unit.last_seen, now);
             return (
               <TableRow key={unit.id}>
                 <TableCell className="font-medium">
