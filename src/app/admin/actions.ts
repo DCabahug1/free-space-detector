@@ -20,13 +20,13 @@ export async function signIn(
   const next = String(formData.get("next") ?? "/admin");
 
   if (!email || !password) {
-    return { error: "Enter your email and password." };
+    return { error: "Wrong email or password." };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    return { error: error.message };
+    return { error: "Wrong email or password." };
   }
 
   redirect(next.startsWith("/admin") ? next : "/admin");
