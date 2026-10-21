@@ -8,13 +8,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+# Hex versions of the --state-* dark theme tokens in src/app/globals.css, so
+# the monitor, the overlay, the admin canvas, and the public map agree.
 STATE_COLORS = {
-    "empty": "#22c55e",
-    "shared": "#f59e0b",
-    "full": "#ef4444",
-    "some": "#f59e0b",
-    "busy": "#ef4444",
-    "line": "#38bdf8",
+    "empty": "#4cb86a",
+    "shared": "#ed9e2f",
+    "full": "#d74843",
+    "some": "#ed9e2f",
+    "busy": "#d74843",
+    "line": "#48a1db",
 }
 
 

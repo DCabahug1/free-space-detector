@@ -22,10 +22,15 @@ from status import STATE_COLORS, Status, display_count, tile_label, tile_state
 
 log = logging.getLogger("camera-unit.monitor")
 
-BG = "#0f172a"
-FG = "#f8fafc"
-MUTED = "#94a3b8"
-ACCENT = "#38bdf8"
+# Hex versions of the dark theme tokens in src/app/globals.css.
+BG = "#161616"  # --background
+FG = "#d1d5db"  # --foreground
+MUTED = "#8c8c8c"  # --muted-foreground
+BUTTON_BG = "#1e1e1e"  # --card
+BUTTON_ACTIVE = "#3a453d"  # --accent
+# The theme primary is too dark for a 72pt pair code on this background, so
+# the accent is the brighter vacant green from the state tokens.
+ACCENT = "#4cb86a"
 
 
 # Font sizes below are designed for a 1280x800 screen and scaled down from
@@ -249,9 +254,9 @@ class Monitor:
             command=command,
             font=("Helvetica", self.fs(20), "bold"),
             fg=FG,
-            bg="#1e293b",
+            bg=BUTTON_BG,
             activeforeground=FG,
-            activebackground="#334155",
+            activebackground=BUTTON_ACTIVE,
             relief="flat",
             padx=self.pad(28),
             pady=pady,
