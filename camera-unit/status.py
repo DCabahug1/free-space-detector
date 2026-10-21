@@ -50,6 +50,13 @@ def tile_state(zone_type: str, count: int, capacity: int | None) -> str:
     return "busy" if count >= 4 else "some"
 
 
+def display_count(zone_type: str, count: int, capacity: int | None) -> int:
+    """Mirrors displayCount in src/lib/occupancy.ts: a seating zone never shows more than its capacity."""
+    if zone_type == "seating" and capacity:
+        return min(count, capacity)
+    return count
+
+
 def tile_label(state: str, count: int) -> str:
     if state == "line":
         if count == 0:

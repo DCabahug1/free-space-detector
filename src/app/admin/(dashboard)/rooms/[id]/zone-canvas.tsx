@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import type { Polygon, Zone, ZoneType } from "@/lib/types";
+import { displayCount } from "@/lib/occupancy";
 
 // Camera frames are 1280x720. Polygons are stored in this pixel space so
 // the camera unit can test foot points against them directly.
@@ -78,7 +79,8 @@ export function ZoneCanvas({
           const color = ZONE_COLORS[zone.type];
           const selected = zone.id === selectedId;
           const [cx, cy] = centroid(zone.polygon);
-          const count = counts[zone.id];
+          const raw = counts[zone.id];
+          const count = raw != null ? displayCount(zone.type, raw, zone.capacity) : raw;
           return (
             <g
               key={zone.id}

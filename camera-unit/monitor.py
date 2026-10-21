@@ -15,7 +15,7 @@ import logging
 import threading
 import tkinter as tk
 
-from status import STATE_COLORS, Status, tile_label, tile_state
+from status import STATE_COLORS, Status, display_count, tile_label, tile_state
 
 log = logging.getLogger("camera-unit.monitor")
 
@@ -237,7 +237,7 @@ class Monitor:
             st = tile_state(row.type, row.count, row.capacity)
             cap = f" / {row.capacity}" if row.capacity else ""
             name.configure(text=row.name)
-            count.configure(text=f"{row.count}{cap}")
+            count.configure(text=f"{display_count(row.type, row.count, row.capacity)}{cap}")
             state.configure(text=tile_label(st, row.count), fg=STATE_COLORS[st])
         if self._footer:
             self._footer.configure(text=s.message)

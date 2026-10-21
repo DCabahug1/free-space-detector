@@ -24,6 +24,20 @@ export function tileState(
   return count >= 4 ? "busy" : "some";
 }
 
+// Count as shown to people. A seating zone never displays more than its
+// capacity (two people squeezed at a one seat table reads 1 of 1, not 2 of
+// 1). The raw count is still stored and still drives the tile state.
+export function displayCount(
+  type: ZoneType,
+  count: number,
+  capacity: number | null
+): number {
+  if (type === "seating" && capacity != null && capacity > 0) {
+    return Math.min(count, capacity);
+  }
+  return count;
+}
+
 export function tileLabel(state: TileState, count: number): string {
   switch (state) {
     case "empty":

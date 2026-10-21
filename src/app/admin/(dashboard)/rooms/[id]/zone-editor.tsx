@@ -23,7 +23,7 @@ import {
   type ZoneInput,
 } from "@/app/admin/actions";
 import type { Polygon, Room, Zone, ZoneType } from "@/lib/types";
-import { ZONE_TYPE_LABEL } from "@/lib/occupancy";
+import { ZONE_TYPE_LABEL, displayCount } from "@/lib/occupancy";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -420,7 +420,7 @@ export function ZoneEditor({ room, zones, counts, liveFrame }: ZoneEditorProps) 
                   </span>
                   {counts[zone.id] != null ? (
                     <Badge variant="outline" className="font-mono">
-                      {counts[zone.id]}
+                      {displayCount(zone.type, counts[zone.id], zone.capacity)}
                     </Badge>
                   ) : null}
                 </button>

@@ -1,7 +1,7 @@
 import { Armchair, Footprints, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Zone } from "@/lib/types";
-import { tileLabel, tileState, type TileState } from "@/lib/occupancy";
+import { displayCount, tileLabel, tileState, type TileState } from "@/lib/occupancy";
 
 const STATE_STYLES: Record<TileState, string> = {
   empty:
@@ -31,9 +31,10 @@ interface ZoneTileProps {
 }
 
 export function ZoneTile({ zone, count, stale, compact }: ZoneTileProps) {
-  const n = count ?? 0;
-  const state = tileState(zone.type, n, zone.capacity);
-  const label = tileLabel(state, n);
+  const raw = count ?? 0;
+  const state = tileState(zone.type, raw, zone.capacity);
+  const label = tileLabel(state, raw);
+  const n = displayCount(zone.type, raw, zone.capacity);
   const Icon =
     zone.type === "seating" ? Armchair : zone.type === "line" ? Footprints : Users;
 
