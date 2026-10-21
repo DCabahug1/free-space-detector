@@ -3,7 +3,7 @@
 Fullscreen tkinter window with two screens:
   pairing: a QR code plus the 6-digit pair code, until an admin claims the unit.
   live:    per-zone counts, refreshed as the worker thread updates Status.
-           A "View camera" button (touch sized) opens a fullscreen popup with
+           A "View camera" button (touch sized) opens a fullscreen overlay with
            the live frame, person boxes, and each zone colored by its state.
 
 tkinter must run on the main thread, so main.py starts the capture loop in a
@@ -41,9 +41,9 @@ class Monitor:
         self.root = tk.Tk()
         self.root.title("Camera unit")
         self.root.configure(bg=BG)
-        self.root.attributes("-fullscreen", True)
         self.screen_w = self.root.winfo_screenwidth()
         self.screen_h = self.root.winfo_screenheight()
+        self.make_fullscreen(self.root)
         self.scale = max(0.4, min(1.0, self.screen_w / DESIGN_W, self.screen_h / DESIGN_H))
         self.compact = self.screen_h < COMPACT_BELOW_H
         log.info("monitor %dx%d, scale %.2f, %s layout", self.screen_w, self.screen_h, self.scale,
@@ -60,7 +60,7 @@ class Monitor:
         self._row_widgets: list[tuple[tk.Label, tk.Label, tk.Label]] = []
         self._footer: tk.Label | None = None
         self._header: tk.Label | None = None
-        self._preview: tk.Toplevel | None = None
+        self._preview: tk.Frame | None = None
         self._preview_label: tk.Label | None = None
         self._preview_photo = None
         self._preview_shown = None
@@ -267,17 +267,34 @@ class Monitor:
 
     PREVIEW_REFRESH_MS = 150
 
+    def make_fullscreen(self, win: tk.Misc) -> None:
+        """Cover the whole screen. labwc (the Pi's Wayland compositor, which runs
+        Tk through XWayland) ignores fullscreen requested before the window is
+        mapped, so size it to the screen first and request fullscreen again once
+        it is up."""
+        win.geometry(f"{self.screen_w}x{self.screen_h}+0+0")
+        win.attributes("-fullscreen", True)
+
+        def reassert() -> None:
+            if win.winfo_exists():
+                win.attributes("-fullscreen", False)
+                win.attributes("-fullscreen", True)
+
+        win.after(500, reassert)
+
     def open_preview(self) -> None:
         if self._preview is not None:
             return
         self.status.preview = None
         self.status.preview_open.set()
-        top = tk.Toplevel(self.root, bg="black")
-        top.title("Camera")
-        top.attributes("-fullscreen", True)
-        top.protocol("WM_DELETE_WINDOW", self.close_preview)
-        top.bind("<Escape>", lambda _e: self.close_preview())
-        top.bind("q", lambda _e: self.close_preview())
+        # An overlay inside the main window rather than a second Toplevel: under
+        # labwc/XWayland a second fullscreen window can be drawn on top while
+        # touches still go to the window underneath, so its buttons never fire.
+        top = tk.Frame(self.root, bg="black")
+        top.place(x=0, y=0, relwidth=1, relheight=1)
+        top.lift()
+        self.root.bind("<Escape>", lambda _e: self.close_preview())
+        self.root.bind("q", lambda _e: self.close_preview())
         self._preview = top
 
         tk.Button(
@@ -309,6 +326,8 @@ class Monitor:
         self._preview_label = None
         self._preview_photo = None
         self._preview_shown = None
+        self.root.bind("<Escape>", lambda _e: self.quit())
+        self.root.bind("q", lambda _e: self.quit())
         if top is not None:
             try:
                 top.destroy()
