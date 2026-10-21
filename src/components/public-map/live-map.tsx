@@ -208,8 +208,8 @@ function BuildingGroup({
   const open = opened || forceOpen;
   const freeColor = offline ? "var(--state-unknown)" : free > 0 ? "var(--state-empty)" : "var(--state-full)";
   return (
-    <section className="overflow-hidden rounded-lg border border-group-border bg-card text-card-foreground">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-group px-4 py-3 text-group-foreground">
+    <section className="overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground">
         <h2 className="flex min-w-0 items-center gap-1 text-xl font-semibold tracking-[-0.01em]">
           <span className="truncate">
             <Highlight text={name} query={query} />
@@ -218,21 +218,21 @@ function BuildingGroup({
             pinned={pinned}
             name={name}
             onClick={onTogglePin}
-            className="text-group-muted hover:bg-background dark:hover:bg-background"
-            pinnedClassName="text-group-foreground"
+            className="text-building-muted hover:bg-background dark:hover:bg-background"
+            pinnedClassName="text-building-foreground"
           />
         </h2>
-        <p className="col-start-1 row-start-2 text-[13px] text-group-muted">
+        <p className="col-start-1 row-start-2 text-[13px] text-building-muted">
           {areaCount} {areaCount === 1 ? "area" : "areas"}
         </p>
         <div className="row-span-2 flex items-baseline gap-1">
           <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
             {offline ? "?" : free}
           </span>
-          <span className="text-[13px] text-group-muted">{offline ? "unknown" : "free"}</span>
+          <span className="text-[13px] text-building-muted">{offline ? "unknown" : "free"}</span>
         </div>
         <Button
-          className="row-span-2 text-group-muted hover:bg-background dark:hover:bg-background"
+          className="row-span-2 text-building-muted hover:bg-background dark:hover:bg-background"
           variant="ghost"
           size="icon-sm"
           aria-label={open ? `Hide areas in ${name}` : `Show areas in ${name}`}

@@ -38,7 +38,7 @@ Light
 | band-muted | 0.82 0.035 243 | #b1c7d9 |
 | band-accent | 0.82 0.10 215 | #70d5ed |
 | destructive | 0.1908 0.0020 106.59 | #141413 |
-| group, group-foreground, group-muted, group-border | = accent, accent-foreground, secondary-foreground, border | |
+| building, building-foreground, building-muted, building-border | = accent, accent-foreground, secondary-foreground, border | |
 | state-empty | 0.53 0.10 150 | #3f7d4e |
 | state-shared | 0.60 0.13 65 | #b5711a |
 | state-full | 0.48 0.15 30 | #a8382c |
@@ -63,10 +63,10 @@ Dark
 | band-muted | 0.85 0.035 243 | #bbd1e3 |
 | band-accent | 0.82 0.10 215 | #70d5ed |
 | destructive | 0.6368 0.2078 25.33 | #ef4444 |
-| group (building header) | 0.30 0.008 240 | #2d3134 |
-| group-border | 0.37 0.008 240 | #3f4347 |
-| group-foreground | 0.9663 0.0080 98.88 | #f5f4ee |
-| group-muted | = muted-foreground | #b7b5a9 |
+| building (building header) | 0.30 0.008 240 | #2d3134 |
+| building-border | 0.37 0.008 240 | #3f4347 |
+| building-foreground | 0.9663 0.0080 98.88 | #f5f4ee |
+| building-muted | = muted-foreground | #b7b5a9 |
 | state-empty | 0.72 0.14 150 | #6cc07e |
 | state-shared | 0.75 0.14 70 | #e0a24a |
 | state-full | 0.63 0.16 30 | #e2655a |

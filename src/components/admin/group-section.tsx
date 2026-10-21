@@ -18,22 +18,22 @@ interface GroupSectionProps {
 }
 
 // A building group in the admin lists, styled like the public map: a
-// header on the group background with a chevron, rows beneath it.
+// header on the building background with a chevron, rows beneath it.
 export function GroupSection({ title, caption, defaultOpen = true, muted, query = "", children }: GroupSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="overflow-hidden rounded-lg border border-group-border bg-card text-card-foreground">
-      <div className="flex items-center justify-between gap-3 bg-group px-4 py-3 text-group-foreground">
+    <section className="overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground">
+      <div className="flex items-center justify-between gap-3 bg-building px-4 py-3 text-building-foreground">
         <div className="min-w-0">
-          <h2 className={cn("truncate text-xl font-semibold tracking-[-0.01em]", muted && "text-group-muted")}>
+          <h2 className={cn("truncate text-xl font-semibold tracking-[-0.01em]", muted && "text-building-muted")}>
             <Highlight text={title} query={query} />
           </h2>
-          <p className="text-[13px] text-group-muted">{caption}</p>
+          <p className="text-[13px] text-building-muted">{caption}</p>
         </div>
         <Button
           variant="ghost"
           size="icon-sm"
-          className="text-group-muted hover:bg-background dark:hover:bg-background"
+          className="text-building-muted hover:bg-background dark:hover:bg-background"
           aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
