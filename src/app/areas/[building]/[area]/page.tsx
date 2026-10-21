@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { PublicFooter, SiteHeader } from "@/components/site-header";
+import { SiteHeader } from "@/components/site-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createPublicClient } from "@/lib/supabase/public";
 import { loadPublicSnapshot } from "@/lib/public-data";
@@ -19,7 +19,6 @@ export default function PublicRoomPage({ params }: RoomPageProps) {
           <RoomLoader params={params} />
         </Suspense>
       </main>
-      <PublicFooter text="Counts from one camera unit in this area. No video leaves the camera unit." />
     </>
   );
 }

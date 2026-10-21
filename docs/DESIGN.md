@@ -97,7 +97,6 @@ Status lines are text only: "Online, 3 s ago", "Offline, 4 min" in state-full. N
 
 - Facts and times only. "Updated 8 s ago". "Camera unit offline, 4 min". "4 seats, 2 taken". "Wrong email or password."
 - No taglines, no feature explanations, no "find a free spot".
-- The privacy fact appears once per public page as a footer line: "Counts from camera units. No video leaves the camera unit."
 - Empty states are one line plus one action.
 - No em dashes.
 
@@ -113,7 +112,6 @@ Body, in order:
 1. Headline: `{free} free seats` ("1 free seat") with the number in state-empty, or state-full when it is 0, 44px. Caption: `{rooms} rooms in {buildings} buildings. Updated {ago}`. While realtime is reconnecting the caption turns state-shared: "Reconnecting. Counts from 1 min ago".
 2. Search input, placeholder "Room or building". Tabs: All, Free now.
 3. Directory grouped by building. Pinned areas sort first, and a building with a pinned area sorts first; both carry a small pin. Then buildings by free seats and areas by free seats. Building heading 20px 600 on the accent background with "{n} free in {m} areas". RoomRows beneath.
-5. Footer privacy line.
 
 States: loading (skeletons), no rooms published ("No rooms yet" / "Rooms appear here once staff publish them."), no search results (`No rooms or buildings match "{q}".` + Clear search), stale (reconnecting caption, offline rooms show "Camera unit offline, 4 min" and "?" with "unknown").
 
@@ -125,7 +123,6 @@ Header: wordmark, "All rooms" back link, theme toggle, account icon.
 Building name as a small uppercase link above the room name (32px). Optional description under it. Buttons: Pinned (toggle, outline, check icon when on), Share.
 Summary: `{free} free seats` 44px, caption "2 of 4 tables open. Updated 8 s ago".
 ZoneTile grid, larger (min 165px, count 44px).
-Footer: "Counts from one camera unit in this room. No video leaves the camera unit."
 
 States: loading, no zones ("No zones yet" / "Staff draw zones in the admin app. Counts appear here after that."), camera unit offline (headline "Camera unit offline" in state-full, caption "Last update 4:12 PM, 4 min ago. Counts below are from then.", all tiles Unknown).
 

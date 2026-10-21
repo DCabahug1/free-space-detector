@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PublicFooter, SiteHeader } from "@/components/site-header";
+import { SiteHeader } from "@/components/site-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createPublicClient } from "@/lib/supabase/public";
 import { loadPublicSnapshot } from "@/lib/public-data";
@@ -14,7 +14,6 @@ export default function Home() {
           <MapLoader />
         </Suspense>
       </main>
-      <PublicFooter />
     </>
   );
 }

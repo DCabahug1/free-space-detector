@@ -105,7 +105,7 @@ Redesign order (follow `docs/DESIGN.md`):
 ## Style and workflow
 
 - No em dashes anywhere: code, comments, UI text, docs. Use a comma, a colon, or a new sentence.
-- UI copy states facts and times only ("Updated 8 s ago", "Camera unit offline, 4 min"). No taglines, no explanations. The privacy line appears once per public page in the footer: "Counts from camera units. No video leaves the camera unit."
+- UI copy states facts and times only ("Updated 8 s ago", "Camera unit offline, 4 min"). No taglines, no explanations.
 - Status is text and color, never a dot, square or icon beside it.
 - Small, frequent commits. Work on branches named with standard prefixes (`feat/`, `fix/`, `refactor/`, `chore/`, `docs/`), never `claude/`. Merge to `main` often.
 - Commit as the repo owner only (Duane Cabahug, justforai017@gmail.com). No co-author trailers, no model identifiers in commits.

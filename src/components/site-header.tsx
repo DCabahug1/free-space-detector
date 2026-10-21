@@ -29,11 +29,3 @@ export function SiteHeader({ back }: SiteHeaderProps) {
     </header>
   );
 }
-
-export function PublicFooter({ text }: { text?: string }) {
-  return (
-    <footer className="mx-auto w-full max-w-[1120px] px-4 py-8 text-[13px] text-muted-foreground">
-      {text ?? "Counts from camera units. No video leaves the camera unit."}
-    </footer>
-  );
-}
