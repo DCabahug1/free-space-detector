@@ -16,5 +16,5 @@ export interface AdminRoom extends Room {
 export interface AdminUnit extends UnitHeartbeat {
   pair_code: string | null;
   room_id: string | null;
-  room: { id: string; name: string; building: { name: string } } | null;
+  room: { id: string; name: string; building: { id: string; name: string } } | null;
 }

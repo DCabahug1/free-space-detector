@@ -44,7 +44,7 @@ type UnitRow = {
   room_id: string | null;
   last_seen: string | null;
   paused: boolean;
-  rooms: { id: string; name: string; buildings: { name: string } | { name: string }[] | null } | null;
+  rooms: { id: string; name: string; buildings: { id: string; name: string } | { id: string; name: string }[] | null } | null;
 };
 
 function one<T>(v: T | T[] | null): T | null {
@@ -67,7 +67,7 @@ async function Overview({ searchParams }: OverviewProps) {
       .order("name"),
     supabase
       .from("camera_units")
-      .select("id, name, pair_code, room_id, last_seen, paused, rooms(id, name, buildings(name))")
+      .select("id, name, pair_code, room_id, last_seen, paused, rooms(id, name, buildings(id, name))")
       .order("created_at"),
     supabase.from("buildings").select("id, name, slug").order("name"),
   ]);

@@ -39,8 +39,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GroupSection, ListFilters } from "@/components/admin/group-section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -59,16 +61,24 @@ export interface RoomOption {
 
 const NONE = "__none__";
 const THUMB_INTERVAL_MS = 2000;
+const UNASSIGNED = "__unassigned__";
 
-interface DeviceCardsProps {
+type Filter = "all" | "online" | "offline";
+
+interface UnitListProps {
   units: (AdminUnit & { frameUrl: string })[];
   rooms: RoomOption[];
 }
 
-// Device cards in an auto-fill grid. Each: 16:9 live thumbnail, name,
-// assigned room, status line, and a menu with Edit and Remove.
-export function DeviceCards({ units, rooms }: DeviceCardsProps) {
+// Camera units grouped under collapsible building headers, styled like the
+// public map. Units without an area sit in an Unassigned group at the end.
+// Search box plus an Online / Offline filter above. Each row: thumbnail,
+// name, area, status line, and a menu with Edit and Remove.
+export function DeviceCards({ units, rooms }: UnitListProps) {
   const now = useClock();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+
   if (units.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -76,16 +86,88 @@ export function DeviceCards({ units, rooms }: DeviceCardsProps) {
       </p>
     );
   }
+
+  const q = query.trim().toLowerCase();
+  const visible = units.filter((unit) => {
+    const offline = isOffline(unit.last_seen, now);
+    if (filter === "online" && (offline || unit.paused)) return false;
+    if (filter === "offline" && !offline && !unit.paused) return false;
+    if (!q) return true;
+    return (
+      unit.name.toLowerCase().includes(q) ||
+      (unit.pair_code ?? "").includes(q) ||
+      (unit.room?.name ?? "").toLowerCase().includes(q) ||
+      (unit.room?.building.name ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  const groups = new Map<string, { name: string; units: typeof units }>();
+  for (const unit of visible) {
+    const key = unit.room?.building.id ?? UNASSIGNED;
+    const g = groups.get(key) ?? { name: unit.room?.building.name ?? "Unassigned", units: [] };
+    g.units.push(unit);
+    groups.set(key, g);
+  }
+  const sorted = [...groups.entries()]
+    .map(([key, g]) => ({
+      key,
+      ...g,
+      units: [...g.units].sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => {
+      if (a.key === UNASSIGNED) return 1;
+      if (b.key === UNASSIGNED) return -1;
+      return a.name.localeCompare(b.name);
+    });
+
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-      {units.map((unit) => (
-        <DeviceCard key={unit.id} unit={unit} rooms={rooms} now={now} />
-      ))}
+    <div className="space-y-6">
+      <ListFilters>
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Camera unit, area or code"
+          aria-label="Search camera units"
+          className="sm:max-w-xs"
+        />
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="online">Online</TabsTrigger>
+            <TabsTrigger value="offline">Offline</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </ListFilters>
+
+      {sorted.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {q ? `No camera units match "${query.trim()}".` : "No camera units match this filter."}
+        </p>
+      ) : null}
+
+      {sorted.map((g) => {
+        const offlineCount = g.units.filter((u) => isOffline(u.last_seen, now) || u.paused).length;
+        return (
+          <GroupSection
+            key={g.key}
+            title={g.name}
+            muted={g.key === UNASSIGNED}
+            caption={`${g.units.length} ${g.units.length === 1 ? "camera unit" : "camera units"}${
+              offlineCount > 0 ? `, ${offlineCount} offline` : ""
+            }`}
+          >
+            {g.units.map((unit) => (
+              <UnitRow key={unit.id} unit={unit} rooms={rooms} now={now} />
+            ))}
+          </GroupSection>
+        );
+      })}
     </div>
   );
 }
 
-function DeviceCard({
+function UnitRow({
   unit,
   rooms,
   now,
@@ -143,69 +225,58 @@ function DeviceCard({
     });
   }
 
+  const status = unit.paused
+    ? "Sharing paused"
+    : offline
+      ? unit.last_seen
+        ? `Offline, ${durationText(unit.last_seen, now)}`
+        : "Offline, never seen"
+      : `Online, ${durationText(unit.last_seen, now)} ago`;
+
   return (
-    <div className="bg-card text-card-foreground">
-      <div className="relative aspect-video w-full overflow-hidden bg-muted">
-        {!offline && frame.src ? (
+    <div className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-x-4 px-4 py-3">
+      <div className="relative aspect-video w-24 overflow-hidden bg-muted">
+        {!offline && !unit.paused && frame.src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={frame.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        ) : null}
-        {unit.paused ? (
-          <span className="absolute inset-0 flex items-center justify-center text-[13px] text-muted-foreground">
-            No frame, sharing paused
-          </span>
-        ) : offline ? (
-          <span className="absolute inset-0 flex items-center justify-center text-[13px] text-muted-foreground">
-            No frame, offline
-          </span>
-        ) : frame.src ? (
-          <span className="absolute top-2 left-2 bg-foreground px-1.5 py-0.5 text-[11px] font-medium text-background">
-            Live
-          </span>
         ) : (
-          <span className="absolute inset-0 flex items-center justify-center text-[13px] text-muted-foreground">
-            No frame yet
+          <span className="absolute inset-0 flex items-center justify-center text-[11px] text-muted-foreground">
+            No frame
           </span>
         )}
       </div>
-      <div className="flex items-start gap-2 p-4">
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="truncate text-[15px] font-medium">{unit.name}</div>
-          <div className="truncate text-[13px] text-muted-foreground">
-            {unit.room ? `${unit.room.building.name}, ${unit.room.name}` : "Not paired to an area"}
-          </div>
-          <div
-            className={cn(
-              "text-[13px]",
-              unit.paused ? "text-state-shared" : offline ? "text-state-full" : "text-muted-foreground"
-            )}
-          >
-            {unit.paused
-              ? "Sharing paused"
-              : offline
-              ? unit.last_seen
-                ? `Offline, ${durationText(unit.last_seen, now)}`
-                : "Offline, never seen"
-              : `Online, ${durationText(unit.last_seen, now)} ago`}
-          </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-[15px] font-medium">{unit.name}</span>
           {unit.pair_code ? (
-            <div className="font-mono text-[13px] text-muted-foreground">Code {unit.pair_code}</div>
+            <span className="shrink-0 font-mono text-[13px] text-muted-foreground">{unit.pair_code}</span>
           ) : null}
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${unit.name}`}>
-              <Ellipsis />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => setEditOpen(true)}>Edit</DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onSelect={() => setRemoveOpen(true)}>
-              Remove
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="truncate text-[13px] text-muted-foreground">
+          {unit.room ? unit.room.name : "Not paired to an area"}
+        </div>
+        <div
+          className={cn(
+            "text-[13px]",
+            unit.paused ? "text-state-shared" : offline ? "text-state-full" : "text-muted-foreground"
+          )}
+        >
+          {status}
+        </div>
       </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${unit.name}`}>
+            <Ellipsis />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditOpen(true)}>Edit</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setRemoveOpen(true)}>
+            Remove
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
@@ -249,7 +320,7 @@ function DeviceCard({
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {unit.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Its room assignment and pair code are forgotten. The unit keeps running and shows a
+              Its area assignment and pair code are forgotten. The unit keeps running and shows a
               new pair code the next time its script starts.
             </AlertDialogDescription>
           </AlertDialogHeader>
