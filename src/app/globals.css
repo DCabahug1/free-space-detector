@@ -58,8 +58,6 @@
   --shadow-lg: 0px 4px 12px 0px hsl(0 0% 0% / 0.08), 0px 4px 6px -1px hsl(0 0% 0% / 0.08);
   --shadow-xl: 0px 8px 24px 0px hsl(0 0% 0% / 0.10), 0px 8px 10px -1px hsl(0 0% 0% / 0.10);
   --shadow-2xl: 0px 12px 32px 0px hsl(0 0% 0% / 0.16);
-  /* All-round edge for surfaces whose fill sits close to the page. */
-  --shadow-surface: 0px 0px 0px 1px hsl(0 0% 0% / 0.07), 0px 1px 3px 0px hsl(0 0% 0% / 0.08);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
@@ -119,7 +117,6 @@
   --shadow-lg: 0px 4px 12px 0px hsl(0 0% 0% / 0.4), 0px 4px 6px -1px hsl(0 0% 0% / 0.4);
   --shadow-xl: 0px 8px 24px 0px hsl(0 0% 0% / 0.45), 0px 8px 10px -1px hsl(0 0% 0% / 0.45);
   --shadow-2xl: 0px 12px 32px 0px hsl(0 0% 0% / 0.6);
-  --shadow-surface: 0px 0px 0px 1px hsl(0 0% 0% / 0.45), 0px 1px 3px 0px hsl(0 0% 0% / 0.4);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
@@ -179,7 +176,6 @@
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
-  --shadow-surface: var(--shadow-surface);
 
   --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
   --tracking-tight: calc(var(--tracking-normal) - 0.025em);

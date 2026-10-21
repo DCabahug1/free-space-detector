@@ -133,7 +133,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       {groups.length > 0 ? (
         <section className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((g) => (
-            <div key={g.building.id} className="shadow-surface">
+            <div key={g.building.id} className="border">
               <div className="bg-accent px-4 py-3">
                 <h2 className="flex items-center gap-1 text-xl font-semibold">
                   {g.building.name}
@@ -148,7 +148,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                   {g.free} free in {g.rooms.length} {g.rooms.length === 1 ? "area" : "areas"}
                 </p>
               </div>
-              <div className="divide-y border-b">
+              <div className="divide-y">
                 {g.rooms.map((room) => (
                   <RoomRow
                     key={room.id}

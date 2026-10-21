@@ -63,7 +63,7 @@ Camera unit (Tkinter, hex): bg #1f1c18, text #ece6da, muted #a39b90, button #272
 
 Type scale: display 44/600 tracking -0.02em, heading 24/600 tracking -0.01em, body 15/400 line-height 1.5, caption 13 muted-foreground, label 12/500 uppercase tracking 0.08em. Counts: mono 700, 34px on phone tiles, 44px on room page tiles, 76px on projector tiles.
 
-Shadows: shadcn defaults only. Any surface whose fill sits close to the page background (card, accent, muted: building groups, ZoneTile, the pair card, editor panels) gets `shadow-surface` (a 1px ambient ring plus a 1px drop) so every edge, sides included, reads against the page. Nothing larger. No glow, no gradients, no tints behind content.
+Shadows: none on surfaces. Any surface whose fill sits close to the page background (card, accent, muted: building groups, ZoneTile, the pair card, editor panels) gets a 1px `border` on all four sides so its edge reads against the page. No glow, no gradients, no tints behind content.
 
 ---
 
@@ -74,7 +74,7 @@ shadcn/ui parts stay shadcn shaped, restyled by the tokens above: Button (36px, 
 Three custom components:
 
 **ZoneTile** (`components/public-map/zone-tile.tsx`)
-- Card background. No border, no tint.
+- Card background with a 1px border. No tint.
 - Top: zone name, 12px muted. Middle: count in mono, state colored. Bottom: state word, 14px 600 ink.
 - A 6px solid bar along the bottom edge in the state color. This bar and the numeral are what change state.
 - Count text: seating `{count}/{capacity}`, open `{count}`.

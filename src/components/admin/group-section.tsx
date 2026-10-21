@@ -19,7 +19,7 @@ interface GroupSectionProps {
 export function GroupSection({ title, caption, defaultOpen = true, muted, children }: GroupSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="shadow-surface">
+    <section className="border">
       <div className="flex items-center justify-between gap-3 bg-accent px-4 py-3">
         <div className="min-w-0">
           <h2 className={cn("truncate text-xl font-semibold", muted && "text-muted-foreground")}>{title}</h2>
@@ -36,7 +36,7 @@ export function GroupSection({ title, caption, defaultOpen = true, muted, childr
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
         </Button>
       </div>
-      {open ? <div className="divide-y border-b">{children}</div> : null}
+      {open ? <div className="divide-y">{children}</div> : null}
     </section>
   );
 }

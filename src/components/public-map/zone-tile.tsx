@@ -51,7 +51,7 @@ export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: Zo
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-2 overflow-hidden bg-card px-4 pt-3 pb-[22px] text-card-foreground shadow-surface",
+        "relative flex flex-col gap-2 overflow-hidden bg-card px-4 pt-3 pb-[22px] text-card-foreground border",
         className
       )}
       style={{ "--bar": color } as React.CSSProperties}
