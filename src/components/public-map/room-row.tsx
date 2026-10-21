@@ -15,15 +15,16 @@ interface RoomRowProps {
   counts: Record<string, number | undefined>;
   // "4 min" while the camera unit is offline, otherwise null.
   offlineFor: string | null;
-  pinned?: boolean;
+  pinned: boolean;
+  onTogglePin: () => void;
   className?: string;
 }
 
-// One directory row: name, summary caption, free count, a 4 px strip with
-// one segment per zone in its state color, and a chevron that opens the
-// area's spots as tiles beneath the row. Closed by default. The name links
-// to the area page. Hairlines come from the parent (divide-y).
-export function RoomRow({ room, counts, offlineFor, pinned, className }: RoomRowProps) {
+// One directory row: name with a pin toggle, summary caption, free count,
+// a 4 px strip with one segment per zone in its state color, and a chevron
+// that opens the area's spots as tiles beneath the row. Closed by default.
+// The name links to the area page. Hairlines come from the parent (divide-y).
+export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, className }: RoomRowProps) {
   const [open, setOpen] = useState(false);
   const offline = offlineFor != null;
   const free = freeSeats(room.zones, counts);
@@ -37,22 +38,25 @@ export function RoomRow({ room, counts, offlineFor, pinned, className }: RoomRow
   return (
     <div className={cn("px-4 py-3", className)}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3">
-        <Link href={roomPath(room)} className="min-w-0 hover:underline">
-          <div className="flex items-center gap-2 text-[15px] font-medium">
-            <span className="truncate">{room.name}</span>
-            {pinned ? <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned" /> : null}
-          </div>
+        <div className="flex min-w-0 items-center gap-1">
+          <Link href={roomPath(room)} className="min-w-0 hover:underline">
+            <div className="truncate text-[15px] font-medium">{room.name}</div>
+          </Link>
+          <PinButton pinned={pinned} name={room.name} onClick={onTogglePin} />
+        </div>
+        <Link href={roomPath(room)} className="col-start-1 row-start-2 min-w-0">
           <div className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
             {offline ? `Camera unit offline, ${offlineFor}` : roomSummary(room.zones, counts)}
           </div>
         </Link>
-        <div className="flex items-baseline gap-1">
+        <div className="row-span-2 flex items-baseline gap-1">
           <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
             {offline ? "?" : free}
           </span>
           <span className="text-[13px] text-muted-foreground">{offline ? "unknown" : "free"}</span>
         </div>
         <Button
+          className="row-span-2"
           variant="ghost"
           size="icon-sm"
           aria-label={open ? `Hide spots in ${room.name}` : `Show spots in ${room.name}`}
@@ -86,5 +90,24 @@ export function RoomRow({ room, counts, offlineFor, pinned, className }: RoomRow
         </div>
       ) : null}
     </div>
+  );
+}
+
+// Pin toggle: outline when off, filled in state-empty when on.
+export function PinButton({ pinned, name, onClick }: { pinned: boolean; name: string; onClick: () => void }) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={pinned ? `Unpin ${name}` : `Pin ${name}`}
+      aria-pressed={pinned}
+      onClick={onClick}
+    >
+      <Pin
+        className={cn("size-4", pinned ? "text-state-empty" : "text-muted-foreground")}
+        fill={pinned ? "currentColor" : "none"}
+        aria-hidden
+      />
+    </Button>
   );
 }

@@ -26,7 +26,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [filter, setFilter] = useState<Filter>("all");
   const live = useLiveSnapshot(rooms, initialCounts);
-  const { isPinned } = usePins();
+  const { isPinned, toggle } = usePins();
 
   // Per room: free seats and whether its camera unit is offline.
   // A unit that paused sharing reads as offline here. Only the admin says paused.
@@ -144,7 +144,9 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
               <div className="bg-accent px-4 py-3">
                 <h2 className="flex items-center gap-2 text-xl font-semibold">
                   {g.building.name}
-                  {g.pinned ? <Pin className="size-4 text-muted-foreground" aria-label="Pinned" /> : null}
+                  {g.pinned ? (
+                    <Pin className="size-4 text-state-empty" fill="currentColor" aria-label="Pinned" />
+                  ) : null}
                 </h2>
                 <p className="text-[13px] text-muted-foreground">
                   {g.free} free in {g.rooms.length} {g.rooms.length === 1 ? "area" : "areas"}
@@ -158,6 +160,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                     counts={live.countNumbers}
                     offlineFor={stats.get(room.id)?.offlineFor ?? null}
                     pinned={isPinned(room.id)}
+                    onTogglePin={() => toggle(room.id)}
                   />
                 ))}
               </div>

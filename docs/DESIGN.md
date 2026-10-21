@@ -111,7 +111,7 @@ Header: "Spot" text wordmark left. Right: theme toggle (moon in light, sun in da
 Body, in order:
 1. Headline: `{free} free seats` ("1 free seat") with the number in state-empty, or state-full when it is 0, 44px. Caption: `{rooms} rooms in {buildings} buildings. Updated {ago}`. While realtime is reconnecting the caption turns state-shared: "Reconnecting. Counts from 1 min ago".
 2. Search input, placeholder "Room or building". Tabs: All, Free now.
-3. Directory grouped by building. Pinned areas sort first, and a building with a pinned area sorts first; both carry a small pin. Then buildings by free seats and areas by free seats. Building heading 20px 600 on the accent background with "{n} free in {m} areas". RoomRows beneath.
+3. Directory grouped by building. Pinned areas sort first, and a building with a pinned area sorts first; both carry a pin filled in state-empty. The pin on an area row is a toggle. Then buildings by free seats and areas by free seats. Building heading 20px 600 on the accent background with "{n} free in {m} areas". RoomRows beneath.
 
 States: loading (skeletons), no rooms published ("No rooms yet" / "Rooms appear here once staff publish them."), no search results (`No rooms or buildings match "{q}".` + Clear search), stale (reconnecting caption, offline rooms show "Camera unit offline, 4 min" and "?" with "unknown").
 
@@ -120,7 +120,7 @@ Laptop: container max 1120, directory in 2 to 3 columns.
 ### `/areas/[building]/[area]` area page
 
 Header: wordmark, "All rooms" back link, theme toggle, account icon.
-Building name as a small uppercase link above the room name (32px). Optional description under it. Buttons: Pinned (toggle, outline, check icon when on), Share.
+Building name as a small uppercase link above the room name (32px). Optional description under it. Buttons: Pin (toggle, outline, pin icon filled in state-empty when on, reads Pinned), Share.
 Summary: `{free} free seats` 44px, caption "2 of 4 tables open. Updated 8 s ago".
 ZoneTile grid, larger (min 165px, count 44px).
 

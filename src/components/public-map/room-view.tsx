@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Pin } from "lucide-react";
 import { toast } from "sonner";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
 import { roomPath, roomTitle } from "@/lib/types";
@@ -58,7 +58,11 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
         {!embedded ? (
           <div className="mt-4 flex gap-2">
             <Button variant="outline" onClick={() => toggle(room.id)} aria-pressed={pinned}>
-              {pinned ? <Check aria-hidden /> : null}
+              <Pin
+                className={cn(pinned && "text-state-empty")}
+                fill={pinned ? "currentColor" : "none"}
+                aria-hidden
+              />
               {pinned ? "Pinned" : "Pin"}
             </Button>
             <Button variant="outline" onClick={share}>
