@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { AdminRoom, UnitHeartbeat } from "./admin-types";
+import { BuildingDialog } from "./building-dialog";
 
 type Filter = "all" | "published" | "draft";
 
@@ -33,9 +34,9 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
     );
   });
 
-  const groups = new Map<string, { name: string; rooms: AdminRoom[] }>();
+  const groups = new Map<string, { id: string; name: string; rooms: AdminRoom[] }>();
   for (const room of visible) {
-    const g = groups.get(room.building_id) ?? { name: room.building.name, rooms: [] };
+    const g = groups.get(room.building_id) ?? { id: room.building_id, name: room.building.name, rooms: [] };
     g.rooms.push(room);
     groups.set(room.building_id, g);
   }
@@ -73,9 +74,10 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
         const published = g.rooms.filter((r) => r.published).length;
         return (
           <GroupSection
-            key={g.name}
+            key={g.id}
             title={g.name}
             query={query}
+            action={<BuildingDialog id={g.id} name={g.name} />}
             caption={`${g.rooms.length} ${g.rooms.length === 1 ? "area" : "areas"}, ${published} published`}
           >
             {g.rooms.map((room) => (

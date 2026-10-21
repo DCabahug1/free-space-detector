@@ -14,12 +14,22 @@ interface GroupSectionProps {
   muted?: boolean;
   // Search text to highlight in the title.
   query?: string;
+  // Control rendered before the chevron, such as a rename button.
+  action?: React.ReactNode;
   children: React.ReactNode;
 }
 
 // A building group in the admin lists, styled like the public map: a
 // header on the building background with a chevron, rows beneath it.
-export function GroupSection({ title, caption, defaultOpen = false, muted, query = "", children }: GroupSectionProps) {
+export function GroupSection({
+  title,
+  caption,
+  defaultOpen = false,
+  muted,
+  query = "",
+  action,
+  children,
+}: GroupSectionProps) {
   const [opened, setOpened] = useState(defaultOpen);
   // A search keeps every matching group open so its results show.
   const forced = query.trim().length > 0;
@@ -28,22 +38,33 @@ export function GroupSection({ title, caption, defaultOpen = false, muted, query
     <section className="overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground">
       <div className="flex items-center justify-between gap-3 bg-building px-4 py-3 text-building-foreground">
         <div className="min-w-0">
-          <h2 className={cn("break-words text-xl font-semibold tracking-[-0.01em]", muted && "text-building-muted")}>
+          <h2
+            className={cn(
+              "break-words text-xl font-semibold tracking-[-0.01em]",
+              muted && "text-building-muted",
+            )}
+          >
             <Highlight text={title} query={query} />
           </h2>
           <p className="text-[13px] text-building-muted">{caption}</p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="text-building-muted hover:bg-background dark:hover:bg-background"
-          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
-          aria-expanded={open}
-          disabled={forced}
-          onClick={() => setOpened((o) => !o)}
-        >
-          <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {action}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-building-muted hover:bg-background dark:hover:bg-background"
+            aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+            aria-expanded={open}
+            disabled={forced}
+            onClick={() => setOpened((o) => !o)}
+          >
+            <ChevronDown
+              className={cn("transition-transform", open && "rotate-180")}
+              aria-hidden
+            />
+          </Button>
+        </div>
       </div>
       {open ? <div className="divide-y border-t">{children}</div> : null}
     </section>

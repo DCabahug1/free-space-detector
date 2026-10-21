@@ -138,6 +138,35 @@ export async function updateRoom(roomId: string, input: RoomInput): Promise<Acti
   return {};
 }
 
+const buildingSchema = z.string().trim().min(1, "Name the building.").max(80);
+
+// Renames a building and its slug. The area URLs under it change with it.
+export async function updateBuilding(buildingId: string, name: string): Promise<ActionResult> {
+  const parsed = buildingSchema.safeParse(name);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid building." };
+  }
+  const supabase = await createClient();
+  const slug = slugify(parsed.data);
+  const { data: clash } = await supabase
+    .from("buildings")
+    .select("id")
+    .eq("slug", slug)
+    .neq("id", buildingId)
+    .maybeSingle();
+  if (clash) return { error: "A building with that name already exists." };
+
+  const { error } = await supabase
+    .from("buildings")
+    .update({ name: parsed.data, slug })
+    .eq("id", buildingId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  return {};
+}
+
 // Keeps the building and description, changes the name (and the slug).
 export async function renameRoom(roomId: string, name: string): Promise<ActionResult> {
   const supabase = await createClient();
