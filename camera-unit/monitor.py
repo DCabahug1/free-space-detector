@@ -5,7 +5,7 @@ Fullscreen tkinter window, designed at 800x480 and scaled up to 1280x800:
   pairing:  a QR code plus the 6-digit pair code, until an admin claims the unit.
   live:     one row per zone (name, count, state), a status line, and the
             View camera, Refresh zones and Settings buttons. Settings holds
-            Check for updates, Reboot and Turn off.
+            Check for updates, Reboot and Power off.
             View camera opens a fullscreen overlay with the live frame, person
             boxes, foot dots, and each zone colored by its state.
 
@@ -373,7 +373,7 @@ class Monitor:
     # ----- settings screen -----
 
     def open_settings(self) -> None:
-        """Fullscreen overlay: Check for updates, Refresh zones, Reboot, Turn off."""
+        """Fullscreen overlay: Check for updates, Refresh zones, Reboot, Power off."""
         if self._settings is not None:
             return
         pad = self.px(24)
@@ -417,8 +417,8 @@ class Monitor:
         self.button(row1, "Refresh zones", self.refresh_zones)
         self.button(row2, "Reboot", lambda: self.confirm("Reboot the camera unit?",
                                                          "It is back in about a minute.", "Reboot", self.do_reboot))
-        self.button(row2, "Turn off", lambda: self.confirm("Turn off the camera unit?",
-                                                           "Unplug it after the screen goes dark.", "Turn off",
+        self.button(row2, "Power off", lambda: self.confirm("Power off the camera unit?",
+                                                           "Unplug it after the screen goes dark.", "Power off",
                                                            self.do_poweroff))
         self._buttons = saved
         if self._updating:
@@ -476,7 +476,7 @@ class Monitor:
         self.power("Rebooting", power.reboot)
 
     def do_poweroff(self) -> None:
-        self.power("Turning off", power.poweroff)
+        self.power("Powering off", power.poweroff)
 
     def power(self, verb: str, run) -> None:
         for b in self._settings_buttons:
