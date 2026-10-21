@@ -406,15 +406,20 @@ class Monitor:
             tk.Label(row, text=label, font=self.font(16), fg=MUTED, bg=BG, anchor="w", width=12).pack(side="left")
             tk.Label(row, text=value, font=self.font(16), fg=FG, bg=BG, anchor="w").pack(side="left", fill="x", expand=True)
 
+        # Two rows of two so all four fit on the 800 px screen.
         actions = tk.Frame(top, bg=BG)
         actions.pack(fill="x", padx=pad)
-        self._update_button = self.button(actions, "Updating" if self._updating else "Check for updates", self.start_update)
-        self.button(actions, "Refresh zones", self.refresh_zones)
-        self.button(actions, "Reboot", lambda: self.confirm("Reboot the camera unit?",
-                                                            "It is back in about a minute.", "Reboot", self.do_reboot))
-        self.button(actions, "Turn off", lambda: self.confirm("Turn off the camera unit?",
-                                                              "Unplug it after the screen goes dark.", "Turn off",
-                                                              self.do_poweroff))
+        row1 = tk.Frame(actions, bg=BG)
+        row1.pack(anchor="w", pady=(0, self.px(8)))
+        row2 = tk.Frame(actions, bg=BG)
+        row2.pack(anchor="w")
+        self._update_button = self.button(row1, "Updating" if self._updating else "Check for updates", self.start_update)
+        self.button(row1, "Refresh zones", self.refresh_zones)
+        self.button(row2, "Reboot", lambda: self.confirm("Reboot the camera unit?",
+                                                         "It is back in about a minute.", "Reboot", self.do_reboot))
+        self.button(row2, "Turn off", lambda: self.confirm("Turn off the camera unit?",
+                                                           "Unplug it after the screen goes dark.", "Turn off",
+                                                           self.do_poweroff))
         self._buttons = saved
         if self._updating:
             for b in self._settings_buttons:
