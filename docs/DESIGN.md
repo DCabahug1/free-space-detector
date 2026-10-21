@@ -63,7 +63,7 @@ Camera unit (Tkinter, hex): bg #1f1c18, text #ece6da, muted #a39b90, button #272
 
 Type scale: display 44/600 tracking -0.02em, heading 24/600 tracking -0.01em, body 15/400 line-height 1.5, caption 13 muted-foreground, label 12/500 uppercase tracking 0.08em. Counts: mono 700, 34px on phone tiles, 44px on room page tiles, 76px on projector tiles.
 
-Shadows: shadcn defaults only. Any surface whose fill sits close to the page background (card, accent, muted: building groups, ZoneTile, the pair card, editor panels) gets `shadow-sm` so its edge reads against the page. Nothing larger. No glow, no gradients, no tints behind content.
+Shadows: shadcn defaults only. Any surface whose fill sits close to the page background (card, accent, muted: building groups, ZoneTile, the pair card, editor panels) gets `shadow-surface` (a 1px ambient ring plus a 1px drop) so every edge, sides included, reads against the page. Nothing larger. No glow, no gradients, no tints behind content.
 
 ---
 

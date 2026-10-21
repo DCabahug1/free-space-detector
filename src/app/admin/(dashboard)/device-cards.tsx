@@ -406,7 +406,7 @@ export function PairForm({ rooms, initialCode = "", fixedRoomId, onPaired }: Pai
 // The setup page's inline card: title, caption, and the form.
 export function PairCard(props: PairFormProps) {
   return (
-    <div className="flex flex-col gap-3 bg-card p-4 text-card-foreground shadow-sm">
+    <div className="flex flex-col gap-3 bg-card p-4 text-card-foreground shadow-surface">
       <div>
         <div className="text-[15px] font-medium">Pair a camera unit</div>
         <p className="text-[13px] text-muted-foreground">Type the 6-digit code from its screen.</p>

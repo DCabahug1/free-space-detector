@@ -19,7 +19,7 @@ interface GroupSectionProps {
 export function GroupSection({ title, caption, defaultOpen = true, muted, children }: GroupSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="shadow-sm">
+    <section className="shadow-surface">
       <div className="flex items-center justify-between gap-3 bg-accent px-4 py-3">
         <div className="min-w-0">
           <h2 className={cn("truncate text-xl font-semibold", muted && "text-muted-foreground")}>{title}</h2>

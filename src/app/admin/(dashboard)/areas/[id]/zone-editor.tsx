@@ -403,7 +403,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
         </div>
 
         {pendingPolygon ? (
-          <form onSubmit={saveNewZone} className="space-y-4 bg-card p-4 shadow-sm">
+          <form onSubmit={saveNewZone} className="space-y-4 bg-card p-4 shadow-surface">
             <h3 className="text-[15px] font-semibold">Name the new zone</h3>
             <ZoneFieldInputs
               idPrefix="new"
@@ -424,7 +424,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
             </div>
           </form>
         ) : editing ? (
-          <form onSubmit={saveEdit} className="space-y-4 bg-card p-4 shadow-sm">
+          <form onSubmit={saveEdit} className="space-y-4 bg-card p-4 shadow-surface">
             <ZoneFieldInputs
               idPrefix="edit"
               fields={fields}
