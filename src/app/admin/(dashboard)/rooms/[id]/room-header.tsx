@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
-import { ArrowLeft, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { deleteRoom, renameRoom } from "@/app/admin/actions";
-import type { Room } from "@/lib/types";
+import { deleteRoom, updateRoom } from "@/app/admin/actions";
+import type { PublicRoom } from "@/lib/types";
+import { durationText, isOffline } from "@/lib/occupancy";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,119 +29,133 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { PublishSwitch } from "../../publish-switch";
 
 interface RoomHeaderProps {
-  room: Room;
+  room: PublicRoom;
   zoneCount: number;
+  now: number;
 }
 
-export function RoomHeader({ room, zoneCount }: RoomHeaderProps) {
+export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
+  const router = useRouter();
   const [renameOpen, setRenameOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  const unit = [...room.units].sort((a, b) =>
+    (b.last_seen ?? "").localeCompare(a.last_seen ?? "")
+  )[0];
+  const offline = unit ? isOffline(unit.last_seen, now) : false;
+  const unitStatus = !unit
+    ? "No camera unit paired"
+    : offline
+      ? `${unit.name} offline, ${unit.last_seen ? durationText(unit.last_seen, now) : "never seen"}`
+      : `${unit.name} online, ${durationText(unit.last_seen, now)} ago`;
+
   function onRename(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const name = String(new FormData(event.currentTarget).get("name") ?? "");
+    const form = new FormData(event.currentTarget);
     startTransition(async () => {
-      const result = await renameRoom(room.id, name);
+      const result = await updateRoom(room.id, {
+        building: String(form.get("building") ?? ""),
+        name: String(form.get("name") ?? ""),
+        description: String(form.get("description") ?? ""),
+      });
       if (result.error) {
-        toast.error(result.error);
+        toast(result.error);
         return;
       }
       setRenameOpen(false);
+      router.refresh();
     });
   }
 
   function onDelete() {
     startTransition(async () => {
       const result = await deleteRoom(room.id);
-      if (result?.error) toast.error(result.error);
+      if (result?.error) toast(result.error);
     });
   }
 
   return (
-    <div className="space-y-3">
-      <Link
-        href="/admin"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        All rooms
-      </Link>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="truncate text-3xl font-semibold">{room.name}</h1>
-            <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Rename room">
-                  <Pencil className="size-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <form onSubmit={onRename} className="space-y-6">
-                  <DialogHeader>
-                    <DialogTitle>Rename room</DialogTitle>
-                  </DialogHeader>
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <h1 className="truncate text-2xl font-semibold">
+            <span className="font-normal text-muted-foreground">{room.building.name}, </span>
+            {room.name}
+          </h1>
+          <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Rename room">
+                <Pencil />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <form onSubmit={onRename} className="space-y-6">
+                <DialogHeader>
+                  <DialogTitle>Building and room</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="rename-room">Name</Label>
+                    <Label htmlFor="edit-building">Building</Label>
+                    <Input id="edit-building" name="building" defaultValue={room.building.name} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Room</Label>
+                    <Input id="edit-name" name="name" defaultValue={room.name} required autoFocus />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Description</Label>
                     <Input
-                      id="rename-room"
-                      name="name"
-                      defaultValue={room.name}
-                      required
-                      autoFocus
+                      id="edit-description"
+                      name="description"
+                      defaultValue={room.description ?? ""}
+                      maxLength={140}
                     />
                   </div>
-                  <DialogFooter>
-                    <Button type="submit" disabled={pending}>
-                      Save
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            {zoneCount === 1 ? "1 zone" : `${zoneCount} zones`}
-            {room.published ? (
-              <Link
-                href="/"
-                target="_blank"
-                className="inline-flex items-center gap-1 hover:text-foreground"
-              >
-                View on public map
-                <ExternalLink className="size-3.5" aria-hidden />
-              </Link>
-            ) : null}
-          </p>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={pending}>
+                    {pending ? "Saving" : "Save"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
-        <div className="flex items-center gap-3">
-          <PublishSwitch roomId={room.id} published={room.published} size="lg" />
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Delete room">
-                <Trash2 className="size-4 text-destructive" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this room?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  All of its zones and counts go with it. Camera units assigned
-                  here become unassigned.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" onClick={onDelete}>
-                  Delete room
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          {room.description ? `${room.description}. ` : ""}
+          <span className={cn(offline && "text-state-full")}>{unitStatus}</span>
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <PublishSwitch roomId={room.id} published={room.published} />
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="sm">
+              Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Delete {room.building.name}, {room.name}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Its {zoneCount} {zoneCount === 1 ? "zone goes" : "zones go"} with it. The camera unit
+                stays paired. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={onDelete}>
+                Delete room
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

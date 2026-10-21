@@ -2,75 +2,25 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Camera,
-  Check,
-  ImageUp,
-  Loader2,
-  Pause,
-  PenLine,
-  Play,
-  Plus,
-  Trash2,
-  Undo2,
-  X,
-} from "lucide-react";
 import { toast } from "sonner";
-import {
-  createZone,
-  deleteZone,
-  updateZone,
-  type ZoneInput,
-} from "@/app/admin/actions";
-import type { Polygon, Room, Zone, ZoneType } from "@/lib/types";
-import { ZONE_TYPE_LABEL, displayCount } from "@/lib/occupancy";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+import { createZone, deleteZone, updateZone, type ZoneInput } from "@/app/admin/actions";
+import type { Polygon, Zone, ZoneType } from "@/lib/types";
+import { countText, stateColor, tileState } from "@/lib/occupancy";
+import { type LiveFrame, useLiveFrame } from "@/hooks/use-live-frame";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { CLOSE_RADIUS, ZONE_COLORS, ZoneCanvas, distance } from "./zone-canvas";
-import { type LiveFrame, useLiveFrame } from "@/hooks/use-live-frame";
-import { useZoneCounts } from "@/hooks/use-zone-counts";
+import { CLOSE_RADIUS, ZoneCanvas, distance } from "./zone-canvas";
 
 interface ZoneEditorProps {
-  room: Room;
+  roomId: string;
   zones: Zone[];
-  counts: Record<string, number>;
+  onZonesChange: (next: Zone[]) => void;
+  counts: Record<string, number | undefined>;
   liveFrame: LiveFrame | null;
+  now: number;
 }
 
 interface ZoneFields {
@@ -79,12 +29,10 @@ interface ZoneFields {
   capacity: string;
 }
 
-const EMPTY_FIELDS: ZoneFields = { name: "", type: "seating", capacity: "4" };
-
 function fieldsFromZone(zone: Zone): ZoneFields {
   return {
     name: zone.name,
-    type: zone.type,
+    type: zone.type === "line" ? "open" : zone.type,
     capacity: zone.capacity != null ? String(zone.capacity) : "",
   };
 }
@@ -92,56 +40,49 @@ function fieldsFromZone(zone: Zone): ZoneFields {
 function toInput(fields: ZoneFields, polygon: Polygon): ZoneInput {
   const cap = fields.capacity.trim() === "" ? null : Number(fields.capacity);
   return {
-    name: fields.name,
+    name: fields.name.trim(),
     type: fields.type,
     capacity: fields.type === "seating" && cap != null && !Number.isNaN(cap) ? cap : null,
     polygon,
   };
 }
 
-export function ZoneEditor({ room, zones, counts: initialCounts, liveFrame }: ZoneEditorProps) {
+// "Table 5": the last zone's prefix with the next number. "Table 1" when
+// there are no zones yet.
+export function suggestName(zones: Zone[]): string {
+  if (zones.length === 0) return "Table 1";
+  const last = zones[zones.length - 1];
+  const m = last.name.match(/^(.*?)(\d+)\s*$/);
+  const prefix = m ? m[1] : `${last.name} `;
+  const taken = new Set(zones.map((z) => z.name.trim()));
+  let n = m ? Number(m[2]) + 1 : 2;
+  while (taken.has(`${prefix}${n}`.trim())) n++;
+  return `${prefix}${n}`.trim();
+}
+
+// The zone editor: toolbar, canvas, and the side panel with the zone list
+// and the editor for the selected zone (or the naming step for a new one).
+// Saves and deletes update the list locally first, then reconcile.
+export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, now }: ZoneEditorProps) {
   const router = useRouter();
-  const counts = useZoneCounts(initialCounts);
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
-  // Drawing state. redrawId is set when replacing an existing zone's outline.
   const [drawing, setDrawing] = useState(false);
-
-  // Frame under the canvas. The camera unit's live frame is the default and
-  // freezes automatically while drawing. An uploaded photo overrides it.
-  const [uploadedSrc, setUploadedSrc] = useState<string | null>(null);
-  const [paused, setPaused] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const frozen = paused || drawing;
-  const live = useLiveFrame(liveFrame, frozen);
-  const frameSrc = uploadedSrc ?? live.src;
   const [draft, setDraft] = useState<Polygon>([]);
-  const [redrawId, setRedrawId] = useState<string | null>(null);
+  const [uploadedSrc, setUploadedSrc] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const live = useLiveFrame(liveFrame, drawing);
+  const frameSrc = uploadedSrc ?? live.src;
 
-  // New zone dialog, opened once a fresh polygon is closed.
-  const [newOpen, setNewOpen] = useState(false);
-  const [newFields, setNewFields] = useState<ZoneFields>(EMPTY_FIELDS);
-  const [newPolygon, setNewPolygon] = useState<Polygon>([]);
-
-  // Selected zone and its edit form.
+  // Either the selected saved zone or the polygon waiting for a name.
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [editFields, setEditFields] = useState<ZoneFields>(EMPTY_FIELDS);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pendingPolygon, setPendingPolygon] = useState<Polygon | null>(null);
+  const [fields, setFields] = useState<ZoneFields>({ name: "", type: "seating", capacity: "" });
 
   const selected = zones.find((z) => z.id === selectedId) ?? null;
+  const lastSeating = [...zones].reverse().find((z) => z.type === "seating" && z.capacity != null);
 
-  // Keep the edit form in sync when the selection or server data changes.
-  const lastSynced = useRef<string>("");
-  useEffect(() => {
-    if (!selected) return;
-    const key = `${selected.id}:${selected.name}:${selected.type}:${selected.capacity}`;
-    if (key !== lastSynced.current) {
-      lastSynced.current = key;
-      setEditFields(fieldsFromZone(selected));
-    }
-  }, [selected]);
-
-  // Keyboard: Escape cancels drawing, Backspace removes the last point.
+  // Keyboard while drawing: Escape cancels, Backspace undoes, Enter closes.
   useEffect(() => {
     if (!drawing) return;
     function onKey(e: KeyboardEvent) {
@@ -165,55 +106,43 @@ export function ZoneEditor({ room, zones, counts: initialCounts, liveFrame }: Zo
     };
   }, [uploadedSrc]);
 
-  function startDrawing(replaceId: string | null = null) {
+  function select(zoneId: string | null) {
+    setSelectedId(zoneId);
+    setPendingPolygon(null);
+    const zone = zones.find((z) => z.id === zoneId);
+    if (zone) setFields(fieldsFromZone(zone));
+  }
+
+  function startDrawing() {
     setDrawing(true);
     setDraft([]);
-    setRedrawId(replaceId);
-    if (!replaceId) setSelectedId(null);
+    setSelectedId(null);
+    setPendingPolygon(null);
   }
 
   function cancelDrawing() {
     setDrawing(false);
     setDraft([]);
-    setRedrawId(null);
   }
 
   function finishDrawing() {
-    if (draft.length < 3) {
-      toast.error("Click at least 3 points to outline a zone.");
-      return;
-    }
+    if (draft.length < 3) return;
     const polygon = draft;
     setDrawing(false);
     setDraft([]);
-
-    if (redrawId) {
-      const zone = zones.find((z) => z.id === redrawId);
-      setRedrawId(null);
-      if (!zone) return;
-      startTransition(async () => {
-        const result = await updateZone(zone.id, room.id, toInput(fieldsFromZone(zone), polygon));
-        if (result.error) toast.error(result.error);
-        else {
-          toast.success(`Outline for ${zone.name} updated.`);
-          router.refresh();
-        }
-      });
-      return;
-    }
-
-    setNewPolygon(polygon);
-    setNewFields({
-      ...EMPTY_FIELDS,
-      name: `Zone ${zones.length + 1}`,
-      type: "seating",
+    setSelectedId(null);
+    setPendingPolygon(polygon);
+    const last = zones[zones.length - 1];
+    setFields({
+      name: suggestName(zones),
+      type: last ? (last.type === "line" ? "open" : last.type) : "seating",
+      capacity: lastSeating?.capacity != null ? String(lastSeating.capacity) : "4",
     });
-    setNewOpen(true);
   }
 
   function onCanvasClick(point: [number, number]) {
     if (!drawing) {
-      setSelectedId(null);
+      select(null);
       return;
     }
     if (draft.length >= 3 && distance(point, draft[0]) <= CLOSE_RADIUS) {
@@ -223,10 +152,6 @@ export function ZoneEditor({ room, zones, counts: initialCounts, liveFrame }: Zo
     setDraft((d) => [...d, [Math.round(point[0]), Math.round(point[1])]]);
   }
 
-  function onZoneClick(zoneId: string) {
-    setSelectedId((current) => (current === zoneId ? null : zoneId));
-  }
-
   function onFrameChosen(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -234,122 +159,145 @@ export function ZoneEditor({ room, zones, counts: initialCounts, liveFrame }: Zo
     event.target.value = "";
   }
 
+  // Commits the server's view of the zones together with the local override,
+  // so nothing flickers back to the old row while the refresh is in flight.
+  function reconcile(next: Zone[]) {
+    startTransition(() => {
+      onZonesChange(next);
+      router.refresh();
+    });
+  }
+
   function saveNewZone(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!pendingPolygon) return;
+    const input = toInput(fields, pendingPolygon);
+    const tempId = `tmp-${Date.now()}`;
+    const optimistic: Zone = { id: tempId, room_id: roomId, ...input };
+    const before = zones;
+    onZonesChange([...zones, optimistic]);
+    setPendingPolygon(null);
+    setSelectedId(tempId);
     startTransition(async () => {
-      const result = await createZone(room.id, toInput(newFields, newPolygon));
-      if (result.error) {
-        toast.error(result.error);
+      const result = await createZone(roomId, input);
+      if (result.error || !result.id) {
+        toast(result.error ?? "Could not save the zone.");
+        onZonesChange(before);
+        setSelectedId(null);
         return;
       }
-      setNewOpen(false);
-      setNewPolygon([]);
-      toast.success(`${newFields.name} added.`);
-      router.refresh();
-      if (result.id) setSelectedId(result.id);
+      const saved: Zone = { ...optimistic, id: result.id };
+      setSelectedId(result.id);
+      reconcile([...before, saved]);
+      toast("Zone saved.", { action: undoAction(() => removeZone(saved, { silent: true })) });
     });
   }
 
   function saveEdit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected) return;
+    const previous = selected;
+    const input = toInput(fields, selected.polygon);
+    const updated: Zone = { ...selected, ...input };
+    onZonesChange(zones.map((z) => (z.id === selected.id ? updated : z)));
     startTransition(async () => {
-      const result = await updateZone(selected.id, room.id, toInput(editFields, selected.polygon));
-      if (result.error) toast.error(result.error);
-      else {
-        toast.success("Zone saved.");
-        router.refresh();
+      const result = await updateZone(selected.id, roomId, input);
+      if (result.error) {
+        toast(result.error);
+        onZonesChange(zones.map((z) => (z.id === previous.id ? previous : z)));
+        return;
       }
+      reconcile(zones.map((z) => (z.id === selected.id ? updated : z)));
+      toast("Zone saved.", { action: undoAction(() => restoreZone(previous)) });
     });
   }
 
-  function confirmDelete() {
-    if (!selected) return;
-    const name = selected.name;
+  function restoreZone(previous: Zone) {
+    onZonesChange(zones.map((z) => (z.id === previous.id ? previous : z)));
+    setFields(fieldsFromZone(previous));
     startTransition(async () => {
-      const result = await deleteZone(selected.id, room.id);
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      setSelectedId(null);
-      setDeleteOpen(false);
-      toast.success(`${name} deleted.`);
+      const result = await updateZone(previous.id, roomId, toInput(fieldsFromZone(previous), previous.polygon));
+      if (result.error) toast(result.error);
       router.refresh();
     });
   }
 
+  function removeZone(zone: Zone, opts: { silent?: boolean } = {}) {
+    const before = zones;
+    onZonesChange(zones.filter((z) => z.id !== zone.id));
+    if (selectedId === zone.id) setSelectedId(null);
+    startTransition(async () => {
+      const result = await deleteZone(zone.id, roomId);
+      if (result.error) {
+        toast(result.error);
+        onZonesChange(before);
+        return;
+      }
+      reconcile(before.filter((z) => z.id !== zone.id));
+      if (!opts.silent) {
+        toast("Zone deleted.", { action: undoAction(() => recreateZone(zone)) });
+      }
+    });
+  }
+
+  function recreateZone(zone: Zone) {
+    const input = toInput(fieldsFromZone(zone), zone.polygon);
+    onZonesChange([...zones, zone]);
+    startTransition(async () => {
+      const result = await createZone(roomId, input);
+      if (result.error || !result.id) {
+        toast(result.error ?? "Could not restore the zone.");
+        onZonesChange(zones);
+        return;
+      }
+      reconcile([...zones, { ...zone, id: result.id }]);
+    });
+  }
+
+  const points = draft.length;
+  const editing = selected && !pendingPolygon;
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           {drawing ? (
             <>
-              <Button onClick={finishDrawing} disabled={draft.length < 3 || pending}>
-                <Check className="size-4" aria-hidden />
+              <Button onClick={finishDrawing} disabled={points < 3}>
                 Finish zone
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => setDraft((d) => d.slice(0, -1))}
-                disabled={draft.length === 0}
-              >
-                <Undo2 className="size-4" aria-hidden />
+              <Button variant="outline" onClick={() => setDraft((d) => d.slice(0, -1))} disabled={points === 0}>
                 Undo point
               </Button>
               <Button variant="ghost" onClick={cancelDrawing}>
-                <X className="size-4" aria-hidden />
                 Cancel
               </Button>
-              <span className="text-sm text-muted-foreground">
-                {draft.length === 0
-                  ? "Click the frame to place the first corner."
-                  : draft.length < 3
-                    ? `${draft.length} of 3 points. Keep clicking.`
-                    : "Click the first point or press Enter to close."}
+              <span className="ml-auto text-[13px] text-muted-foreground">
+                {points} {points === 1 ? "point" : "points"}. Click near the first point to close.
               </span>
             </>
           ) : (
             <>
-              <Button onClick={() => startDrawing()} disabled={pending}>
-                <Plus className="size-4" aria-hidden />
-                New zone
+              <Button size="lg" onClick={startDrawing}>
+                Draw a zone
               </Button>
-              {liveFrame && !uploadedSrc ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setPaused((p) => !p)}
-                  disabled={!live.src}
-                >
-                  {paused ? (
-                    <Play className="size-4" aria-hidden />
-                  ) : (
-                    <Pause className="size-4" aria-hidden />
-                  )}
-                  {paused ? "Resume live frame" : "Freeze frame"}
-                </Button>
-              ) : null}
               <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                <ImageUp className="size-4" aria-hidden />
-                {uploadedSrc ? "Replace photo" : "Upload photo"}
+                Upload photo
               </Button>
               {uploadedSrc ? (
                 <Button variant="ghost" onClick={() => setUploadedSrc(null)}>
-                  {liveFrame ? "Back to live frame" : "Clear photo"}
+                  Back to the live frame
                 </Button>
               ) : null}
-              {liveFrame ? (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Camera className="size-3.5" aria-hidden />
-                  {uploadedSrc
-                    ? `Photo (live frame from ${liveFrame.unitName} hidden)`
-                    : live.available === false
-                      ? `${liveFrame.unitName} has not sent a frame yet`
-                      : paused
-                        ? `Frozen frame from ${liveFrame.unitName}`
-                        : `Live from ${liveFrame.unitName}`}
-                </span>
-              ) : null}
+              <span className="ml-auto text-[13px] text-muted-foreground">
+                {uploadedSrc
+                  ? "Uploaded photo"
+                  : !liveFrame
+                    ? "No camera unit paired"
+                    : live.loadedAt
+                      ? `Live frame, ${Math.max(0, Math.round((now - live.loadedAt) / 1000))} s ago`
+                      : "Waiting for the first frame"}
+              </span>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -359,169 +307,99 @@ export function ZoneEditor({ room, zones, counts: initialCounts, liveFrame }: Zo
               />
             </>
           )}
-          {pending ? (
-            <Loader2 className="ml-auto size-4 animate-spin text-muted-foreground" aria-hidden />
-          ) : null}
         </div>
 
         <ZoneCanvas
           frameSrc={frameSrc}
           zones={zones}
           counts={counts}
-          selectedId={selectedId}
-          hiddenId={redrawId}
-          draft={draft}
+          selectedId={pendingPolygon ? null : selectedId}
+          draft={pendingPolygon ?? draft}
           drawing={drawing}
           onCanvasClick={onCanvasClick}
-          onZoneClick={onZoneClick}
+          onZoneClick={(id) => select(id === selectedId ? null : id)}
         />
-        <p className="text-xs text-muted-foreground">
-          A person is counted inside a zone when the bottom center of their
-          detection box falls within the outline. Draw around the floor area,
-          not the furniture top.
-          {liveFrame ? " The live frame freezes while you draw." : ""}
+        <p className="text-[13px] text-muted-foreground">
+          1280 x 720{liveFrame ? ` from ${liveFrame.unitName}` : ""}. Boxes are people. Dots are feet,
+          which is what counts.
         </p>
       </div>
 
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Zones</CardTitle>
-            <CardDescription>
-              {zones.length === 0
-                ? "No zones yet. Draw the first one."
-                : "Click a zone to edit it."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {zones.map((zone) => {
-              const active = zone.id === selectedId;
-              return (
-                <button
-                  key={zone.id}
-                  type="button"
-                  onClick={() => onZoneClick(zone.id)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent",
-                    active && "bg-accent"
-                  )}
-                >
-                  <span
-                    className="size-3 shrink-0 rounded-sm"
-                    style={{ backgroundColor: ZONE_COLORS[zone.type] }}
-                    aria-hidden
-                  />
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {zone.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {ZONE_TYPE_LABEL[zone.type]}
-                    {zone.type === "seating" && zone.capacity != null
-                      ? ` · ${zone.capacity}`
-                      : ""}
-                  </span>
-                  {counts[zone.id] != null ? (
-                    <Badge variant="outline" className="font-mono">
-                      {displayCount(zone.type, counts[zone.id], zone.capacity)}
-                    </Badge>
-                  ) : null}
-                </button>
-              );
-            })}
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Zones</h2>
+          {zones.length === 0 && !pendingPolygon ? (
+            <p className="mt-2 text-sm text-muted-foreground">No zones yet. Draw the first one.</p>
+          ) : (
+            <ul className="mt-2">
+              {zones.map((zone) => {
+                const active = zone.id === selectedId && !pendingPolygon;
+                const raw = counts[zone.id];
+                return (
+                  <li key={zone.id}>
+                    <button
+                      type="button"
+                      onClick={() => select(active ? null : zone.id)}
+                      className={cn(
+                        "flex w-full items-center gap-3 px-2 py-2 text-left text-sm hover:bg-card",
+                        active && "bg-card"
+                      )}
+                    >
+                      <span
+                        className="size-[10px] shrink-0"
+                        style={{ backgroundColor: stateColor(tileState(zone.type, raw ?? 0, zone.capacity)) }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate">{zone.name}</span>
+                      <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                        {raw == null ? "" : countText(zone, raw)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
 
-        {selected ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Edit zone</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={saveEdit} className="space-y-4">
-                <ZoneFieldInputs
-                  idPrefix="edit"
-                  fields={editFields}
-                  onChange={setEditFields}
-                />
-                <div className="flex flex-wrap gap-2">
-                  <Button type="submit" disabled={pending}>
-                    Save
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => startDrawing(selected.id)}
-                    disabled={pending}
-                  >
-                    <PenLine className="size-4" aria-hidden />
-                    Redraw outline
-                  </Button>
-                </div>
-                <Separator />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => setDeleteOpen(true)}
-                  disabled={pending}
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                  Delete zone
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
-
-      <Dialog
-        open={newOpen}
-        onOpenChange={(open) => {
-          setNewOpen(open);
-          if (!open) setNewPolygon([]);
-        }}
-      >
-        <DialogContent>
-          <form onSubmit={saveNewZone} className="space-y-6">
-            <DialogHeader>
-              <DialogTitle>Name this zone</DialogTitle>
-              <DialogDescription>
-                {newPolygon.length} corners drawn. Give it a name students
-                recognize.
-              </DialogDescription>
-            </DialogHeader>
+        {pendingPolygon ? (
+          <form onSubmit={saveNewZone} className="space-y-4 bg-card p-4">
+            <h3 className="text-[15px] font-semibold">Name the new zone</h3>
             <ZoneFieldInputs
               idPrefix="new"
-              fields={newFields}
-              onChange={setNewFields}
+              fields={fields}
+              onChange={setFields}
+              helper={
+                lastSeating
+                  ? "Same as the other tables. Change if this one differs."
+                  : `Full at ${fields.capacity || "4"}. Shared from 1.`
+              }
               autoFocus
             />
-            <DialogFooter>
-              <Button type="submit" disabled={pending}>
-                {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-                Save zone
+            <div className="flex gap-2">
+              <Button type="submit">Save zone</Button>
+              <Button type="button" variant="ghost" onClick={() => setPendingPolygon(null)}>
+                Discard
               </Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selected?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The zone and its live count disappear from the public map.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        ) : editing ? (
+          <form onSubmit={saveEdit} className="space-y-4 bg-card p-4">
+            <ZoneFieldInputs
+              idPrefix="edit"
+              fields={fields}
+              onChange={setFields}
+              helper={`Full at ${fields.capacity || "?"}. Shared from 1.`}
+            />
+            <div className="flex gap-2">
+              <Button type="submit">Save</Button>
+              <Button type="button" variant="ghost" onClick={() => removeZone(selected)}>
+                Delete zone
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -530,10 +408,11 @@ interface ZoneFieldInputsProps {
   idPrefix: string;
   fields: ZoneFields;
   onChange: (next: ZoneFields) => void;
+  helper: string;
   autoFocus?: boolean;
 }
 
-function ZoneFieldInputs({ idPrefix, fields, onChange, autoFocus }: ZoneFieldInputsProps) {
+function ZoneFieldInputs({ idPrefix, fields, onChange, helper, autoFocus }: ZoneFieldInputsProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -548,26 +427,17 @@ function ZoneFieldInputs({ idPrefix, fields, onChange, autoFocus }: ZoneFieldInp
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`${idPrefix}-type`}>Type</Label>
-        <Select
-          value={fields.type}
-          onValueChange={(v) => onChange({ ...fields, type: v as ZoneType })}
-        >
-          <SelectTrigger id={`${idPrefix}-type`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="seating">Seating: empty / shared / full</SelectItem>
-            <SelectItem value="open">Open area: empty / some / busy</SelectItem>
-            {fields.type === "line" ? (
-              <SelectItem value="line">Line (deprecated): count and wait estimate</SelectItem>
-            ) : null}
-          </SelectContent>
-        </Select>
+        <Label>Type</Label>
+        <Tabs value={fields.type} onValueChange={(v) => onChange({ ...fields, type: v as ZoneType })}>
+          <TabsList className="w-full">
+            <TabsTrigger value="seating">Seating</TabsTrigger>
+            <TabsTrigger value="open">Open area</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
       {fields.type === "seating" ? (
         <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-capacity`}>Capacity</Label>
+          <Label htmlFor={`${idPrefix}-capacity`}>Seats</Label>
           <Input
             id={`${idPrefix}-capacity`}
             type="number"
@@ -577,12 +447,15 @@ function ZoneFieldInputs({ idPrefix, fields, onChange, autoFocus }: ZoneFieldInp
             value={fields.capacity}
             onChange={(e) => onChange({ ...fields, capacity: e.target.value })}
             placeholder="4"
+            className="font-mono"
           />
-          <p className="text-xs text-muted-foreground">
-            Seats at this spot. Shows full once this many people are counted.
-          </p>
+          <p className="text-[13px] text-muted-foreground">{helper}</p>
         </div>
       ) : null}
     </div>
   );
+}
+
+function undoAction(run: () => void) {
+  return { label: "Undo", onClick: run };
 }
