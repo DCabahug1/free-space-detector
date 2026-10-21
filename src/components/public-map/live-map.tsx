@@ -129,7 +129,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <CardTitle className="truncate font-serif text-xl font-normal">
+                    <CardTitle className="truncate text-xl">
                       {room.name}
                     </CardTitle>
                     <CardDescription className="mt-1 text-base text-foreground">

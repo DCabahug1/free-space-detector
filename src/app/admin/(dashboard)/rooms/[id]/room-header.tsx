@@ -72,7 +72,7 @@ export function RoomHeader({ room, zoneCount }: RoomHeaderProps) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="truncate font-serif text-3xl">{room.name}</h1>
+            <h1 className="truncate text-3xl font-semibold">{room.name}</h1>
             <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon-sm" aria-label="Rename room">

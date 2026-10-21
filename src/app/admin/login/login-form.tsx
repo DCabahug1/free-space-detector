@@ -27,7 +27,7 @@ export function LoginForm() {
     <Card className="w-full max-w-sm">
       <form action={formAction}>
         <CardHeader>
-          <CardTitle className="font-serif text-2xl font-normal">
+          <CardTitle className="text-2xl">
             Staff sign in
           </CardTitle>
           <CardDescription>

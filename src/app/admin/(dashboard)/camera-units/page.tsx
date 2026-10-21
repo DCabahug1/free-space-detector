@@ -15,7 +15,7 @@ export default function CameraUnitsPage({ searchParams }: CameraUnitsPageProps) 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-3xl">Camera units</h1>
+        <h1 className="text-3xl font-semibold">Camera units</h1>
         <p className="text-muted-foreground">
           Each camera unit shows a 6-digit pair code on its monitor until it is
           claimed. Enter the code here and pick the room it watches.

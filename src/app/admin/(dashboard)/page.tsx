@@ -14,7 +14,7 @@ export default function RoomsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-3xl">Rooms</h1>
+          <h1 className="text-3xl font-semibold">Rooms</h1>
           <p className="text-muted-foreground">
             A room is the area one camera unit covers. Draw zones inside it,
             then publish it to the public map.
@@ -69,7 +69,7 @@ async function RoomsList() {
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <CardTitle className="truncate font-serif text-xl font-normal">
+                  <CardTitle className="truncate text-xl">
                     <Link
                       href={`/admin/rooms/${room.id}`}
                       className="after:absolute after:inset-0 hover:underline"

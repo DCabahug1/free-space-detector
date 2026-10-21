@@ -11,7 +11,7 @@ export default function Home() {
       <SiteNav current="map" />
       <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">
         <div className="mb-6 space-y-1">
-          <h1 className="font-serif text-3xl md:text-4xl">Find a free spot</h1>
+          <h1 className="text-3xl font-semibold md:text-4xl">Find a free spot</h1>
           <p className="text-muted-foreground">
             Live occupancy from camera units around campus. Counts only, never
             video.
