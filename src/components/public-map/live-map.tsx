@@ -78,8 +78,8 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   if (rooms.length === 0) {
     return (
       <div className="py-16">
-        <h1 className="text-2xl font-semibold">No rooms yet</h1>
-        <p className="mt-1 text-muted-foreground">Rooms appear here once staff publish them.</p>
+        <h1 className="text-2xl font-semibold">No areas yet</h1>
+        <p className="mt-1 text-muted-foreground">Areas appear here once staff publish them.</p>
       </div>
     );
   }
@@ -95,7 +95,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
         <p className={cn("mt-2 text-[13px]", reconnecting ? "text-state-shared" : "text-muted-foreground")}>
           {reconnecting
             ? `Reconnecting. Counts from ${durationText(live.latestUpdate, live.now) || "never"} ago`
-            : `${rooms.length} ${rooms.length === 1 ? "room" : "rooms"} in ${buildingCount} ${
+            : `${rooms.length} ${rooms.length === 1 ? "area" : "areas"} in ${buildingCount} ${
                 buildingCount === 1 ? "building" : "buildings"
               }. Updated ${relativeTime(live.latestUpdate, live.now)}`}
         </p>
@@ -106,8 +106,8 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Room or building"
-          aria-label="Search rooms"
+          placeholder="Area or building"
+          aria-label="Search areas"
           className="sm:max-w-xs"
         />
         <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
@@ -121,7 +121,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       {visible.length === 0 ? (
         <div className="py-8">
           <p className="text-muted-foreground">
-            {q ? `No rooms or buildings match "${query.trim()}".` : "No rooms with free seats right now."}
+            {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free seats right now."}
           </p>
           {q ? (
             <Button variant="outline" className="mt-3" onClick={() => setQuery("")}>
@@ -197,7 +197,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
             <div key={g.building.id}>
               <h2 className="text-xl font-semibold">{g.building.name}</h2>
               <p className="text-[13px] text-muted-foreground">
-                {g.free} free in {g.rooms.length} {g.rooms.length === 1 ? "room" : "rooms"}
+                {g.free} free in {g.rooms.length} {g.rooms.length === 1 ? "area" : "areas"}
               </p>
               <div className="mt-2 divide-y border-t">
                 {g.rooms.map((room) => (

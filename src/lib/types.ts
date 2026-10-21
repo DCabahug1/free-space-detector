@@ -57,5 +57,5 @@ export function roomTitle(room: { name: string; building: { name: string } }) {
 }
 
 export function roomPath(room: { slug: string; building: { slug: string } }) {
-  return `/rooms/${room.building.slug}/${room.slug}`;
+  return `/areas/${room.building.slug}/${room.slug}`;
 }

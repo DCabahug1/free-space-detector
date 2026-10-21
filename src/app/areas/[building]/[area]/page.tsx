@@ -7,7 +7,7 @@ import { loadPublicSnapshot } from "@/lib/public-data";
 import { RoomView } from "@/components/public-map/room-view";
 
 interface RoomPageProps {
-  params: Promise<{ building: string; room: string }>;
+  params: Promise<{ building: string; area: string }>;
 }
 
 export default function PublicRoomPage({ params }: RoomPageProps) {
@@ -19,13 +19,13 @@ export default function PublicRoomPage({ params }: RoomPageProps) {
           <RoomLoader params={params} />
         </Suspense>
       </main>
-      <PublicFooter text="Counts from one camera unit in this room. No video leaves the camera unit." />
+      <PublicFooter text="Counts from one camera unit in this area. No video leaves the camera unit." />
     </>
   );
 }
 
 async function RoomLoader({ params }: RoomPageProps) {
-  const { building, room: roomSlug } = await params;
+  const { building, area: roomSlug } = await params;
   const { rooms, counts } = await loadPublicSnapshot(createPublicClient(), {
     buildingSlug: building,
     roomSlug,

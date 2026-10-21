@@ -38,19 +38,19 @@ export function SetupRoomDialog({ buildings }: { buildings: Building[] }) {
         return;
       }
       setOpen(false);
-      router.push(`/admin/rooms/${result.id}`);
+      router.push(`/admin/areas/${result.id}`);
     });
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Set up a room</Button>
+        <Button>Set up an area</Button>
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={onSubmit} className="space-y-6">
           <DialogHeader>
-            <DialogTitle>Set up a room</DialogTitle>
+            <DialogTitle>Set up an area</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -70,7 +70,7 @@ export function SetupRoomDialog({ buildings }: { buildings: Building[] }) {
               </datalist>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="room-name">Room</Label>
+              <Label htmlFor="room-name">Area</Label>
               <Input id="room-name" name="name" placeholder="Floor 2" required />
             </div>
             <div className="space-y-2">
@@ -85,7 +85,7 @@ export function SetupRoomDialog({ buildings }: { buildings: Building[] }) {
           </div>
           <DialogFooter>
             <Button type="submit" disabled={pending}>
-              {pending ? "Creating" : "Create room"}
+              {pending ? "Creating" : "Create area"}
             </Button>
           </DialogFooter>
         </form>

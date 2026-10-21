@@ -3,7 +3,7 @@ import { AccountControl } from "@/components/account-control";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 interface SiteHeaderProps {
-  // Shows the "All rooms" link back to the map.
+  // Shows the "All areas" link back to the map.
   back?: boolean;
 }
 
@@ -17,7 +17,7 @@ export function SiteHeader({ back }: SiteHeaderProps) {
           </Link>
           {back ? (
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-              All rooms
+              All areas
             </Link>
           ) : null}
         </div>

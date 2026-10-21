@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { AdminRoom, UnitHeartbeat } from "./admin-types";
 
-// Rooms grouped under building labels. Columns: Room, Camera unit, Zones,
+// Areas grouped under building labels. Columns: Area, Camera unit, Zones,
 // Status. Rows link to the setup page. Hairlines only.
 export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
   const now = useClock();
@@ -30,7 +30,7 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
             {g.rooms.map((room) => (
               <Link
                 key={room.id}
-                href={`/admin/rooms/${room.id}`}
+                href={`/admin/areas/${room.id}`}
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3 hover:bg-card sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_auto]"
               >
                 <div className="min-w-0">

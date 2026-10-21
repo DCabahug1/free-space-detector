@@ -19,7 +19,7 @@ interface RoomViewProps {
   embedded?: boolean;
 }
 
-// The public room page body. Also rendered by the setup page's preview step.
+// The public area page body. Also rendered by the setup page's preview step.
 export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
   const live = useLiveSnapshot([room], initialCounts);
   const { isPinned, toggle } = usePins();

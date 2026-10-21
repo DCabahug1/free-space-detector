@@ -40,7 +40,7 @@ export function SetupPage({ room, initialCounts, liveFrame }: SetupPageProps) {
   const [step, setStep] = useState<number>(() => (!unit ? 2 : zones.length === 0 ? 3 : room.published ? 4 : 3));
 
   const steps: Step[] = [
-    { n: 1, title: "Building and room", status: "Done" },
+    { n: 1, title: "Building and area", status: "Done" },
     {
       n: 2,
       title: "Pair the camera unit",
@@ -92,14 +92,14 @@ function BuildingStep({ room, onNext }: { room: PublicRoom; onNext: () => void }
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm">
         <dt className="text-muted-foreground">Building</dt>
         <dd>{room.building.name}</dd>
-        <dt className="text-muted-foreground">Room</dt>
+        <dt className="text-muted-foreground">Area</dt>
         <dd>{room.name}</dd>
         <dt className="text-muted-foreground">Description</dt>
         <dd>{room.description ?? "None"}</dd>
         <dt className="text-muted-foreground">Link</dt>
         <dd className="font-mono text-[13px]">{roomPath(room)}</dd>
       </dl>
-      <p className="text-[13px] text-muted-foreground">Change these with the pencil beside the room name.</p>
+      <p className="text-[13px] text-muted-foreground">Change these with the pencil beside the area name.</p>
       <Button onClick={onNext}>Next: pair the camera unit</Button>
     </div>
   );
@@ -186,7 +186,7 @@ function PreviewStep({
   }
 
   const rows: [string, string, boolean][] = [
-    ["Building and room", `${room.building.name}, ${room.name}`, true],
+    ["Building and area", `${room.building.name}, ${room.name}`, true],
     ["Camera unit online", unit ? (unitOnline ? `${unit.name}, online` : `${unit.name}, offline`) : "Not paired", unitOnline],
     [
       "Zones",

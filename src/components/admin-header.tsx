@@ -17,7 +17,7 @@ export function AdminHeader() {
             Admin
           </span>
           <Link href="/admin" className="text-sm text-muted-foreground hover:text-foreground">
-            Rooms
+            Areas
           </Link>
         </div>
         <div className="flex items-center gap-1">

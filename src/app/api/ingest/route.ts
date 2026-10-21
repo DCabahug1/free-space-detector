@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
   if (!unit.room_id) {
     return NextResponse.json(
-      { ok: true, accepted: 0, reason: "camera unit not assigned to a room" },
+      { ok: true, accepted: 0, reason: "camera unit not assigned to an area" },
       { status: 200 }
     );
   }

@@ -21,7 +21,7 @@ Students check it before walking somewhere (empty library tables, lounge vibe). 
 - **camera unit**: Raspberry Pi 5 + Camera Module 3 in its case, with a small attached monitor. The physical thing mounted in a room.
 - **zone**: a hand-drawn polygon over one spot (table, couch, lounge corner). Has a type and optional capacity.
 - **building**: a free-text group of rooms ("University Library", "Food Court", "Sierra Hall"). Has a slug.
-- **room**: a named area one camera unit covers, made of zones. Belongs to one building. Free-text name ("Floor 2", "Outdoor eating"), optional one-line description, slug unique within the building. Displayed as `{building}, {room}`.
+- **area**: a named space one camera unit covers, made of zones. Belongs to one building. Free-text name ("Floor 2", "Outdoor eating"), optional one-line description, slug unique within the building. Displayed as `{building}, {area}`. UI copy and URLs say area; the `rooms` table and the code identifiers (`Room`, `room_id`, `roomPath`) keep the old name.
 - **admin app**: where staff pair camera units and draw zones. Auth-gated.
 - **public map**: what students open. Anonymous, no login.
 
@@ -36,7 +36,7 @@ Zone types:
 ## Stack
 
 - Next.js App Router, TypeScript, Tailwind, deployed on Vercel. One repo.
-  - Routes: `/` public map, `/rooms/[building]/[room]` public room page, `/admin` overview, `/admin/rooms/[id]` setup page, `/admin/login`, `/api/ingest` POST route.
+  - Routes: `/` public map, `/areas/[building]/[area]` public area page, `/admin` overview (Areas and Camera units tabs), `/admin/areas/[id]` setup page, `/admin/login`, `/api/ingest` POST route.
 - Frontend UI: **shadcn/ui** restyled only through the tokens in `src/app/globals.css` (warm paper palette, IBM Plex Sans, radius 0, letter spacing 0). The old tweakcn theme is gone, do not reinstall it. shadcn parts keep their shapes. Three custom components: ZoneTile, RoomRow, StepRail (see `docs/DESIGN.md`).
 - Fonts: IBM Plex Sans for everything, JetBrains Mono only for counts and pair codes, both via `next/font/google` in `layout.tsx`.
 - Supabase: Postgres, Realtime (public map subscribes to `zone_counts`), Auth for admins only, RLS.
@@ -52,7 +52,7 @@ Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms a
 
 - `buildings`: id, name, slug
 - `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen
-- `rooms`: id, building_id, name, slug (unique per building), description nullable, published bool. `kind` is legacy, ignore it in new UI.
+- `rooms` (an area in the UI): id, building_id, name, slug (unique per building), description nullable, published bool. `kind` is legacy, ignore it in new UI.
 - `zones`: id, room_id, name, type (seating | line | open), capacity int nullable, polygon jsonb (array of [x, y] in frame pixels)
 - `zone_counts`: zone_id PK, count int, updated_at. Upsert one row per zone.
 

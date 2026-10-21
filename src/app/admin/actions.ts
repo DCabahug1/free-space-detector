@@ -43,7 +43,7 @@ export async function signOut() {
 
 const roomSchema = z.object({
   building: z.string().trim().min(1, "Name the building.").max(80),
-  name: z.string().trim().min(1, "Name the room.").max(80),
+  name: z.string().trim().min(1, "Name the area.").max(80),
   description: z.string().trim().max(140).optional().or(z.literal("")),
 });
 
@@ -88,7 +88,7 @@ async function uniqueRoomSlug(supabase: Db, buildingId: string, name: string, ex
 export async function createRoom(input: RoomInput): Promise<ActionResult & { id?: string }> {
   const parsed = roomSchema.safeParse(input);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid room." };
+    return { error: parsed.error.issues[0]?.message ?? "Invalid area." };
   }
   const supabase = await createClient();
   const building = await ensureBuilding(supabase, parsed.data.building);
@@ -114,7 +114,7 @@ export async function createRoom(input: RoomInput): Promise<ActionResult & { id?
 export async function updateRoom(roomId: string, input: RoomInput): Promise<ActionResult> {
   const parsed = roomSchema.safeParse(input);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid room." };
+    return { error: parsed.error.issues[0]?.message ?? "Invalid area." };
   }
   const supabase = await createClient();
   const building = await ensureBuilding(supabase, parsed.data.building);
@@ -133,7 +133,7 @@ export async function updateRoom(roomId: string, input: RoomInput): Promise<Acti
   if (error) return { error: error.message };
 
   revalidatePath("/admin");
-  revalidatePath(`/admin/rooms/${roomId}`);
+  revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
   return {};
 }
@@ -147,7 +147,7 @@ export async function renameRoom(roomId: string, name: string): Promise<ActionRe
     .eq("id", roomId)
     .maybeSingle();
   const building = Array.isArray(data?.buildings) ? data?.buildings[0] : data?.buildings;
-  if (!data || !building) return { error: "Room not found." };
+  if (!data || !building) return { error: "Area not found." };
   return updateRoom(roomId, {
     building: (building as { name: string }).name,
     name,
@@ -167,7 +167,7 @@ export async function setRoomPublished(
   if (error) return { error: error.message };
 
   revalidatePath("/admin");
-  revalidatePath(`/admin/rooms/${roomId}`);
+  revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
   return {};
 }
@@ -227,7 +227,7 @@ export async function createZone(
     .single();
   if (dbError) return { error: dbError.message };
 
-  revalidatePath(`/admin/rooms/${roomId}`);
+  revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
   return { id: row.id as string };
 }
@@ -247,7 +247,7 @@ export async function updateZone(
     .eq("id", zoneId);
   if (dbError) return { error: dbError.message };
 
-  revalidatePath(`/admin/rooms/${roomId}`);
+  revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
   return {};
 }
@@ -260,7 +260,7 @@ export async function deleteZone(
   const { error } = await supabase.from("zones").delete().eq("id", zoneId);
   if (error) return { error: error.message };
 
-  revalidatePath(`/admin/rooms/${roomId}`);
+  revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
   return {};
 }
@@ -273,7 +273,7 @@ const pairSchema = z.object({
     .trim()
     .transform((s) => s.replace(/\s+/g, ""))
     .pipe(z.string().regex(/^\d{6}$/, "The pair code is 6 digits.")),
-  room_id: z.string().uuid("Pick a room."),
+  room_id: z.string().uuid("Pick an area."),
 });
 
 // Claims a camera unit by its 6-digit pair code and assigns it to a room.
@@ -300,7 +300,7 @@ export async function pairCameraUnit(
   }
 
   revalidatePath("/admin");
-  revalidatePath(`/admin/rooms/${roomId}`);
+  revalidatePath(`/admin/areas/${roomId}`);
   return { unit: { id: data[0].id as string, name: data[0].name as string } };
 }
 

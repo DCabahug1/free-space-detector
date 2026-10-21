@@ -9,8 +9,8 @@ Point of view: a quiet reading room. Paper, ink, one green, and a big number tha
 ## Vocabulary (adds to CLAUDE.md)
 
 - **building**: a free-text group of rooms. "University Library", "Food Court", "Sierra Hall". Has a slug.
-- **room**: belongs to one building. Free-text name: "Floor 2", "Outdoor eating", "Lounge". Optional one-line description ("East stairs, past the printers"). Has a slug, unique within its building.
-- Room display name everywhere: `{building}, {room}` ("University Library, Floor 2"). On the room page the building sits above the room name as a small link.
+- **area** (called "room" in code and tables): belongs to one building. Free-text name: "Floor 2", "Outdoor eating", "Lounge". Optional one-line description ("East stairs, past the printers"). Has a slug, unique within its building.
+- Area display name everywhere: `{building}, {area}` ("University Library, Floor 2"). On the area page the building sits above the area name as a small link.
 - **zone** types: `seating` (capacity) and `open` (no capacity). `line` is not offered and not rendered as a type in new UI. The blue token stays reserved.
 
 ---
@@ -119,7 +119,7 @@ States: loading (skeletons), no rooms published ("No rooms yet" / "Rooms appear 
 
 Laptop: container max 1120, pinned rooms in a 2 column grid, directory in 2 to 3 columns.
 
-### `/rooms/[building]/[room]` room page
+### `/areas/[building]/[area]` area page
 
 Header: wordmark, "All rooms" back link, theme toggle, account icon.
 Building name as a small uppercase link above the room name (32px). Optional description under it. Buttons: Pinned (toggle, outline, check icon when on), Share.
@@ -142,7 +142,7 @@ Room list grouped under building labels. Columns: Room (name + description), Cam
 
 States: first run ("No rooms yet." plus the one-line setup summary, and the pair card alone), loading.
 
-### `/admin/rooms/[id]` setup (the projector screen)
+### `/admin/areas/[id]` setup (the projector screen)
 
 Header as overview. Page header: building in muted weight then room name, rename pencil, caption with description and camera unit status. Right: Published / Draft switch, Delete (ghost).
 
@@ -176,7 +176,7 @@ Optimistic everywhere on this page: publish switch, zone save, zone delete flip 
 
 - `buildings`: id, name, slug.
 - `rooms`: add building_id (not null), slug (unique per building), description (nullable). Drop the seating | line kind concept from new UI.
-- Public routes: `/` and `/rooms/[building]/[room]`.
+- Public routes: `/` and `/areas/[building]/[area]`.
 - Favorites: pinned room ids in localStorage. No login.
 - Offline: no heartbeat for 60 s. Drives the Unknown tile state and the "offline" status lines.
 - Capacity suggestion: last seating zone's capacity in the room. Name suggestion: next number of the same prefix.

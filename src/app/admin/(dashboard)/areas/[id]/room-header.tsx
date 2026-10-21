@@ -88,14 +88,14 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
           </h1>
           <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Rename room">
+              <Button variant="ghost" size="icon-sm" aria-label="Rename area">
                 <Pencil />
               </Button>
             </DialogTrigger>
             <DialogContent>
               <form onSubmit={onRename} className="space-y-6">
                 <DialogHeader>
-                  <DialogTitle>Building and room</DialogTitle>
+                  <DialogTitle>Building and area</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -103,7 +103,7 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
                     <Input id="edit-building" name="building" defaultValue={room.building.name} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-name">Room</Label>
+                    <Label htmlFor="edit-name">Area</Label>
                     <Input id="edit-name" name="name" defaultValue={room.name} required autoFocus />
                   </div>
                   <div className="space-y-2">
@@ -151,7 +151,7 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction variant="destructive" onClick={onDelete}>
-                Delete room
+                Delete area
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
