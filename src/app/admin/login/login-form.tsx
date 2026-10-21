@@ -26,6 +26,7 @@ export function LoginForm() {
           autoComplete="email"
           required
           autoFocus
+          aria-invalid={state.error ? true : undefined}
         />
       </div>
       <div className="space-y-2">
@@ -36,16 +37,17 @@ export function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
+          aria-invalid={state.error ? true : undefined}
         />
       </div>
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? "Signing in" : "Sign in"}
-      </Button>
       {state.error ? (
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-[13px] text-state-full" role="alert">
           {state.error}
         </p>
       ) : null}
+      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        {pending ? "Signing in" : "Sign in"}
+      </Button>
     </form>
   );
 }

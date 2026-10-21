@@ -52,7 +52,7 @@ export function ZoneCanvas({
   return (
     <div
       className={cn(
-        "relative aspect-video w-full overflow-hidden bg-muted select-none",
+        "relative aspect-video w-full overflow-hidden rounded-lg bg-muted select-none",
         drawing && "cursor-crosshair"
       )}
     >

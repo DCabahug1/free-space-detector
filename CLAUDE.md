@@ -38,8 +38,8 @@ Zone types:
 
 - Next.js App Router, TypeScript, Tailwind, deployed on Vercel. One repo.
   - Routes: `/` public map, `/areas/[building]/[area]` public area page, `/admin` overview (Areas and Camera units tabs), `/admin/areas/[id]` setup page, `/admin/login`, `/api/ingest` POST route.
-- Frontend UI: **shadcn/ui** restyled only through the tokens in `src/app/globals.css` (warm paper palette, IBM Plex Sans, radius 0, letter spacing 0). The old tweakcn theme is gone, do not reinstall it. shadcn parts keep their shapes. Three custom components: ZoneTile, RoomRow, StepRail (see `docs/DESIGN.md`).
-- Fonts: IBM Plex Sans for everything, JetBrains Mono only for counts and pair codes, both via `next/font/google` in `layout.tsx`.
+- Frontend UI: **shadcn/ui** restyled only through the tokens in `src/app/globals.css`: the tweakcn theme `cmvgcddyy000104jtc2lxai96` (paper palette, cobalt primary, DM Sans, radius 0.5rem, tracking -0.01em) plus Spot's `state-*`, `band-*` and `group-*` tokens. Every page opens with the primary header band. shadcn parts keep their shapes. Custom components: ZoneTile, RoomRow, StepRail, the band header (see `docs/DESIGN.md`).
+- Fonts: DM Sans for everything, JetBrains Mono only for counts and pair codes, both via `next/font/google` in `layout.tsx`.
 - Supabase: Postgres, Realtime (public map subscribes to `zone_counts`), Auth for admins only, RLS.
   - Project ref `vituloqfqfrjdlblkuis`, region us-east-2, URL `https://vituloqfqfrjdlblkuis.supabase.co`.
   - Supabase MCP is connected. Use it for migrations. Mirror every migration into `supabase/migrations/` in the repo.

@@ -260,7 +260,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
   const editing = selected && !pendingPolygon;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           {drawing ? (
@@ -365,50 +365,63 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
         </div>
       </div>
 
-      <div className="space-y-6">
-        <div>
+      <aside className="flex flex-col gap-4">
+        <div className="flex items-baseline justify-between">
           <h2 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Zones</h2>
-          {zones.length === 0 && !pendingPolygon ? (
-            <p className="mt-2 text-sm text-muted-foreground">No zones yet. Draw the first one.</p>
-          ) : (
-            <ul className="mt-2">
-              {zones.map((zone) => {
-                const active = zone.id === selectedId && !pendingPolygon;
-                const raw = counts[zone.id];
-                return (
-                  <li key={zone.id}>
-                    <button
-                      type="button"
-                      onClick={() => select(active ? null : zone.id)}
-                      className={cn(
-                        "flex w-full items-center gap-3 px-2 py-2 text-left text-sm hover:bg-card",
-                        active && "bg-card"
-                      )}
-                    >
-                      <span
-                        className="size-[10px] shrink-0"
-                        style={{ backgroundColor: stateColor(tileState(zone.type, raw ?? 0, zone.capacity)) }}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1 truncate">{zone.name}</span>
-                      <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                        {raw == null ? "" : countText(zone, raw)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <span className="text-[13px] text-muted-foreground">{zones.length}</span>
         </div>
+        {zones.length === 0 && !pendingPolygon ? (
+          <p className="text-sm text-muted-foreground">No zones yet. Draw the first one.</p>
+        ) : (
+          <ul className="flex flex-col">
+            {zones.map((zone) => {
+              const active = zone.id === selectedId && !pendingPolygon;
+              const raw = counts[zone.id];
+              return (
+                <li key={zone.id}>
+                  <button
+                    type="button"
+                    onClick={() => select(active ? null : zone.id)}
+                    aria-current={active ? "true" : undefined}
+                    className={cn(
+                      "grid w-full grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm hover:bg-muted",
+                      active && "bg-accent font-semibold text-accent-foreground hover:bg-accent"
+                    )}
+                  >
+                    <span
+                      className="size-[10px] rounded-[2px]"
+                      style={{ backgroundColor: stateColor(tileState(zone.type, raw ?? 0, zone.capacity)) }}
+                      aria-hidden
+                    />
+                    <span className="truncate">{zone.name}</span>
+                    <span className="font-mono text-xs font-normal tabular-nums text-muted-foreground">
+                      {raw == null ? "" : countText(zone, raw)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {pendingPolygon ? (
+              <li
+                className="grid grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md bg-accent px-2.5 py-2 text-sm font-semibold text-accent-foreground"
+                aria-current="true"
+              >
+                <span className="size-[10px] rounded-[2px] bg-primary" aria-hidden />
+                <span className="truncate">{fields.name.trim() || "New zone"}</span>
+                <span className="text-xs font-normal text-muted-foreground">unsaved</span>
+              </li>
+            ) : null}
+          </ul>
+        )}
 
         {pendingPolygon ? (
-          <form onSubmit={saveNewZone} className="space-y-4 bg-card p-4 border">
-            <h3 className="text-[15px] font-semibold">Name the new zone</h3>
+          <form onSubmit={saveNewZone} className="flex flex-col gap-3.5 border-t pt-4">
+            <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Name the new zone</h3>
             <ZoneFieldInputs
               idPrefix="new"
               fields={fields}
               onChange={setFields}
+              nameHelper="Suggested. Type over it."
               helper={
                 lastSeating
                   ? "Same as the other tables. Change if this one differs."
@@ -416,30 +429,35 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
               }
               autoFocus
             />
-            <div className="flex gap-2">
+            <div className="flex items-center justify-between">
               <Button type="submit">Save zone</Button>
-              <Button type="button" variant="ghost" onClick={() => setPendingPolygon(null)}>
+              <Button type="button" variant="ghost" className="text-muted-foreground" onClick={() => setPendingPolygon(null)}>
                 Discard
               </Button>
             </div>
           </form>
         ) : editing ? (
-          <form onSubmit={saveEdit} className="space-y-4 bg-card p-4 border">
+          <form onSubmit={saveEdit} className="flex flex-col gap-3.5 border-t pt-4">
+            <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Edit zone</h3>
             <ZoneFieldInputs
               idPrefix="edit"
               fields={fields}
               onChange={setFields}
               helper={`Full at ${fields.capacity || "?"}. Shared from 1.`}
             />
-            <div className="flex gap-2">
+            <div className="flex items-center justify-between">
               <Button type="submit">Save</Button>
-              <Button type="button" variant="ghost" onClick={() => removeZone(selected)}>
+              <Button type="button" variant="ghost" className="text-muted-foreground" onClick={() => removeZone(selected)}>
                 Delete zone
               </Button>
             </div>
           </form>
+        ) : drawing ? (
+          <p className="border-t pt-4 text-[13px] leading-relaxed text-muted-foreground">
+            Click around the edge of one table or space. Three points minimum. Undo removes the last point.
+          </p>
         ) : null}
-      </div>
+      </aside>
     </div>
   );
 }
@@ -448,14 +466,17 @@ interface ZoneFieldInputsProps {
   idPrefix: string;
   fields: ZoneFields;
   onChange: (next: ZoneFields) => void;
+  // Under the Seats input.
   helper: string;
+  // Under the Name input, for a suggested name.
+  nameHelper?: string;
   autoFocus?: boolean;
 }
 
-function ZoneFieldInputs({ idPrefix, fields, onChange, helper, autoFocus }: ZoneFieldInputsProps) {
+function ZoneFieldInputs({ idPrefix, fields, onChange, helper, nameHelper, autoFocus }: ZoneFieldInputsProps) {
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
+    <div className="flex flex-col gap-3.5">
+      <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-name`}>Name</Label>
         <Input
           id={`${idPrefix}-name`}
@@ -465,18 +486,19 @@ function ZoneFieldInputs({ idPrefix, fields, onChange, helper, autoFocus }: Zone
           required
           autoFocus={autoFocus}
         />
+        {nameHelper ? <p className="text-xs text-muted-foreground">{nameHelper}</p> : null}
       </div>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label>Type</Label>
         <Tabs value={fields.type} onValueChange={(v) => onChange({ ...fields, type: v as ZoneType })}>
-          <TabsList className="w-full">
+          <TabsList>
             <TabsTrigger value="seating">Seating</TabsTrigger>
             <TabsTrigger value="open">Open area</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
       {fields.type === "seating" ? (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-capacity`}>Seats</Label>
           <Input
             id={`${idPrefix}-capacity`}
@@ -487,9 +509,9 @@ function ZoneFieldInputs({ idPrefix, fields, onChange, helper, autoFocus }: Zone
             value={fields.capacity}
             onChange={(e) => onChange({ ...fields, capacity: e.target.value })}
             placeholder="4"
-            className="font-mono"
+            className="max-w-[120px] font-mono"
           />
-          <p className="text-[13px] text-muted-foreground">{helper}</p>
+          <p className="text-xs text-muted-foreground">{helper}</p>
         </div>
       ) : null}
     </div>

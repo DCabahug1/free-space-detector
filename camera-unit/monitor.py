@@ -23,11 +23,11 @@ import tkinter as tk
 import tkinter.font as tkfont
 
 import power
-from status import ACCENT, BG, BUTTON_ACTIVE, BUTTON_BG, FG, MUTED, STATE_COLORS, Status, count_text, tile_label, tile_state
+from status import ACCENT, BAND, BAND_2, BAND_FG, BAND_MUTED, BG, BUTTON_ACTIVE, BUTTON_BG, FG, MUTED, STATE_COLORS, Status, count_text, tile_label, tile_state
 
 log = logging.getLogger("camera-unit.monitor")
 
-PAPER = "#faf8f3"
+PAPER = "#faf9f5"
 DIM = "#75706a"  # rows at 50 % while updating
 SHARED = STATE_COLORS["shared"]
 
@@ -209,7 +209,7 @@ class Monitor:
         else:
             if self._shown_mode != "starting":
                 self.clear()
-                tk.Label(self.frame, text="Spot", font=self.font(40, "bold"), fg=FG, bg=BG).pack(expand=True)
+                tk.Label(self.frame, text="Spot", font=self.font(40, "bold"), fg=ACCENT, bg=BG).pack(expand=True)
                 self._footer = tk.Label(self.frame, text="", font=self.font(20), fg=MUTED, bg=BG,
                                         wraplength=self.screen_w - self.px(48))
                 self._footer.pack(pady=(0, self.px(48)))
@@ -220,8 +220,10 @@ class Monitor:
     def build_pairing(self) -> None:
         s = self.status
         pad = self.px(24)
-        tk.Label(self.frame, text="Pair this camera unit", font=self.font(28, "bold"), fg=FG, bg=BG,
-                 anchor="w").pack(fill="x", padx=pad, pady=(pad, self.px(12)))
+        band = tk.Frame(self.frame, bg=BAND)
+        band.pack(fill="x", pady=(0, self.px(12)))
+        tk.Label(band, text="Pair this camera unit", font=self.font(28, "bold"), fg=BAND_FG, bg=BAND,
+                 anchor="w").pack(fill="x", padx=pad, pady=self.px(18))
 
         # Footer first so it claims the bottom edge: status left, Settings right.
         footer = tk.Frame(self.frame, bg=BG)
@@ -268,13 +270,15 @@ class Monitor:
     def build_live(self) -> None:
         s = self.status
         pad = self.px(24)
-        header = tk.Frame(self.frame, bg=BG)
-        header.pack(fill="x", padx=pad, pady=(self.px(20), self.px(8)))
-        self._unit = tk.Label(header, text=s.unit_name, font=self.font(16), fg=MUTED, bg=BG, anchor="e")
+        band = tk.Frame(self.frame, bg=BAND)
+        band.pack(fill="x", pady=(0, self.px(8)))
+        header = tk.Frame(band, bg=BAND)
+        header.pack(fill="x", padx=pad, pady=self.px(16))
+        self._unit = tk.Label(header, text=s.unit_name, font=self.font(16), fg=BAND_MUTED, bg=BAND, anchor="e")
         self._unit.pack(side="right")
-        self._building = tk.Label(header, text="", font=self.font(26), fg=MUTED, bg=BG, anchor="w")
+        self._building = tk.Label(header, text="", font=self.font(26), fg=BAND_MUTED, bg=BAND, anchor="w")
         self._building.pack(side="left")
-        self._room = tk.Label(header, text="", font=self.font(26, "bold"), fg=FG, bg=BG, anchor="w")
+        self._room = tk.Label(header, text="", font=self.font(26, "bold"), fg=BAND_FG, bg=BAND, anchor="w")
         self._room.pack(side="left")
 
         bottom = tk.Frame(self.frame, bg=BG)
@@ -297,7 +301,7 @@ class Monitor:
             return
 
         # Rows are 52 px and shrink together when there are more than fit.
-        header_h = self.fs(26) * 1.8 + self.px(28)
+        header_h = self.fs(26) * 1.8 + self.px(40)
         bottom_h = self.px(BUTTON_H) + self.px(32)
         avail = max(60, self.screen_h - header_h - bottom_h)
         row_scale = min(1.0, avail / (self.px(ROW_H) * len(s.rows)))
@@ -410,14 +414,17 @@ class Monitor:
         self._settings = top
         self._settings_buttons = []
 
-        header = tk.Frame(top, bg=BG)
-        header.pack(fill="x", padx=pad, pady=(pad, self.px(8)))
-        tk.Label(header, text="Settings", font=self.font(28, "bold"), fg=FG, bg=BG, anchor="w").pack(side="left")
-        close_row = tk.Frame(header, bg=BG)
+        band = tk.Frame(top, bg=BAND)
+        band.pack(fill="x", pady=(0, self.px(12)))
+        header = tk.Frame(band, bg=BAND)
+        header.pack(fill="x", padx=pad, pady=self.px(12))
+        tk.Label(header, text="Settings", font=self.font(28, "bold"), fg=BAND_FG, bg=BAND, anchor="w").pack(side="left")
+        close_row = tk.Frame(header, bg=BAND)
         close_row.pack(side="right")
         saved = self._buttons
         self._buttons = self._settings_buttons
-        self.button(close_row, "Close", self.close_settings)
+        close = self.button(close_row, "Close", self.close_settings)
+        close.configure(fg=BAND_FG, activeforeground=BAND_FG, bg=BAND_2, activebackground=BAND_2)
 
         s = self.status
         facts = tk.Frame(top, bg=BG)
@@ -511,9 +518,10 @@ class Monitor:
         row.pack(anchor="e")
         saved = self._buttons
         self._buttons = []
-        self.button(row, "Cancel", self.close_confirm)
+        cancel = self.button(row, "Cancel", self.close_confirm)
+        cancel.configure(bg=BUTTON_ACTIVE)
         go = self.button(row, action, lambda: (self.close_confirm(), run()))
-        go.configure(fg=STATE_COLORS["full"], activeforeground=STATE_COLORS["full"], bg=BG, activebackground=BUTTON_ACTIVE)
+        go.configure(fg="#ffffff", activeforeground="#ffffff", bg=STATE_COLORS["full"], activebackground=STATE_COLORS["full"])
         self._buttons = saved
 
     def close_confirm(self) -> None:
@@ -686,5 +694,5 @@ def make_qr_photo(url: str, target_px: int = 200):
     qr.add_data(url)
     qr.make(fit=True)
     qr.box_size = qr_box_size(qr.modules_count, target_px, border)
-    img = qr.make_image(fill_color="#26221d", back_color=PAPER).get_image()
+    img = qr.make_image(fill_color="#1f1c18", back_color=PAPER).get_image()
     return ImageTk.PhotoImage(img)

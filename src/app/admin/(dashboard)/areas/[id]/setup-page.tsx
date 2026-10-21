@@ -65,7 +65,7 @@ export function SetupPage({ room, initialCounts, liveFrame }: SetupPageProps) {
         <BackLink href="/admin" label="Back to areas" />
         <RoomHeader room={room} zoneCount={zones.length} now={live.now} />
       </div>
-      <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10">
         <StepRail steps={steps} current={step} onSelect={setStep} />
         <div className="min-w-0">
           {step === 1 ? (
@@ -135,7 +135,7 @@ function PairStep({
         ) : null}
       </div>
       <div>
-        <div className="relative aspect-video w-full bg-muted">
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
           {frame.src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={frame.src} alt="" className="absolute inset-0 h-full w-full object-fill" />
@@ -203,14 +203,14 @@ function PreviewStep({
   ];
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <div className="border bg-background p-4">
+    <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-12">
+      <div className="rounded-lg border bg-background p-4">
         <RoomView room={room} initialCounts={initialCounts} embedded />
       </div>
       <div className="space-y-6">
         <div>
           <h2 className="text-[15px] font-semibold">Ready to publish</h2>
-          <dl className="mt-2 divide-y border-y text-sm">
+          <dl className="mt-5 divide-y border-y text-sm">
             {rows.map(([label, value, ok]) => (
               <div key={label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-2">
                 <dt>{label}</dt>

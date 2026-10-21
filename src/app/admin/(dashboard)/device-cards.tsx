@@ -239,7 +239,7 @@ function UnitRow({
 
   return (
     <div className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-x-4 px-4 py-3">
-      <div className="relative aspect-video w-24 overflow-hidden bg-muted">
+      <div className="relative aspect-video w-24 overflow-hidden rounded-lg bg-muted">
         {!offline && !unit.paused && frame.src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={frame.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -383,7 +383,7 @@ export function PairForm({ rooms, initialCode = "", fixedRoomId, onPaired }: Pai
         autoComplete="off"
         placeholder="000 000"
         aria-label="Pair code"
-        className="font-mono text-lg"
+        className="font-mono tracking-[0.12em]"
         required
         autoFocus
       />
@@ -414,7 +414,7 @@ export function PairForm({ rooms, initialCode = "", fixedRoomId, onPaired }: Pai
 // The setup page's inline card: title, caption, and the form.
 export function PairCard(props: PairFormProps) {
   return (
-    <div className="flex flex-col gap-3 bg-card p-4 text-card-foreground border">
+    <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
       <div>
         <div className="text-[15px] font-medium">Pair a camera unit</div>
         <p className="text-[13px] text-muted-foreground">Type the 6-digit code from its screen.</p>

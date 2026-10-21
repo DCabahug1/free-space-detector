@@ -10,12 +10,17 @@ from typing import Any
 
 # Hex versions of the dark theme tokens in docs/DESIGN.md, so the monitor,
 # the overlay, the admin canvas, and the public map agree.
-BG = "#1f1c18"
-FG = "#ece6da"
-MUTED = "#a39b90"
-BUTTON_BG = "#27231e"
-BUTTON_ACTIVE = "#332e28"
-ACCENT = "#7fa66f"
+BG = "#262624"
+FG = "#c3c0b6"
+MUTED = "#b7b5a9"
+BUTTON_BG = "#30302e"
+BUTTON_ACTIVE = "#3e3e38"
+ACCENT = "#70d5ed"
+# The header band on every screen, as on the web pages.
+BAND = "#0b5c8c"
+BAND_2 = "#06314d"
+BAND_FG = "#ffffff"
+BAND_MUTED = "#bbd1e3"
 
 STATE_COLORS = {
     "empty": "#6cc07e",

@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { frameUrl } from "@/lib/camera-units";
 import type { Building } from "@/lib/types";
+import { AdminHeader } from "@/components/admin-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AdminRoom, AdminUnit } from "./admin-types";
 import { AdminTabs } from "./admin-tabs";
@@ -73,7 +74,14 @@ async function Overview({ searchParams }: OverviewProps) {
   ]);
 
   if (error) {
-    return <p className="text-sm text-destructive">{error.message}</p>;
+    return (
+      <>
+        <AdminHeader />
+        <main className="mx-auto w-full max-w-[1120px] px-4 pt-6">
+          <p className="text-sm text-destructive">{error.message}</p>
+        </main>
+      </>
+    );
   }
 
   const rooms: AdminRoom[] = ((roomRows ?? []) as unknown as RoomRow[])
@@ -119,10 +127,10 @@ async function Overview({ searchParams }: OverviewProps) {
     <AdminTabs
       initialTab={initialTab}
       rooms={
-        <section className="space-y-4">
+        <section className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold">{rooms.length === 0 ? "No areas yet." : "Areas"}</h1>
+              <h1 className="text-2xl font-semibold leading-tight">{rooms.length === 0 ? "No areas yet." : "Areas"}</h1>
               <OverviewCaption
                 rooms={rooms.length}
                 buildings={buildingCount}
@@ -136,11 +144,11 @@ async function Overview({ searchParams }: OverviewProps) {
         </section>
       }
       units={
-        <section className="space-y-4">
+        <section className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold">Camera units</h1>
-              <p className="text-[13px] text-muted-foreground">
+              <h1 className="text-2xl font-semibold leading-tight">Camera units</h1>
+              <p className="mt-1 text-[13px] text-muted-foreground">
                 {units.length === 0
                   ? "A camera unit shows a 6-digit code on its screen until it is paired."
                   : `${units.length} ${units.length === 1 ? "camera unit" : "camera units"}.`}
@@ -157,19 +165,16 @@ async function Overview({ searchParams }: OverviewProps) {
 
 function OverviewSkeleton() {
   return (
-    <div className="space-y-10">
-      <div className="space-y-4">
+    <>
+      <AdminHeader />
+      <main className="mx-auto w-full max-w-[1120px] space-y-4 px-4 pt-6 pb-12" aria-busy aria-label="Loading">
+        <Skeleton className="h-9 w-[200px]" />
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-4 w-64" />
         {[0, 1, 2].map((i) => (
           <Skeleton key={i} className="h-12" />
         ))}
-      </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-        {[0, 1].map((i) => (
-          <Skeleton key={i} className="h-56" />
-        ))}
-      </div>
-    </div>
+      </main>
+    </>
   );
 }

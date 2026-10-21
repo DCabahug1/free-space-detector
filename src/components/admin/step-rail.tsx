@@ -16,12 +16,13 @@ interface StepRailProps {
   onSelect: (n: number) => void;
 }
 
-// Number in the margin (mono 12), step title, status caption. The current
-// step gets a 2 px primary left rule and a bold title. A vertical rail on
-// laptop, a grid of two (phone) or four (tablet) above the content below it.
+// Number in the margin (mono 12), step title (14), status caption (12). The
+// current step gets a 2 px primary left rule, a bold title and a primary
+// status. A vertical rail on laptop, a grid of two (phone) or four (tablet)
+// above the content below it.
 export function StepRail({ steps, current, onSelect }: StepRailProps) {
   return (
-    <ol className="grid grid-cols-2 gap-1 sm:grid-cols-4 lg:flex lg:flex-col">
+    <ol className="grid grid-cols-2 gap-1 sm:grid-cols-4 lg:flex lg:flex-col lg:gap-0">
       {steps.map((step) => {
         const active = step.n === current;
         return (
@@ -31,20 +32,28 @@ export function StepRail({ steps, current, onSelect }: StepRailProps) {
               onClick={() => onSelect(step.n)}
               aria-current={active ? "step" : undefined}
               className={cn(
-                "grid h-full w-full grid-cols-[20px_minmax(0,1fr)] gap-x-2 border-l-2 py-2 pr-2 pl-3 text-left",
-                active ? "border-primary" : "border-transparent hover:bg-card"
+                "grid h-full w-full grid-cols-[22px_minmax(0,1fr)] gap-x-2.5 border-l-2 py-2.5 pr-2 pl-3 text-left",
+                active ? "border-primary" : "border-transparent hover:bg-muted"
               )}
             >
-              <span className="pt-0.5 font-mono text-xs text-muted-foreground">{step.n}</span>
-              <span className={cn("text-[15px] leading-tight", active && "font-semibold")}>
+              <span className={cn("font-mono text-xs", active ? "text-primary" : "text-muted-foreground")}>
+                {step.n}
+              </span>
+              <span
+                className={cn(
+                  "text-sm leading-tight",
+                  active && "font-semibold",
+                  !active && step.status === "Waiting" && "text-muted-foreground"
+                )}
+              >
                 {step.title}
               </span>
               <span
                 className={cn(
-                  "col-start-2 text-[13px]",
-                  step.status === "Needs attention"
-                    ? "text-state-full"
-                    : step.status === "Waiting"
+                  "col-start-2 text-xs",
+                  active
+                    ? "text-primary"
+                    : step.status === "Needs attention"
                       ? "text-state-shared"
                       : "text-muted-foreground"
                 )}

@@ -17,25 +17,31 @@ Point of view: a quiet reading room. Paper, ink, one green, and a big number tha
 
 ## Tokens (globals.css)
 
-Typeface: IBM Plex Sans for everything. JetBrains Mono only for counts and pair codes. Letter spacing 0. Tabular numerals on. Radius 0. Spacing scale 4 8 12 16 24 32 48.
+Base: tweakcn theme `cmvgcddyy000104jtc2lxai96` (installed with `pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/cmvgcddyy000104jtc2lxai96`, then the custom tokens below are added by hand). Typeface: DM Sans for everything. JetBrains Mono only for counts and pair codes. Letter spacing -0.01em. Tabular numerals on. Radius 0.5rem (sm 4, md 6: buttons, inputs, tiles, rows; lg 8: cards, dialogs, groups, canvas). Spacing scale 4 8 12 16 24 32 48.
 
 Light
 
 | token | oklch | hex |
 |---|---|---|
-| background | 0.955 0.012 85 | #f3efe7 |
-| foreground | 0.245 0.012 70 | #26221d |
-| card, popover | 0.98 0.006 85 | #faf8f3 |
-| muted, accent | 0.93 0.014 85 | #ebe6dc |
-| muted-foreground | 0.52 0.014 70 | #6f6861 |
-| secondary | 0.91 0.014 85 | #e6e1d6 |
-| border, input | 0.86 0.016 85 | #d9d3c8 |
-| primary, ring | 0.47 0.075 140 | #4a6b3f |
-| primary-foreground | = background | |
-| destructive | 0.48 0.15 30 | #a8382c |
+| background, card | 0.9818 0.0054 95.10 | #faf9f5 |
+| foreground | 0.3438 0.0269 95.72 | #3d3929 |
+| card-foreground | 0.1908 0.0020 106.59 | #141413 |
+| popover | 1 0 0 | #ffffff |
+| secondary, accent | 0.9245 0.0138 92.99 | #e9e6dc |
+| secondary-foreground | 0.4334 0.0177 98.60 | #535146 |
+| muted | 0.9341 0.0153 90.24 | #ede9de |
+| muted-foreground | 0.6059 0.0075 97.42 | #83827d |
+| border | 0.8847 0.0069 97.36 | #dad9d4 |
+| input | 0.7621 0.0156 98.35 | #b4b2a7 |
+| primary, ring, band | 0.3713 0.0851 242.78 | #074469 |
+| band-2 (= chart-5) | 0.3002 0.0515 239.94 | #123145 |
+| band-muted | 0.82 0.035 243 | #b1c7d9 |
+| band-accent | 0.82 0.10 215 | #70d5ed |
+| destructive | 0.1908 0.0020 106.59 | #141413 |
+| group, group-foreground, group-muted, group-border | = accent, accent-foreground, secondary-foreground, border | |
 | state-empty | 0.53 0.10 150 | #3f7d4e |
 | state-shared | 0.60 0.13 65 | #b5711a |
-| state-full | = destructive | |
+| state-full | 0.48 0.15 30 | #a8382c |
 | state-unknown | 0.66 0.012 70 | #9d958b |
 | state-line (reserved) | 0.56 0.09 240 | #4f7fa8 |
 
@@ -43,27 +49,37 @@ Dark
 
 | token | oklch | hex |
 |---|---|---|
-| background | 0.22 0.010 70 | #1f1c18 |
-| foreground | 0.92 0.014 85 | #ece6da |
-| card, popover | 0.25 0.012 70 | #27231e |
-| muted, accent | 0.29 0.012 70 | #2f2a24 |
-| muted-foreground | 0.68 0.014 70 | #a39b90 |
-| secondary | 0.31 0.012 70 | #332e28 |
-| border, input | 0.33 0.012 70 | #3a3530 |
-| primary, ring | 0.67 0.09 140 | #7fa66f |
-| primary-foreground | = background | |
-| destructive | 0.63 0.16 30 | #e2655a |
+| background, card | 0.2679 0.0036 106.64 | #262624 |
+| foreground | 0.8074 0.0142 93.01 | #c3c0b6 |
+| card-foreground | 0.9818 0.0054 95.10 | #faf9f5 |
+| popover | 0.3085 0.0035 106.60 | #30302e |
+| muted | 0.2213 0.0038 106.71 | #1b1b19 |
+| muted-foreground | 0.7713 0.0169 99.07 | #b7b5a9 |
+| accent | 0.2130 0.0078 95.42 | #1a1915 |
+| border | 0.3618 0.0101 106.89 | #3e3e38 |
+| input | 0.4336 0.0113 100.22 | #52514a |
+| primary, ring, band | 0.4558 0.1050 242.67 | #0b5c8c |
+| band-2 (= chart-5) | 0.3011 0.0674 243.24 | #06314d |
+| band-muted | 0.85 0.035 243 | #bbd1e3 |
+| band-accent | 0.82 0.10 215 | #70d5ed |
+| destructive | 0.6368 0.2078 25.33 | #ef4444 |
+| group (building header) | 0.30 0.008 240 | #2d3134 |
+| group-border | 0.37 0.008 240 | #3f4347 |
+| group-foreground | 0.9663 0.0080 98.88 | #f5f4ee |
+| group-muted | = muted-foreground | #b7b5a9 |
 | state-empty | 0.72 0.14 150 | #6cc07e |
 | state-shared | 0.75 0.14 70 | #e0a24a |
-| state-full | = destructive | |
+| state-full | 0.63 0.16 30 | #e2655a |
 | state-unknown | 0.55 0.012 70 | #7d756b |
 | state-line (reserved) | 0.68 0.09 240 | #6f9bc4 |
 
-Camera unit (Tkinter, hex): bg #1f1c18, text #ece6da, muted #a39b90, button #27231e, pressed #332e28, accent #7fa66f, empty #6cc07e, shared #e0a24a, full #e2655a.
+Camera unit (Tkinter, hex): bg #262624, text #c3c0b6, muted #b7b5a9, button #30302e, pressed #3e3e38, accent #70d5ed, band #0b5c8c, band-2 #06314d, band text #ffffff, band muted #bbd1e3, empty #6cc07e, shared #e0a24a, full #e2655a.
 
-Type scale: display 44/600 tracking -0.02em, heading 24/600 tracking -0.01em, body 15/400 line-height 1.5, caption 13 muted-foreground, label 12/500 uppercase tracking 0.08em. Counts: mono 700, 34px on phone tiles, 44px on room page tiles, 76px on projector tiles.
+Type scale: display 44/600 tracking -0.02em, heading 24/600 tracking -0.01em, body 15/400 line-height 1.5, caption 13 muted-foreground, label 12/500 uppercase tracking 0.08em. Counts: mono 700, 34px on phone tiles, 44px on room page tiles, 76px on projector tiles, 22px in the setup preview.
 
-Shadows: none on surfaces. Any surface whose fill sits close to the page background (card, accent, muted: building groups, ZoneTile, the pair card, editor panels) gets a 1px `border` on all four sides so its edge reads against the page. No glow, no gradients, no tints behind content.
+Shadows: the theme's xs on buttons and inputs, lg on the login card, xl on dialogs. Surfaces whose fill sits close to the page (building groups, ZoneTile, the pair card, the preview box) get a 1px border on all four sides. No glow, no gradients.
+
+The band: every page opens with a 56px header on `band` (= primary) with white text. Icon buttons on it fill with `band-2`. The public map and area page continue the band into a hero (headline, live line in `band-muted`, back link, building label, Pin and Share as `band-2` buttons). The admin overview carries its Areas / Camera units tabs on the band, underlined 3px in `band-accent`. The login page is the band edge to edge with one card in the middle. The camera unit shows the same band as the title row of the pairing, live and settings screens.
 
 ---
 

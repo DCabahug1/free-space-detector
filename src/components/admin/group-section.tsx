@@ -18,22 +18,22 @@ interface GroupSectionProps {
 }
 
 // A building group in the admin lists, styled like the public map: a
-// header on the accent background with a chevron, rows beneath it.
+// header on the group background with a chevron, rows beneath it.
 export function GroupSection({ title, caption, defaultOpen = true, muted, query = "", children }: GroupSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="border">
-      <div className="flex items-center justify-between gap-3 bg-accent px-4 py-3">
+    <section className="overflow-hidden rounded-lg border border-group-border bg-card text-card-foreground">
+      <div className="flex items-center justify-between gap-3 bg-group px-4 py-3 text-group-foreground">
         <div className="min-w-0">
-          <h2 className={cn("truncate text-xl font-semibold", muted && "text-muted-foreground")}>
+          <h2 className={cn("truncate text-xl font-semibold tracking-[-0.01em]", muted && "text-group-muted")}>
             <Highlight text={title} query={query} />
           </h2>
-          <p className="text-[13px] text-muted-foreground">{caption}</p>
+          <p className="text-[13px] text-group-muted">{caption}</p>
         </div>
         <Button
           variant="ghost"
           size="icon-sm"
-          className="hover:bg-background dark:hover:bg-background"
+          className="text-group-muted hover:bg-background dark:hover:bg-background"
           aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
@@ -41,12 +41,12 @@ export function GroupSection({ title, caption, defaultOpen = true, muted, query 
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
         </Button>
       </div>
-      {open ? <div className="divide-y">{children}</div> : null}
+      {open ? <div className="divide-y border-t">{children}</div> : null}
     </section>
   );
 }
 
 // Search box and filter tabs sit together above a list.
 export function ListFilters({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-col gap-3 sm:flex-row sm:items-center">{children}</div>;
+  return <div className="flex flex-wrap items-center gap-3">{children}</div>;
 }

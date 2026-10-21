@@ -1,12 +1,7 @@
-import { AdminHeader } from "@/components/admin-header";
-
+// Each admin page renders its own AdminHeader: the overview puts its tabs on
+// the band, the setup page is wider.
 export default function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <>
-      <AdminHeader />
-      <main className="mx-auto w-full max-w-[1120px] px-4 py-6 md:py-8">{children}</main>
-    </>
-  );
+  return <>{children}</>;
 }

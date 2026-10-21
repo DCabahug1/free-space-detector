@@ -3,22 +3,23 @@ import Link from "next/link";
 import { BackLink } from "@/components/back-link";
 import { LoginForm } from "./login-form";
 
+// The whole page is the band. One card in the middle.
 export default function LoginPage() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[360px] flex-col justify-center px-4 py-12">
-      <BackLink href="/" label="Back to map" className="mb-6 self-start" />
-      <Link href="/" className="text-lg font-semibold">
-        Spot
-      </Link>
-      <h1 className="mt-6 text-2xl font-semibold">Staff sign in</h1>
-      <div className="mt-6">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-band px-5 py-12">
+      <main className="flex w-full max-w-[416px] flex-col gap-7 rounded-lg border bg-card p-7 pt-8 text-card-foreground shadow-lg">
+        <div className="flex flex-col gap-4">
+          <BackLink href="/" label="Back to map" className="mb-2" />
+          <Link href="/" className="w-fit text-lg font-bold tracking-[-0.01em] text-primary">
+            Spot
+          </Link>
+          <h1 className="text-2xl font-semibold leading-tight tracking-[-0.01em]">Staff sign in</h1>
+        </div>
         <Suspense>
           <LoginForm />
         </Suspense>
-      </div>
-      <p className="mt-8 text-[13px] text-muted-foreground">
-        Accounts are created by hand. No sign up.
-      </p>
-    </main>
+        <p className="text-[13px] text-muted-foreground">Accounts are created by hand. No sign up.</p>
+      </main>
+    </div>
   );
 }
