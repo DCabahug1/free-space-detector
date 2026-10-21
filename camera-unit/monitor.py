@@ -5,6 +5,7 @@ Fullscreen tkinter window with two screens:
   live:    per-zone counts, refreshed as the worker thread updates Status.
            A "View camera" button (touch sized) opens a fullscreen overlay with
            the live frame, person boxes, and each zone colored by its state.
+           "Refresh zones" re-fetches zones right away after edits in the web app.
 
 tkinter must run on the main thread, so main.py starts the capture loop in a
 background thread and hands it the shared Status object. Press Escape or q
@@ -207,20 +208,10 @@ class Monitor:
         self._footer = tk.Label(self.frame, text="", font=("Helvetica", self.fs(14)), fg=MUTED, bg=BG,
                                 wraplength=self.screen_w - 40)
         self._footer.pack(side="bottom", pady=self.pad(12))
-        tk.Button(
-            self.frame,
-            text="View camera",
-            command=self.open_preview,
-            font=("Helvetica", self.fs(20), "bold"),
-            fg=FG,
-            bg="#1e293b",
-            activeforeground=FG,
-            activebackground="#334155",
-            relief="flat",
-            padx=self.pad(28),
-            pady=self.pad(12),
-            cursor="hand2",
-        ).pack(side="bottom", pady=(0, self.pad(4)))
+        buttons = tk.Frame(self.frame, bg=BG)
+        buttons.pack(side="bottom", pady=(0, self.pad(4)))
+        self.touch_button(buttons, "View camera", self.open_preview, self.pad(12))
+        self.touch_button(buttons, "Refresh zones", self.refresh_zones, self.pad(12))
 
         # Shrink rows further when there are more zones than fit at full size.
         header_h = self.fs(32) * 1.6 + self.pad(40)
@@ -249,6 +240,32 @@ class Monitor:
         if not s.rows:
             tk.Label(grid, text="No zones yet. Draw some in the admin app.", font=("Helvetica", self.fs(22)),
                      fg=MUTED, bg=BG, wraplength=self.screen_w - 80).pack(expand=True)
+
+    def touch_button(self, parent: tk.Misc, text: str, command, pady: int) -> tk.Button:
+        """Touch sized button, packed left to right in parent."""
+        button = tk.Button(
+            parent,
+            text=text,
+            command=command,
+            font=("Helvetica", self.fs(20), "bold"),
+            fg=FG,
+            bg="#1e293b",
+            activeforeground=FG,
+            activebackground="#334155",
+            relief="flat",
+            padx=self.pad(28),
+            pady=pady,
+            cursor="hand2",
+        )
+        button.pack(side="left", padx=self.pad(10))
+        return button
+
+    def refresh_zones(self) -> None:
+        """Ask the worker to re-fetch zones now, after an admin edits them in the web app."""
+        self.status.refresh_zones.set()
+        self.status.message = "Refreshing zones"
+        if self._footer:
+            self._footer.configure(text=self.status.message)
 
     def update_live(self) -> None:
         s = self.status
@@ -297,20 +314,10 @@ class Monitor:
         self.root.bind("q", lambda _e: self.close_preview())
         self._preview = top
 
-        tk.Button(
-            top,
-            text="Close",
-            command=self.close_preview,
-            font=("Helvetica", self.fs(20), "bold"),
-            fg=FG,
-            bg="#1e293b",
-            activeforeground=FG,
-            activebackground="#334155",
-            relief="flat",
-            padx=self.pad(28),
-            pady=self.pad(10),
-            cursor="hand2",
-        ).pack(side="bottom", pady=self.pad(6))
+        buttons = tk.Frame(top, bg="black")
+        buttons.pack(side="bottom", pady=self.pad(6))
+        self.touch_button(buttons, "Close", self.close_preview, self.pad(10))
+        self.touch_button(buttons, "Refresh zones", self.refresh_zones, self.pad(10))
         label = tk.Label(top, text="Waiting for the camera", font=("Helvetica", self.fs(24)), fg=MUTED, bg="black")
         label.pack(fill="both", expand=True)
         # Tapping the picture closes it too, so the button is not the only way out.

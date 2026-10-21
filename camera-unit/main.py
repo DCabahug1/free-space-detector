@@ -217,9 +217,9 @@ class Unit:
             self.status.stop.wait(self.cfg.pair_poll_s)
         return False
 
-    def recheck_room(self) -> None:
+    def recheck_room(self, force: bool = False) -> None:
         """Every zone_refresh_s, ask the server which room we belong to (admins can reassign)."""
-        if time.time() - self.last_status_check < self.cfg.zone_refresh_s:
+        if not force and time.time() - self.last_status_check < self.cfg.zone_refresh_s:
             return
         self.last_status_check = time.time()
         try:
@@ -233,6 +233,17 @@ class Unit:
         else:
             log.warning("unit was unassigned from its room, waiting for pairing")
             self.wait_until_paired()
+
+    def current_zones(self) -> list[Zone]:
+        """Zones for this loop iteration. A tap on the monitor's Refresh zones
+        button skips the zone_refresh_s wait for both the room and its zones."""
+        force = self.status.refresh_zones.is_set()
+        self.status.refresh_zones.clear()
+        self.recheck_room(force)
+        zones = self.cache.get(force)
+        if force:
+            self.status.message = f"Refreshed zones at {time.strftime('%H:%M:%S')}"
+        return zones
 
     # ----- publishing -----
 
@@ -305,8 +316,7 @@ class Unit:
         log.info("fake mode: posting to %s every %.0fs", self.cfg.server_url, self.post_interval)
         next_frame = 0.0
         while not self.status.stop.is_set():
-            self.recheck_room()
-            zones = self.cache.get()
+            zones = self.current_zones()
             if not zones:
                 log.error("no zones for room %s, is the room published?", self.cache.room_id)
                 if self.args.once:
@@ -365,8 +375,7 @@ class Unit:
             candidate: dict[str, int] | None = None
             candidate_frames = 0
             while not self.status.stop.is_set():
-                self.recheck_room()
-                zones = self.cache.get()
+                zones = self.current_zones()
                 frame = detector.capture()
                 people = detector.detect(frame)
                 feet = [p.foot for p in people]

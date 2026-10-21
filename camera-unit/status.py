@@ -43,6 +43,9 @@ class Status:
     # zones into preview only then, so the Pi does no extra work otherwise.
     preview_open: threading.Event = field(default_factory=threading.Event)
     preview: Any = None  # PIL RGB image, or None when nothing has been rendered yet
+    # Set by the monitor's "Refresh zones" button. The worker re-fetches the
+    # room and its zones right away instead of waiting for zone_refresh_s.
+    refresh_zones: threading.Event = field(default_factory=threading.Event)
 
 
 def tile_state(zone_type: str, count: int, capacity: int | None) -> str:
