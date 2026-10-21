@@ -1,23 +1,25 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const fontSans = Inter({
+const fontSans = IBM_Plex_Sans({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
 });
 
-// Georgia is a system font, not a Google font, so globals.css sets
-// --font-serif directly and nothing is loaded here.
+// JetBrains Mono is only for counts and pair codes.
 const fontMono = JetBrains_Mono({
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
   variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
-  title: "Live occupancy",
-  description: "See which spots on campus are free right now.",
+  title: "Spot",
+  description: "Free seats on campus, live.",
 };
 
 export default function RootLayout({
@@ -26,12 +28,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${fontSans.variable} ${fontMono.variable} antialiased`}
       >
-        {children}
-        <Toaster position="top-center" />
+        <ThemeProvider>
+          {children}
+          <Toaster position="top-center" />
+        </ThemeProvider>
       </body>
     </html>
   );

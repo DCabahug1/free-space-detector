@@ -10,31 +10,35 @@ Hackathon project, due **Oct 23 2026, 11:59 PM**. Sole developer. Teammates pres
 ## What it is
 
 Passive camera units count people inside hand-drawn zones and publish live occupancy to a public map.
-Students check it before walking somewhere (empty library tables, food line waits, lounge vibe). Staff set it up once.
+Students check it before walking somewhere (empty library tables, lounge vibe). Staff set it up once.
+
+**Design spec: `docs/DESIGN.md`.** Read it before touching any UI. It holds the tokens, the three custom components, every screen's layout and copy, and the data changes the design assumes. The Claude Design canvas "Spot Redesign" is the visual reference.
 
 ---
 
 ## Terms (use exactly these, no synonyms)
 
 - **camera unit**: Raspberry Pi 5 + Camera Module 3 in its case, with a small attached monitor. The physical thing mounted in a room.
-- **zone**: a hand-drawn polygon over one spot (table, couch, food line, lounge corner). Has a type and optional capacity.
-- **room**: a named area one camera unit covers, made of zones.
+- **zone**: a hand-drawn polygon over one spot (table, couch, lounge corner). Has a type and optional capacity.
+- **building**: a free-text group of rooms ("University Library", "Food Court", "Sierra Hall"). Has a slug.
+- **room**: a named area one camera unit covers, made of zones. Belongs to one building. Free-text name ("Floor 2", "Outdoor eating"), optional one-line description, slug unique within the building. Displayed as `{building}, {room}`.
 - **admin app**: where staff pair camera units and draw zones. Auth-gated.
 - **public map**: what students open. Anonymous, no login.
 
 Zone types:
-- `seating`: has capacity, shows empty / shared / full
-- `open`: empty / some / busy
-- `line`: deprecated. Not offered for new zones. Existing line zones still render (count + wait estimate) until retyped or deleted.
+- `seating`: has capacity, shows Empty / Shared / Full
+- `open`: Empty / Some people / Busy
+- `line`: deprecated. Not offered, not rendered as a type in new UI. Existing rows may stay in the table. The blue token stays reserved.
+- A zone whose camera unit is offline (no heartbeat for 60 s) renders as Unknown with the `state-unknown` token and its last count.
 
 ---
 
 ## Stack
 
 - Next.js App Router, TypeScript, Tailwind, deployed on Vercel. One repo.
-  - Routes: `/` public map, `/admin` admin app, `/api/ingest` POST route.
-- Frontend UI: **shadcn/ui**. Theme: https://tweakcn.com/themes/cmvgcddyy000104jtc2lxai96
-  - Install with `npx shadcn@latest add https://tweakcn.com/r/themes/cmvgcddyy000104jtc2lxai96.json` (run locally, the cloud sandbox cannot reach tweakcn.com).
+  - Routes: `/` public map, `/rooms/[building]/[room]` public room page, `/admin` overview, `/admin/rooms/[id]` setup page, `/admin/login`, `/api/ingest` POST route.
+- Frontend UI: **shadcn/ui** restyled only through the tokens in `src/app/globals.css` (warm paper palette, IBM Plex Sans, radius 0, letter spacing 0). The old tweakcn theme is gone, do not reinstall it. shadcn parts keep their shapes. Three custom components: ZoneTile, RoomRow, StepRail (see `docs/DESIGN.md`).
+- Fonts: IBM Plex Sans for everything, JetBrains Mono only for counts and pair codes, both via `next/font/google` in `layout.tsx`.
 - Supabase: Postgres, Realtime (public map subscribes to `zone_counts`), Auth for admins only, RLS.
   - Project ref `vituloqfqfrjdlblkuis`, region us-east-2, URL `https://vituloqfqfrjdlblkuis.supabase.co`.
   - Supabase MCP is connected. Use it for migrations. Mirror every migration into `supabase/migrations/` in the repo.
@@ -46,13 +50,14 @@ Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms a
 
 ## Schema
 
+- `buildings`: id, name, slug
 - `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen
-- `rooms`: id, name, kind (seating | line), published bool
+- `rooms`: id, building_id, name, slug (unique per building), description nullable, published bool. `kind` is legacy, ignore it in new UI.
 - `zones`: id, room_id, name, type (seating | line | open), capacity int nullable, polygon jsonb (array of [x, y] in frame pixels)
 - `zone_counts`: zone_id PK, count int, updated_at. Upsert one row per zone.
 
 RLS:
-- anon reads published rooms, their zones, and zone_counts.
+- anon reads buildings, published rooms, their zones, zone_counts, and camera_units.last_seen (for the offline state).
 - Authenticated admins write rooms and zones.
 - Only the ingest route (service role) writes `zone_counts` and `camera_units.last_seen`.
 
@@ -72,19 +77,27 @@ RLS:
 
 ## Build order
 
-1. Schema + RLS migration, ingest route.
-2. Camera unit script posting fake counts, then real counts.
-3. Public map with Realtime tiles.
-4. Admin app zone drawing: frozen frame from the camera unit, click to draw a polygon, set type + capacity, publish.
-5. Pairing flow + monitor display last.
+1. Schema + RLS migration, ingest route. (done)
+2. Camera unit script posting fake counts, then real counts. (done)
+3. Public map with Realtime tiles. (done, needs the redesign)
+4. Admin app zone drawing. (done, needs the redesign)
+5. Pairing flow + monitor display. (done, needs the redesign)
+
+Redesign order (follow `docs/DESIGN.md`):
+1. Tokens and fonts are already in `globals.css` and `layout.tsx`. Check every screen still renders.
+2. ZoneTile with the bottom bar and the 300 ms flash on state change.
+3. `buildings` migration, rooms get building_id, slug, description. Public map with headline, search, Free now, pinned rooms, building directory. Room page.
+4. Admin overview: rooms grouped by building, camera units as device cards, pairing inline.
+5. Setup page: step rail, editor beside the canvas, naming in the panel, preview step with the real public room page, optimistic publish.
+6. Camera unit screens.
 
 ---
 
 ## Demo script the presenters will run
 
-1. Admin app on the projector, live frame from the camera unit mounted high in a classroom corner.
-2. Draw 4 to 6 zones over the real classroom tables live. Publish.
-3. Public map. Judges sit at a table, tile flips to shared, then full. They stand, it flips to empty.
+1. Admin setup page on the projector, live frame from the camera unit mounted high in a classroom corner.
+2. Draw 4 to 6 zones over the real classroom tables live. Preview step shows the public room page. Publish.
+3. Public room page. Judges sit at a table, the tile's count and bar flip to Shared, then Full. They stand, it flips to Empty.
 4. One open zone across the doorway. Five people stand in it, the tile flips to busy.
 
 ---
@@ -92,6 +105,8 @@ RLS:
 ## Style and workflow
 
 - No em dashes anywhere: code, comments, UI text, docs. Use a comma, a colon, or a new sentence.
+- UI copy states facts and times only ("Updated 8 s ago", "Camera unit offline, 4 min"). No taglines, no explanations. The privacy line appears once per public page in the footer: "Counts from camera units. No video leaves the camera unit."
+- Status is text and color, never a dot, square or icon beside it.
 - Small, frequent commits. Work on branches named with standard prefixes (`feat/`, `fix/`, `refactor/`, `chore/`, `docs/`), never `claude/`. Merge to `main` often.
 - Commit as the repo owner only (Duane Cabahug, justforai017@gmail.com). No co-author trailers, no model identifiers in commits.
 - Env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never exposed to the client).
