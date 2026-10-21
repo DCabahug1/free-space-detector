@@ -72,6 +72,11 @@
   --band-muted: oklch(0.82 0.035 243);
   --band-accent: oklch(0.82 0.10 215);
   --band-stale: oklch(0.85 0.11 80);
+  /* Building group header and its border, on the map and in the admin lists. */
+  --group: var(--accent);
+  --group-foreground: var(--accent-foreground);
+  --group-muted: var(--secondary-foreground);
+  --group-border: var(--border);
 }
 
 .dark {
@@ -138,6 +143,10 @@
   --band-muted: oklch(0.85 0.035 243);
   --band-accent: oklch(0.82 0.10 215);
   --band-stale: oklch(0.85 0.11 80);
+  --group: oklch(0.30 0.008 240);
+  --group-foreground: oklch(0.9663 0.0080 98.8792);
+  --group-muted: oklch(0.7713 0.0169 99.0657);
+  --group-border: oklch(0.37 0.008 240);
 }
 
 @theme inline {
@@ -184,6 +193,10 @@
   --color-band-muted: var(--band-muted);
   --color-band-accent: var(--band-accent);
   --color-band-stale: var(--band-stale);
+  --color-group: var(--group);
+  --color-group-foreground: var(--group-foreground);
+  --color-group-muted: var(--group-muted);
+  --color-group-border: var(--group-border);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);

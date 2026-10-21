@@ -77,7 +77,7 @@ export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query =
           {room.zones.map((z) => (
             <span
               key={z.id}
-              className="flex-1"
+              className="flex-1 rounded-[2px]"
               style={{
                 backgroundColor: offline
                   ? "var(--state-unknown)"
@@ -98,12 +98,13 @@ export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query =
   );
 }
 
-// Pin toggle: outline when off, filled in state-empty when on.
+// Pin toggle: outline when off, filled in primary when on.
 export function PinButton({
   pinned,
   name,
   onClick,
   className,
+  pinnedClassName = "text-primary",
 }: {
   pinned: boolean;
   name: string;
@@ -111,18 +112,20 @@ export function PinButton({
   // The ghost hover is the accent color, so on an accent surface pass a
   // hover class that contrasts with it.
   className?: string;
+  // Glyph color while pinned.
+  pinnedClassName?: string;
 }) {
   return (
     <Button
       variant="ghost"
       size="icon-sm"
-      className={className}
+      className={cn("text-muted-foreground", className, pinned && pinnedClassName)}
       aria-label={pinned ? `Unpin ${name}` : `Pin ${name}`}
       aria-pressed={pinned}
       onClick={onClick}
     >
       <Pin
-        className={cn("size-4", pinned ? "text-state-empty" : "text-muted-foreground")}
+        className="size-4"
         fill={pinned ? "currentColor" : "none"}
         aria-hidden
       />

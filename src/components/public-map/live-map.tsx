@@ -8,6 +8,7 @@ import { roomTitle } from "@/lib/types";
 import { durationText, freeSeats } from "@/lib/occupancy";
 import { usePins } from "@/lib/pins";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
+import { Band, Wrap } from "@/components/band";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +23,8 @@ interface LiveMapProps {
 
 type Filter = "all" | "free";
 
+// The public map: hero band with the headline and the live line, then the
+// search, the Free now filter, and the building directory.
 export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
@@ -82,88 +85,95 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       );
   })();
 
-  if (rooms.length === 0) {
-    return (
-      <div className="py-16">
-        <h1 className="text-2xl font-semibold">No areas yet</h1>
-        <p className="mt-1 text-muted-foreground">Areas appear here once staff publish them.</p>
-      </div>
-    );
-  }
-
   const reconnecting = live.connection === "reconnecting";
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">Find a free spot</h1>
-        <p className={cn("mt-2 text-[13px]", reconnecting ? "text-state-shared" : "text-muted-foreground")}>
-          {reconnecting
-            ? `Reconnecting. Counts from ${durationText(live.latestUpdate, live.now) || "never"} ago`
-            : "Live seat availability across campus."}
-        </p>
-      </div>
+    <>
+      <Band className="pt-5 pb-9">
+        <Wrap className="flex flex-col gap-2.5">
+          <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">Find a free spot</h1>
+          {reconnecting ? (
+            <p className="text-[13px] text-band-stale">
+              Reconnecting. Counts from {durationText(live.latestUpdate, live.now) || "never"} ago
+            </p>
+          ) : (
+            <p className="flex items-center gap-2 text-[13px] text-band-muted">
+              <span className="inline-block size-2 rounded-full bg-band-accent ring-[3px] ring-band-accent/30" aria-hidden />
+              <span>Live seat availability across campus.</span>
+            </p>
+          )}
+        </Wrap>
+      </Band>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Area or building"
-          aria-label="Search areas"
-          className="sm:max-w-xs"
-        />
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="free">Free now</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      {rooms.length === 0 ? (
+        <Wrap className="flex flex-col gap-1 py-16">
+          <h2 className="text-2xl font-semibold leading-tight">No areas yet</h2>
+          <p className="text-[15px] text-muted-foreground">Areas appear here once staff publish them.</p>
+        </Wrap>
+      ) : (
+        <Wrap className="flex flex-col gap-8 pt-6 pb-12">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Area or building"
+              aria-label="Search areas"
+              className="max-w-xs"
+            />
+            <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="free">Free now</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-      {visible.length === 0 ? (
-        <div className="py-8">
-          <p className="text-muted-foreground">
-            {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free seats right now."}
-          </p>
-          {q ? (
-            <Button variant="outline" className="mt-3" onClick={() => setQuery("")}>
-              Clear search
-            </Button>
+          {visible.length === 0 ? (
+            <div className="flex flex-col gap-3 pt-8">
+              <p className="text-[15px] text-muted-foreground">
+                {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free seats right now."}
+              </p>
+              {q ? (
+                <Button variant="outline" className="self-start" onClick={() => setQuery("")}>
+                  Clear search
+                </Button>
+              ) : null}
+            </div>
           ) : null}
-        </div>
-      ) : null}
 
-      {groups.length > 0 ? (
-        <section className="grid items-start gap-8 md:grid-cols-2 xl:grid-cols-3">
-          {groups.map((g) => (
-            <BuildingGroup
-              key={g.building.id}
-              name={g.building.name}
-              areaCount={g.rooms.length}
-              free={g.free}
-              offline={g.offline}
-              pinned={g.pinned}
-              onTogglePin={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id))}
-              forceOpen={q.length > 0}
-              query={query}
-            >
-              {g.rooms.map((room) => (
-                <RoomRow
-                  key={room.id}
-                  room={room}
-                  counts={live.countNumbers}
-                  offlineFor={stats.get(room.id)?.offlineFor ?? null}
-                  pinned={isPinned(room.id)}
-                  onTogglePin={() => toggle(room.id, room.building_id)}
+          {groups.length > 0 ? (
+            <section className="grid items-start gap-8 grid-cols-[repeat(auto-fill,minmax(min(340px,100%),1fr))]">
+              {groups.map((g) => (
+                <BuildingGroup
+                  key={g.building.id}
+                  name={g.building.name}
+                  areaCount={g.rooms.length}
+                  free={g.free}
+                  offline={g.offline}
+                  pinned={g.pinned}
+                  onTogglePin={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id))}
+                  forceOpen={q.length > 0}
                   query={query}
-                />
+                >
+                  {g.rooms.map((room) => (
+                    <RoomRow
+                      key={room.id}
+                      room={room}
+                      counts={live.countNumbers}
+                      offlineFor={stats.get(room.id)?.offlineFor ?? null}
+                      pinned={isPinned(room.id)}
+                      onTogglePin={() => toggle(room.id, room.building_id)}
+                      query={query}
+                    />
+                  ))}
+                </BuildingGroup>
               ))}
-            </BuildingGroup>
-          ))}
-        </section>
-      ) : null}
-    </div>
+            </section>
+          ) : null}
+        </Wrap>
+      )}
+    </>
   );
 }
 
@@ -198,9 +208,9 @@ function BuildingGroup({
   const open = opened || forceOpen;
   const freeColor = offline ? "var(--state-unknown)" : free > 0 ? "var(--state-empty)" : "var(--state-full)";
   return (
-    <section className="border">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-accent px-4 py-3">
-        <h2 className="flex min-w-0 items-center gap-1 text-xl font-semibold">
+    <section className="overflow-hidden rounded-lg border border-group-border bg-card text-card-foreground">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-group px-4 py-3 text-group-foreground">
+        <h2 className="flex min-w-0 items-center gap-1 text-xl font-semibold tracking-[-0.01em]">
           <span className="truncate">
             <Highlight text={name} query={query} />
           </span>
@@ -208,20 +218,21 @@ function BuildingGroup({
             pinned={pinned}
             name={name}
             onClick={onTogglePin}
-            className="hover:bg-background dark:hover:bg-background"
+            className="text-group-muted hover:bg-background dark:hover:bg-background"
+            pinnedClassName="text-group-foreground"
           />
         </h2>
-        <p className="col-start-1 row-start-2 text-[13px] text-muted-foreground">
+        <p className="col-start-1 row-start-2 text-[13px] text-group-muted">
           {areaCount} {areaCount === 1 ? "area" : "areas"}
         </p>
         <div className="row-span-2 flex items-baseline gap-1">
           <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
             {offline ? "?" : free}
           </span>
-          <span className="text-[13px] text-muted-foreground">{offline ? "unknown" : "free"}</span>
+          <span className="text-[13px] text-group-muted">{offline ? "unknown" : "free"}</span>
         </div>
         <Button
-          className="row-span-2 hover:bg-background dark:hover:bg-background"
+          className="row-span-2 text-group-muted hover:bg-background dark:hover:bg-background"
           variant="ghost"
           size="icon-sm"
           aria-label={open ? `Hide areas in ${name}` : `Show areas in ${name}`}

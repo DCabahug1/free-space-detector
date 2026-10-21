@@ -9,7 +9,7 @@ const noop = () => () => {};
 
 // Moon in light mode, sun in dark mode. The icon is picked only on the
 // client so the server and the first client paint agree.
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const dark = mounted && resolvedTheme === "dark";
@@ -17,7 +17,8 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      aria-label={dark ? "Switch to light" : "Switch to dark"}
+      className={className}
+      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
       onClick={() => setTheme(dark ? "light" : "dark")}
     >
       {dark ? <Sun aria-hidden /> : <Moon aria-hidden />}

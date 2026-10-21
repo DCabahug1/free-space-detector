@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Band, Wrap } from "@/components/band";
 import { SiteHeader } from "@/components/site-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -9,11 +10,9 @@ export default function Home() {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto w-full max-w-[1120px] px-4 py-6 md:py-10">
-        <Suspense fallback={<MapSkeleton />}>
-          <MapLoader />
-        </Suspense>
-      </main>
+      <Suspense fallback={<MapSkeleton />}>
+        <MapLoader />
+      </Suspense>
     </>
   );
 }
@@ -25,22 +24,21 @@ async function MapLoader() {
 
 function MapSkeleton() {
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <Skeleton className="h-11 w-56" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-      <Skeleton className="h-9 w-80" />
-      <div className="grid gap-8 md:grid-cols-2">
-        {[0, 1].map((i) => (
-          <div key={i} className="space-y-3">
-            <Skeleton className="h-6 w-40" />
-            {[0, 1, 2].map((j) => (
-              <Skeleton key={j} className="h-14" />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
+    <>
+      <Band className="pt-5 pb-9">
+        <Wrap className="flex flex-col gap-2.5">
+          <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">Find a free spot</h1>
+          <Skeleton className="h-[13px] w-56 bg-band-2" />
+        </Wrap>
+      </Band>
+      <Wrap className="flex flex-col gap-8 pt-6 pb-12" aria-busy aria-label="Loading">
+        <Skeleton className="h-9 w-full max-w-xs" />
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-8">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-[72px]" />
+          ))}
+        </div>
+      </Wrap>
+    </>
   );
 }

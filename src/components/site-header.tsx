@@ -1,21 +1,21 @@
 import Link from "next/link";
 import { AccountControl } from "@/components/account-control";
+import { Band, Wrap, bandIconClass } from "@/components/band";
 import { ThemeToggle } from "@/components/theme-toggle";
 
+// Public pages: the band with the wordmark, theme toggle and account control.
 export function SiteHeader() {
   return (
-    <header className="border-b">
-      <div className="mx-auto flex h-14 w-full max-w-[1120px] items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-lg font-semibold">
-            Spot
-          </Link>
-        </div>
+    <Band>
+      <Wrap className="flex h-14 items-center justify-between gap-4">
+        <Link href="/" className="text-lg font-semibold">
+          Spot
+        </Link>
         <div className="flex items-center gap-1">
-          <ThemeToggle />
+          <ThemeToggle className={bandIconClass} />
           <AccountControl />
         </div>
-      </div>
-    </header>
+      </Wrap>
+    </Band>
   );
 }

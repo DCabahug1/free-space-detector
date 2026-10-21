@@ -6,6 +6,7 @@ import { UserRound } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { signOut } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
+import { bandIconClass } from "@/components/band";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,8 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-// Signed out: a person outline that opens "Staff sign in". Signed in: a moss
-// circle with the first initial that opens the account menu. No admin link
+// Signed out: a person outline that opens "Staff sign in". Signed in: a
+// band-accent circle with the first initial that opens the account menu. No admin link
 // anywhere else on the public pages.
 export function AccountControl() {
   const [user, setUser] = useState<User | null>(null);
@@ -36,7 +37,7 @@ export function AccountControl() {
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Account">
+          <Button variant="ghost" size="icon" className={bandIconClass} aria-label="Account">
             <UserRound aria-hidden />
           </Button>
         </PopoverTrigger>
@@ -55,8 +56,13 @@ export function AccountControl() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Account menu">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hover:bg-band-2 dark:hover:bg-band-2"
+          aria-label="Account menu"
+        >
+          <span className="flex size-7 items-center justify-center rounded-full bg-band-accent text-sm font-semibold text-band">
             {initial}
           </span>
         </Button>
