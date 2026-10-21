@@ -29,7 +29,7 @@ Zone types:
 - `seating`: has capacity, shows Empty / Shared / Full
 - `open`: Empty / Some people / Busy
 - `line`: deprecated. Not offered, not rendered as a type in new UI. Existing rows may stay in the table. The blue token stays reserved.
-- A zone whose camera unit is offline (no heartbeat for 60 s) renders as Unknown with the `state-unknown` token and its last count.
+- A zone whose camera unit is offline (no heartbeat for 60 s) renders as Unknown with the `state-unknown` token and "?" in place of the count.
 - A camera unit that paused sharing (Settings on the Pi, `camera_units.paused`) reads as offline on the public pages. Only the admin says "sharing paused" (in `state-shared`).
 
 ---

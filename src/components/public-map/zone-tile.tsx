@@ -30,7 +30,7 @@ interface ZoneTileProps {
   className?: string;
 }
 
-// Page background with a 1 px border, zone name, mono count in the state color, state word,
+// Page background with a 1 px border, zone name, mono count in the state color ("?" while offline), state word,
 // and a 6 px bar along the bottom edge. The bar and the numeral are the
 // only things that change. On a state change the bar flashes for 300 ms.
 export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: ZoneTileProps) {
@@ -67,7 +67,7 @@ export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: Zo
         className={cn("font-mono font-bold tabular-nums", COUNT_SIZE[size])}
         style={{ color }}
       >
-        {countText(zone, raw)}
+        {offline ? "?" : countText(zone, raw)}
       </span>
       <span className={cn("font-semibold", size === "xs" ? "text-[10px]" : "text-sm")}>{word}</span>
       <span

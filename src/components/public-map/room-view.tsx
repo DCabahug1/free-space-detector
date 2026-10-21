@@ -68,7 +68,7 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
               </h2>
               <p className={cn("mt-2 text-muted-foreground", embedded ? "text-[10px]" : "text-[13px]")}>
                 {heartbeat
-                  ? `Last update ${clockTime(heartbeat)}, ${offlineFor} ago. Counts below are from then.`
+                  ? `Last update ${clockTime(heartbeat)}, ${offlineFor} ago.`
                   : "No update yet from the camera unit."}
               </p>
             </>
