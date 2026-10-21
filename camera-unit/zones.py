@@ -58,6 +58,49 @@ class ZoneCounter:
         return result
 
 
+@dataclass
+class Confirmer:
+    """Holds a count change until it has stayed the same for confirm_s
+    seconds and confirm_frames frames, per zone, so a person walking past or
+    one missed detection never flips a tile. The stable counts are what the
+    monitor shows and what gets posted. A zone seen for the first time is
+    taken as is, so boot does not wait."""
+
+    confirm_s: float
+    confirm_frames: int = 1
+    stable: dict[str, int] = field(default_factory=dict)
+    candidate: dict[str, tuple[int, float, int]] = field(default_factory=dict)  # value, since, frames
+
+    def update(self, latest: dict[str, int], now: float | None = None) -> tuple[dict[str, int], bool]:
+        """Returns (stable counts, whether any zone just changed)."""
+        now = time.time() if now is None else now
+        changed = False
+        for zone_id, value in latest.items():
+            if zone_id not in self.stable:
+                self.stable[zone_id] = value
+                changed = True
+                continue
+            if value == self.stable[zone_id]:
+                self.candidate.pop(zone_id, None)
+                continue
+            held = self.candidate.get(zone_id)
+            if held is None or held[0] != value:
+                held = (value, now, 1)
+            else:
+                held = (value, held[1], held[2] + 1)
+            self.candidate[zone_id] = held
+            if now - held[1] >= self.confirm_s and held[2] >= self.confirm_frames:
+                self.stable[zone_id] = value
+                self.candidate.pop(zone_id, None)
+                changed = True
+        # Zones that disappeared (deleted in the admin app) drop out.
+        for zone_id in list(self.stable):
+            if zone_id not in latest:
+                del self.stable[zone_id]
+                self.candidate.pop(zone_id, None)
+        return dict(self.stable), changed
+
+
 def point_in_polygon(point: tuple[float, float], polygon: list[tuple[float, float]]) -> bool:
     """Ray casting test. Points on an edge count as inside often enough for us."""
     if len(polygon) < 3:

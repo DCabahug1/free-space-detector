@@ -104,6 +104,7 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | `api_key` | `CAMERA_API_KEY` | demo camera unit key |
 | `room_id` | `ROOM_ID` | Demo Classroom (fallback only) |
 | `post_interval_s` | `POST_INTERVAL_S` | 15 |
+| `confirm_s` | `CONFIRM_S` | 5 |
 | `confirm_frames` | `CONFIRM_FRAMES` | 2 |
 | `frame_interval_s` | `FRAME_INTERVAL_S` | 1 |
 | `zone_refresh_s` | `ZONE_REFRESH_S` | 20 |
@@ -179,12 +180,14 @@ size the admin app draws on.
 
 ## Behavior notes
 
-- Counts post the moment they change. A new set of counts has to hold for
-  `confirm_frames` consecutive frames (2 by default) so a single missed
-  detection does not flicker a tile, then it is POSTed immediately. On top of
-  that a heartbeat post every `post_interval_s` (15 s) keeps `last_seen` and
-  `updated_at` fresh. The public map subscribes to Realtime, so a tile flips
-  within about a second of the change.
+- Counts post when they change, after a hold. A zone's new count has to stay
+  the same for `confirm_s` seconds (5 by default) and `confirm_frames`
+  frames so someone walking past, or one missed detection, never flips a
+  tile. The monitor shows the held counts too, so the Pi screen and the map
+  agree. On top of that a heartbeat post every `post_interval_s` (15 s)
+  keeps `last_seen` and `updated_at` fresh. The public map subscribes to
+  Realtime, so a tile flips about a second after the hold ends. `--confirm 0`
+  turns the hold off for testing.
 - The monitor UI scales to the screen. On screens shorter than 600 px (the
   Pi touchscreen) the pairing view puts the QR and pair code side by side.
 - The live screen has a "View camera" button. It opens a fullscreen popup
@@ -220,6 +223,6 @@ size the admin app draws on.
 - The live frame is one JPEG (quality 70, about 100 to 150 KB) every 1 s,
   overwritten in place in the `frames` storage bucket. Only the latest is kept.
 - YOLOv8n on the Pi 5 CPU runs at roughly 2 to 4 frames per second at 640 px,
-  which is plenty: a count change is confirmed and posted within about a second.
+  which is plenty: the 5 s confirm hold is the only delay a viewer notices.
 - The ingest route ignores zone ids outside the camera unit's room, so a
   wrong room shows up as `accepted=0` in the log.

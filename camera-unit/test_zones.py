@@ -2,7 +2,7 @@
 
 import unittest
 
-from zones import Zone, ZoneCounter, point_in_polygon
+from zones import Confirmer, Zone, ZoneCounter, point_in_polygon
 
 SQUARE = [(0, 0), (10, 0), (10, 10), (0, 10)]
 
@@ -46,6 +46,49 @@ class DwellTest(unittest.TestCase):
         self.counter.count([self.table], [(5, 5)], now=0)
         self.counter.count([self.table], [(5, 5), (6, 6), (7, 7)], now=500)
         self.assertEqual(self.counter.count([self.table], [], now=1000)["t"], 3)
+
+
+class ConfirmerTest(unittest.TestCase):
+    def test_first_sight_is_immediate(self):
+        c = Confirmer(confirm_s=5)
+        self.assertEqual(c.update({"a": 2}, now=100), ({"a": 2}, True))
+
+    def test_change_waits_for_the_hold(self):
+        c = Confirmer(confirm_s=5)
+        c.update({"a": 0}, now=100)
+        self.assertEqual(c.update({"a": 1}, now=101), ({"a": 0}, False))
+        self.assertEqual(c.update({"a": 1}, now=105), ({"a": 0}, False))
+        self.assertEqual(c.update({"a": 1}, now=106), ({"a": 1}, True))
+
+    def test_walk_through_never_shows(self):
+        c = Confirmer(confirm_s=5)
+        c.update({"a": 0}, now=100)
+        c.update({"a": 1}, now=101)
+        c.update({"a": 1}, now=103)
+        self.assertEqual(c.update({"a": 0}, now=104), ({"a": 0}, False))
+        # The timer starts over when the person comes back.
+        c.update({"a": 1}, now=105)
+        self.assertEqual(c.update({"a": 1}, now=109), ({"a": 0}, False))
+        self.assertEqual(c.update({"a": 1}, now=110), ({"a": 1}, True))
+
+    def test_zones_are_independent(self):
+        c = Confirmer(confirm_s=5)
+        c.update({"a": 0, "b": 0}, now=100)
+        c.update({"a": 1, "b": 0}, now=101)
+        c.update({"a": 1, "b": 3}, now=104)
+        self.assertEqual(c.update({"a": 1, "b": 3}, now=106), ({"a": 1, "b": 0}, True))
+        self.assertEqual(c.update({"a": 1, "b": 3}, now=109), ({"a": 1, "b": 3}, True))
+
+    def test_frames_also_required(self):
+        c = Confirmer(confirm_s=0, confirm_frames=2)
+        c.update({"a": 0}, now=100)
+        self.assertEqual(c.update({"a": 1}, now=100.1), ({"a": 0}, False))
+        self.assertEqual(c.update({"a": 1}, now=100.2), ({"a": 1}, True))
+
+    def test_deleted_zone_drops_out(self):
+        c = Confirmer(confirm_s=5)
+        c.update({"a": 0, "b": 1}, now=100)
+        self.assertEqual(c.update({"a": 0}, now=101)[0], {"a": 0})
 
 
 if __name__ == "__main__":

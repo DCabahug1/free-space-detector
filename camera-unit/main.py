@@ -37,7 +37,7 @@ from api import ApiError, pair_status, post_counts, post_frame, register
 from config import Config, load_config
 from status import Status, ZoneRow
 from state import State
-from zones import Zone, ZoneCounter, fetch_zones
+from zones import Confirmer, Zone, ZoneCounter, fetch_zones
 
 log = logging.getLogger("camera-unit")
 
@@ -133,6 +133,7 @@ class Unit:
         self.state = State.load()
         self.cache = ZoneCache(cfg)
         self.counter = ZoneCounter(dwell_s=cfg.dwell_s)
+        self.confirmer = Confirmer(confirm_s=cfg.confirm_s, confirm_frames=cfg.confirm_frames)
         self.post_interval = args.interval or cfg.post_interval_s
         self.api_key = ""
         self.last_status_check = 0.0
@@ -372,13 +373,11 @@ class Unit:
             next_frame = time.time()
             next_log = 0.0
             frames_since_log = 0
-            # Post on change: a new set of counts is posted as soon as it has
-            # held for confirm_frames consecutive frames (so one missed
-            # detection does not flicker the tile). Otherwise a heartbeat
-            # post every post_interval_s keeps last_seen and updated_at fresh.
-            last_posted: dict[str, int] | None = None
-            candidate: dict[str, int] | None = None
-            candidate_frames = 0
+            # Post on change: a zone's count has to stay the same for
+            # confirm_s seconds (and confirm_frames frames) before it counts,
+            # so a person walking past or one missed detection never flips a
+            # tile. Otherwise a heartbeat post every post_interval_s keeps
+            # last_seen and updated_at fresh.
             while not self.status.stop.is_set():
                 zones = self.current_zones()
                 frame = detector.capture()
@@ -387,28 +386,20 @@ class Unit:
                 self.status.people = len(people)
                 self.status.frame_at = time.time()
                 latest = self.counter.count(zones, feet)
-                self.status.rows = [ZoneRow(z.name, z.type, z.capacity, latest.get(z.id, 0)) for z in zones]
+                now = time.time()
+                stable, changed = self.confirmer.update(latest, now)
+                self.status.rows = [ZoneRow(z.name, z.type, z.capacity, stable.get(z.id, 0)) for z in zones]
                 self.status.mode = "live"
                 if self.status.preview_open.is_set():
                     from overlay import bgr_to_image
 
-                    self.update_preview(bgr_to_image(frame), people, zones, latest)
-                now = time.time()
+                    self.update_preview(bgr_to_image(frame), people, zones, stable)
                 frames_since_log += 1
                 if self.args.verbose and now >= next_log:
-                    log.info("frame: %d people, %s  (%d fps)", len(feet), describe(zones, latest), frames_since_log)
+                    log.info("frame: %d people, live %s, held %s  (%d fps)", len(feet), describe(zones, latest),
+                             describe(zones, stable), frames_since_log)
                     next_log = now + 1.0
                     frames_since_log = 0
-
-                changed = False
-                if latest != last_posted:
-                    if latest == candidate:
-                        candidate_frames += 1
-                    else:
-                        candidate, candidate_frames = dict(latest), 1
-                    changed = candidate_frames >= self.cfg.confirm_frames
-                else:
-                    candidate, candidate_frames = None, 0
 
                 if self.args.show:
                     from detector import draw_people_cv
@@ -423,9 +414,7 @@ class Unit:
                     self.upload_frame(detector.jpeg(frame, people if self.args.overlay else None))
                     next_frame = now + self.cfg.frame_interval_s
                 if changed or now >= next_post:
-                    self.publish(zones, latest)
-                    last_posted = dict(latest)
-                    candidate, candidate_frames = None, 0
+                    self.publish(zones, stable)
                     next_post = now + self.post_interval
                     if self.args.once:
                         return 0
@@ -448,6 +437,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--dry-run", action="store_true", help="print counts but never POST")
     p.add_argument("--interval", type=float, default=None,
                    help="seconds between heartbeat posts (default from config, 15). Camera mode also posts on every change")
+    p.add_argument("--confirm", type=float, default=None,
+                   help="seconds a count change must hold before it is shown and posted (default from config, 5)")
     p.add_argument("--seed", type=int, default=None, help="random seed for --fake")
     p.add_argument("--frame-file", default=None, help="with --fake: upload this JPEG as the live frame")
     p.add_argument("--model", default="yolov8n.pt", help="Ultralytics model file (default yolov8n.pt)")
@@ -467,7 +458,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
     cfg = load_config()
-    log.info("server %s", cfg.server_url)
+    if args.confirm is not None:
+        cfg.confirm_s = max(0.0, args.confirm)
+    log.info("server %s, confirm hold %.1fs", cfg.server_url, cfg.confirm_s)
     status = Status()
     unit = Unit(cfg, args, status)
 

@@ -27,7 +27,9 @@ DEFAULTS = {
     "room_id": "f542505a-4a37-4612-a144-0f63c6f79cde",
     # Heartbeat. Camera mode also posts immediately whenever counts change.
     "post_interval_s": 15,
-    # A changed count must hold for this many consecutive frames before it is posted.
+    # A changed count must hold for this many seconds, and this many
+    # consecutive frames, before the monitor shows it and it is posted.
+    "confirm_s": 5,
     "confirm_frames": 2,
     "frame_interval_s": 1,
     "zone_refresh_s": 20,
@@ -45,6 +47,7 @@ ENV_NAMES = {
     "api_key": "CAMERA_API_KEY",
     "room_id": "ROOM_ID",
     "post_interval_s": "POST_INTERVAL_S",
+    "confirm_s": "CONFIRM_S",
     "confirm_frames": "CONFIRM_FRAMES",
     "frame_interval_s": "FRAME_INTERVAL_S",
     "zone_refresh_s": "ZONE_REFRESH_S",
@@ -64,6 +67,7 @@ class Config:
     api_key: str
     room_id: str
     post_interval_s: float
+    confirm_s: float
     confirm_frames: int
     frame_interval_s: float
     zone_refresh_s: float
@@ -94,6 +98,7 @@ def load_config() -> Config:
         api_key=str(values["api_key"]).strip(),
         room_id=str(values["room_id"]).strip(),
         post_interval_s=float(values["post_interval_s"]),
+        confirm_s=max(0.0, float(values["confirm_s"])),
         confirm_frames=max(1, int(values["confirm_frames"])),
         frame_interval_s=float(values["frame_interval_s"]),
         zone_refresh_s=float(values["zone_refresh_s"]),

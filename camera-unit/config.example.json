@@ -5,6 +5,7 @@
   "api_key": "",
   "room_id": "",
   "post_interval_s": 15,
+  "confirm_s": 5,
   "confirm_frames": 2,
   "frame_interval_s": 1,
   "zone_refresh_s": 20,
