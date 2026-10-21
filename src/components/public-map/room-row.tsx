@@ -94,11 +94,24 @@ export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, classNa
 }
 
 // Pin toggle: outline when off, filled in state-empty when on.
-export function PinButton({ pinned, name, onClick }: { pinned: boolean; name: string; onClick: () => void }) {
+export function PinButton({
+  pinned,
+  name,
+  onClick,
+  className,
+}: {
+  pinned: boolean;
+  name: string;
+  onClick: () => void;
+  // The ghost hover is the accent color, so on an accent surface pass a
+  // hover class that contrasts with it.
+  className?: string;
+}) {
   return (
     <Button
       variant="ghost"
       size="icon-sm"
+      className={className}
       aria-label={pinned ? `Unpin ${name}` : `Pin ${name}`}
       aria-pressed={pinned}
       onClick={onClick}

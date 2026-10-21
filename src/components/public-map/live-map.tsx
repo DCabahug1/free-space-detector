@@ -148,6 +148,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                     pinned={g.pinned}
                     name={g.building.name}
                     onClick={() => toggleBuilding(g.building.id)}
+                    className="hover:bg-background dark:hover:bg-background"
                   />
                 </h2>
                 <p className="text-[13px] text-muted-foreground">
