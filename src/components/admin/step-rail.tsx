@@ -17,25 +17,26 @@ interface StepRailProps {
 }
 
 // Number in the margin (mono 12), step title, status caption. The current
-// step gets a 2 px primary left rule and a bold title.
+// step gets a 2 px primary left rule and a bold title. A vertical rail on
+// laptop, a grid of two (phone) or four (tablet) above the content below it.
 export function StepRail({ steps, current, onSelect }: StepRailProps) {
   return (
-    <ol className="flex flex-row gap-1 overflow-x-auto lg:flex-col">
+    <ol className="grid grid-cols-2 gap-1 sm:grid-cols-4 lg:flex lg:flex-col">
       {steps.map((step) => {
         const active = step.n === current;
         return (
-          <li key={step.n}>
+          <li key={step.n} className="min-w-0">
             <button
               type="button"
               onClick={() => onSelect(step.n)}
               aria-current={active ? "step" : undefined}
               className={cn(
-                "grid w-full grid-cols-[20px_minmax(0,1fr)] gap-x-2 border-l-2 py-2 pr-3 pl-3 text-left",
+                "grid h-full w-full grid-cols-[20px_minmax(0,1fr)] gap-x-2 border-l-2 py-2 pr-2 pl-3 text-left",
                 active ? "border-primary" : "border-transparent hover:bg-card"
               )}
             >
               <span className="pt-0.5 font-mono text-xs text-muted-foreground">{step.n}</span>
-              <span className={cn("text-[15px] whitespace-nowrap", active && "font-semibold")}>
+              <span className={cn("text-[15px] leading-tight", active && "font-semibold")}>
                 {step.title}
               </span>
               <span
