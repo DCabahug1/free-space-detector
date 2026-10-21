@@ -340,14 +340,20 @@ export function PairDialog({ rooms, initialCode = "" }: { rooms: RoomOption[]; i
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button disabled={rooms.length === 0}>Pair a camera unit</Button>
+        <Button>Pair a camera unit</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Pair a camera unit</DialogTitle>
-          <DialogDescription>Type the 6-digit code from its screen.</DialogDescription>
+          <DialogDescription>
+            {rooms.length === 0
+              ? "A camera unit is paired to an area. Set up an area first, on the Areas tab."
+              : "Type the 6-digit code from its screen."}
+          </DialogDescription>
         </DialogHeader>
-        <PairForm rooms={rooms} initialCode={initialCode} onPaired={() => setOpen(false)} />
+        {rooms.length > 0 ? (
+          <PairForm rooms={rooms} initialCode={initialCode} onPaired={() => setOpen(false)} />
+        ) : null}
       </DialogContent>
     </Dialog>
   );
