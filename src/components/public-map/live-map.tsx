@@ -211,7 +211,7 @@ function BuildingGroup({
     <section className="overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground">
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground">
         <h2 className="flex min-w-0 items-center gap-1 text-xl font-semibold tracking-[-0.01em]">
-          <span className="truncate">
+          <span className="break-words">
             <Highlight text={name} query={query} />
           </span>
           <PinButton

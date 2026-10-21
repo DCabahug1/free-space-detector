@@ -251,7 +251,7 @@ function UnitRow({
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[15px] font-medium">
+          <span className="break-words text-[15px] font-medium">
             <Highlight text={unit.name} query={query} />
           </span>
           {unit.pair_code ? (
@@ -260,7 +260,7 @@ function UnitRow({
             </span>
           ) : null}
         </div>
-        <div className="truncate text-[13px] text-muted-foreground">
+        <div className="break-words text-[13px] text-muted-foreground">
           {unit.room ? <Highlight text={unit.room.name} query={query} /> : "Not paired to an area"}
         </div>
         <div

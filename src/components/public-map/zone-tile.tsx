@@ -60,7 +60,7 @@ export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: Zo
       style={{ "--bar": color } as React.CSSProperties}
       aria-label={`${zone.name}: ${word}`}
     >
-      <span className={cn("truncate font-medium text-muted-foreground", size === "xs" ? "text-[9px]" : "text-xs")}>
+      <span className={cn("break-words font-medium text-muted-foreground", size === "xs" ? "text-[9px]" : "text-xs")}>
         {zone.name}
       </span>
       <span

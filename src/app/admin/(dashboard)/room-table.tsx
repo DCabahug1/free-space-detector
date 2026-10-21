@@ -85,11 +85,11 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-muted sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_6rem]"
               >
                 <div className="min-w-0">
-                  <div className="truncate text-[15px] font-medium">
+                  <div className="break-words text-[15px] font-medium">
                     <Highlight text={room.name} query={query} />
                   </div>
                   {room.description ? (
-                    <div className="truncate text-[13px] text-muted-foreground">
+                    <div className="break-words text-[13px] text-muted-foreground">
                       <Highlight text={room.description} query={query} />
                     </div>
                   ) : null}

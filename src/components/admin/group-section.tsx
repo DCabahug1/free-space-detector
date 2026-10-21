@@ -25,7 +25,7 @@ export function GroupSection({ title, caption, defaultOpen = true, muted, query 
     <section className="overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground">
       <div className="flex items-center justify-between gap-3 bg-building px-4 py-3 text-building-foreground">
         <div className="min-w-0">
-          <h2 className={cn("truncate text-xl font-semibold tracking-[-0.01em]", muted && "text-building-muted")}>
+          <h2 className={cn("break-words text-xl font-semibold tracking-[-0.01em]", muted && "text-building-muted")}>
             <Highlight text={title} query={query} />
           </h2>
           <p className="text-[13px] text-building-muted">{caption}</p>

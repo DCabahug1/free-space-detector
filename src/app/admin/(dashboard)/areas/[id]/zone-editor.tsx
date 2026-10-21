@@ -393,7 +393,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
                       style={{ backgroundColor: stateColor(tileState(zone.type, raw ?? 0, zone.capacity)) }}
                       aria-hidden
                     />
-                    <span className="truncate">{zone.name}</span>
+                    <span className="break-words">{zone.name}</span>
                     <span className="font-mono text-xs font-normal tabular-nums text-muted-foreground">
                       {raw == null ? "" : countText(zone, raw)}
                     </span>
@@ -407,7 +407,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
                 aria-current="true"
               >
                 <span className="size-[10px] rounded-[2px] bg-primary" aria-hidden />
-                <span className="truncate">{fields.name.trim() || "New zone"}</span>
+                <span className="break-words">{fields.name.trim() || "New zone"}</span>
                 <span className="text-xs font-normal text-muted-foreground">unsaved</span>
               </li>
             ) : null}

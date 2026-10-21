@@ -84,7 +84,7 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h1 className="truncate text-2xl font-semibold">
+          <h1 className="break-words text-2xl font-semibold">
             <span className="font-normal text-muted-foreground">{room.building.name}, </span>
             {room.name}
           </h1>

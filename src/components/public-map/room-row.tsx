@@ -43,7 +43,7 @@ export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query =
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3">
         <div className="flex min-w-0 items-center gap-1">
           <Link href={roomPath(room)} className="min-w-0 hover:underline">
-            <div className="truncate text-[15px] font-medium">
+            <div className="break-words text-[15px] font-medium">
               <Highlight text={room.name} query={query} />
             </div>
           </Link>
