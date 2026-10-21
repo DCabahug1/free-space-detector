@@ -8,13 +8,11 @@ import { cn } from "@/lib/utils";
 interface AdminHeaderProps {
   // The overview is wider than the setup page.
   wide?: boolean;
-  // Rendered under the top row as a second strip in band-2 (the overview's tabs).
-  children?: React.ReactNode;
 }
 
-// Top band for the admin pages: wordmark, "Admin" label, Areas link. Right:
-// Public map, Sign out, theme toggle.
-export function AdminHeader({ wide, children }: AdminHeaderProps) {
+// Top band for the admin pages: wordmark and "Admin" label. Right: Public map,
+// Sign out, theme toggle.
+export function AdminHeader({ wide }: AdminHeaderProps) {
   return (
     <Band>
       <div className={cn("mx-auto w-full", wide ? "max-w-[1360px] px-6" : "max-w-[1120px] px-4")}>
@@ -24,9 +22,6 @@ export function AdminHeader({ wide, children }: AdminHeaderProps) {
               Spot
             </Link>
             <span className="text-xs font-medium uppercase tracking-[0.08em] text-band-muted">Admin</span>
-            <Link href="/admin" className="text-sm text-band-muted hover:text-band-foreground">
-              Areas
-            </Link>
           </div>
           <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="sm" className={bandGhostClass}>
@@ -41,11 +36,6 @@ export function AdminHeader({ wide, children }: AdminHeaderProps) {
           </div>
         </div>
       </div>
-      {children ? (
-        <div className="bg-band-2">
-          <div className={cn("mx-auto w-full", wide ? "max-w-[1360px] px-6" : "max-w-[1120px] px-4")}>{children}</div>
-        </div>
-      ) : null}
     </Band>
   );
 }
