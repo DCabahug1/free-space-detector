@@ -3,6 +3,8 @@
 Fullscreen tkinter window with two screens:
   pairing: a QR code plus the 6-digit pair code, until an admin claims the unit.
   live:    per-zone counts, refreshed as the worker thread updates Status.
+           A "View camera" button (touch sized) opens a fullscreen popup with
+           the live frame, person boxes, and each zone colored by its state.
 
 tkinter must run on the main thread, so main.py starts the capture loop in a
 background thread and hands it the shared Status object. Press Escape or q
@@ -58,6 +60,10 @@ class Monitor:
         self._row_widgets: list[tuple[tk.Label, tk.Label, tk.Label]] = []
         self._footer: tk.Label | None = None
         self._header: tk.Label | None = None
+        self._preview: tk.Toplevel | None = None
+        self._preview_label: tk.Label | None = None
+        self._preview_photo = None
+        self._preview_shown = None
 
     # ----- lifecycle -----
 
@@ -69,6 +75,7 @@ class Monitor:
 
     def quit(self) -> None:
         self.status.stop.set()
+        self.status.preview_open.clear()
         self.root.destroy()
 
     def tick(self) -> None:
@@ -200,10 +207,24 @@ class Monitor:
         self._footer = tk.Label(self.frame, text="", font=("Helvetica", self.fs(14)), fg=MUTED, bg=BG,
                                 wraplength=self.screen_w - 40)
         self._footer.pack(side="bottom", pady=self.pad(12))
+        tk.Button(
+            self.frame,
+            text="View camera",
+            command=self.open_preview,
+            font=("Helvetica", self.fs(20), "bold"),
+            fg=FG,
+            bg="#1e293b",
+            activeforeground=FG,
+            activebackground="#334155",
+            relief="flat",
+            padx=self.pad(28),
+            pady=self.pad(12),
+            cursor="hand2",
+        ).pack(side="bottom", pady=(0, self.pad(4)))
 
         # Shrink rows further when there are more zones than fit at full size.
         header_h = self.fs(32) * 1.6 + self.pad(40)
-        footer_h = self.fs(14) * 1.6 + self.pad(24)
+        footer_h = self.fs(14) * 1.6 + self.pad(24) + self.fs(20) * 1.6 + self.pad(28)
         avail_h = max(50, self.screen_h - header_h - footer_h)
         row_h = self.fs(40) * 1.7 + self.pad(16)
         row_scale = min(1.0, avail_h / (row_h * max(1, len(s.rows))))
@@ -241,6 +262,86 @@ class Monitor:
             state.configure(text=tile_label(st, row.count), fg=STATE_COLORS[st])
         if self._footer:
             self._footer.configure(text=s.message)
+
+    # ----- camera preview popup -----
+
+    PREVIEW_REFRESH_MS = 150
+
+    def open_preview(self) -> None:
+        if self._preview is not None:
+            return
+        self.status.preview = None
+        self.status.preview_open.set()
+        top = tk.Toplevel(self.root, bg="black")
+        top.title("Camera")
+        top.attributes("-fullscreen", True)
+        top.protocol("WM_DELETE_WINDOW", self.close_preview)
+        top.bind("<Escape>", lambda _e: self.close_preview())
+        top.bind("q", lambda _e: self.close_preview())
+        self._preview = top
+
+        tk.Button(
+            top,
+            text="Close",
+            command=self.close_preview,
+            font=("Helvetica", self.fs(20), "bold"),
+            fg=FG,
+            bg="#1e293b",
+            activeforeground=FG,
+            activebackground="#334155",
+            relief="flat",
+            padx=self.pad(28),
+            pady=self.pad(10),
+            cursor="hand2",
+        ).pack(side="bottom", pady=self.pad(6))
+        label = tk.Label(top, text="Waiting for the camera", font=("Helvetica", self.fs(24)), fg=MUTED, bg="black")
+        label.pack(fill="both", expand=True)
+        # Tapping the picture closes it too, so the button is not the only way out.
+        label.bind("<Button-1>", lambda _e: self.close_preview())
+        self._preview_label = label
+        self._preview_shown = None
+        top.after(self.PREVIEW_REFRESH_MS, self.preview_tick)
+
+    def close_preview(self) -> None:
+        self.status.preview_open.clear()
+        self.status.preview = None
+        top, self._preview = self._preview, None
+        self._preview_label = None
+        self._preview_photo = None
+        self._preview_shown = None
+        if top is not None:
+            try:
+                top.destroy()
+            except tk.TclError:
+                pass
+
+    def preview_tick(self) -> None:
+        top, label = self._preview, self._preview_label
+        if top is None or label is None:
+            return
+        if self.status.stop.is_set():
+            self.close_preview()
+            return
+        image = self.status.preview
+        if image is not None and image is not self._preview_shown:
+            try:
+                from PIL import ImageTk
+
+                # The popup is fullscreen, so size against the screen rather
+                # than winfo_width, which reads 1 until the window is mapped.
+                box_w = self.screen_w
+                box_h = max(1, self.screen_h - self.fs(20) * 2 - self.pad(26))
+                scale = min(box_w / image.width, box_h / image.height)
+                size = (max(1, int(image.width * scale)), max(1, int(image.height * scale)))
+                photo = ImageTk.PhotoImage(image.resize(size))
+                label.configure(image=photo, text="")
+                self._preview_photo = photo  # keep a reference or tk drops it
+                self._preview_shown = image
+            except ImportError:
+                label.configure(text="Pillow is missing, cannot show the camera")
+            except tk.TclError:
+                return
+        top.after(self.PREVIEW_REFRESH_MS, self.preview_tick)
 
 
 def qr_box_size(modules: int, target_px: int, border: int = 2) -> int:

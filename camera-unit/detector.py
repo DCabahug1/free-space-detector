@@ -16,8 +16,10 @@ import io
 import logging
 from dataclasses import dataclass
 
-from PIL import Image, ImageDraw
+from PIL import Image
 from ultralytics import YOLO
+
+from overlay import BOX_COLOR, FOOT_COLOR, draw_people
 
 log = logging.getLogger("camera-unit.detector")
 
@@ -155,22 +157,6 @@ class Detector:
         buf = io.BytesIO()
         image.save(buf, format="JPEG", quality=quality)
         return buf.getvalue()
-
-
-BOX_COLOR = (250, 204, 21)  # yellow
-FOOT_COLOR = (239, 68, 68)  # red
-
-
-def draw_people(image: Image.Image, people: list[Person], radius: int = 7) -> None:
-    draw = ImageDraw.Draw(image)
-    for p in people:
-        x1, y1, x2, y2 = p.box
-        draw.rectangle((x1, y1, x2, y2), outline=BOX_COLOR, width=3)
-        draw.text((x1 + 4, max(0, y1 - 14)), f"{p.confidence:.2f}", fill=BOX_COLOR)
-        fx, fy = p.foot
-        # Keep the marker visible when the foot sits on the bottom edge.
-        fy = min(fy, image.height - radius - 1)
-        draw.ellipse((fx - radius, fy - radius, fx + radius, fy + radius), fill=FOOT_COLOR, outline=(255, 255, 255), width=2)
 
 
 def draw_people_cv(frame, people: list[Person]) -> None:

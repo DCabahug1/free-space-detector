@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import type { Polygon, Zone, ZoneType } from "@/lib/types";
-import { displayCount } from "@/lib/occupancy";
+import { displayCount, tileState, type TileState } from "@/lib/occupancy";
 
 // Camera frames are 1280x720. Polygons are stored in this pixel space so
 // the camera unit can test foot points against them directly.
@@ -17,6 +17,28 @@ export const ZONE_COLORS: Record<ZoneType, string> = {
   line: "#0ea5e9",
   open: "#f59e0b",
 };
+
+// Zones on the canvas are colored by state, the same as the public map and
+// the camera unit's monitor: green vacant, orange occupied, red full.
+export const STATE_COLORS: Record<TileState, string> = {
+  empty: "#22c55e",
+  shared: "#f59e0b",
+  some: "#f59e0b",
+  full: "#ef4444",
+  busy: "#ef4444",
+  line: "#38bdf8",
+};
+
+// "Table 3 (1/4)" for seating with a capacity, "Lounge (2)" otherwise, and
+// just the name until the camera unit has posted a count.
+export function zoneLabel(zone: Zone, raw: number | undefined): string {
+  if (raw == null) return zone.name;
+  const count = displayCount(zone.type, raw, zone.capacity);
+  if (zone.type === "seating" && zone.capacity != null) {
+    return `${zone.name} (${count}/${zone.capacity})`;
+  }
+  return `${zone.name} (${count})`;
+}
 
 interface ZoneCanvasProps {
   frameSrc: string | null;
@@ -76,11 +98,10 @@ export function ZoneCanvas({
       >
         {zones.map((zone) => {
           if (zone.id === hiddenId) return null;
-          const color = ZONE_COLORS[zone.type];
+          const raw = counts[zone.id];
+          const color = STATE_COLORS[tileState(zone.type, raw ?? 0, zone.capacity)];
           const selected = zone.id === selectedId;
           const [cx, cy] = centroid(zone.polygon);
-          const raw = counts[zone.id];
-          const count = raw != null ? displayCount(zone.type, raw, zone.capacity) : raw;
           return (
             <g
               key={zone.id}
@@ -113,8 +134,7 @@ export function ZoneCanvas({
                 paintOrder="stroke"
                 style={{ pointerEvents: "none" }}
               >
-                {zone.name}
-                {count != null ? ` (${count})` : ""}
+                {zoneLabel(zone, raw)}
               </text>
             </g>
           );

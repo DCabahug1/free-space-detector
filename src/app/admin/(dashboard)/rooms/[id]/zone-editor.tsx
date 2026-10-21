@@ -64,6 +64,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { CLOSE_RADIUS, ZONE_COLORS, ZoneCanvas, distance } from "./zone-canvas";
 import { type LiveFrame, useLiveFrame } from "./live-frame";
+import { useZoneCounts } from "@/hooks/use-zone-counts";
 
 interface ZoneEditorProps {
   room: Room;
@@ -98,8 +99,9 @@ function toInput(fields: ZoneFields, polygon: Polygon): ZoneInput {
   };
 }
 
-export function ZoneEditor({ room, zones, counts, liveFrame }: ZoneEditorProps) {
+export function ZoneEditor({ room, zones, counts: initialCounts, liveFrame }: ZoneEditorProps) {
   const router = useRouter();
+  const counts = useZoneCounts(initialCounts);
   const [pending, startTransition] = useTransition();
 
   // Drawing state. redrawId is set when replacing an existing zone's outline.

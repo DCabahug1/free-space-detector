@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from typing import Any
 
 
 STATE_COLORS = {
@@ -37,6 +38,11 @@ class Status:
     rows: list[ZoneRow] = field(default_factory=list)
     message: str = ""
     stop: threading.Event = field(default_factory=threading.Event)
+    # Camera preview popup on the monitor. The monitor sets preview_open while
+    # the popup is up, and the worker renders the latest frame with boxes and
+    # zones into preview only then, so the Pi does no extra work otherwise.
+    preview_open: threading.Event = field(default_factory=threading.Event)
+    preview: Any = None  # PIL RGB image, or None when nothing has been rendered yet
 
 
 def tile_state(zone_type: str, count: int, capacity: int | None) -> str:

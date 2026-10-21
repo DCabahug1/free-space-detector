@@ -65,7 +65,7 @@ RLS:
 - POST `{ api_key, counts: [{ zone_id, count }] }` to `/api/ingest` as soon as counts change (held for 2 frames), plus a 15 s heartbeat.
 - No grace period: a person leaves a zone, the spot is free on the next post. `dwell_s` exists as an opt-in knob for seating zones but defaults to 0.
 - No video leaves the camera unit, only counts.
-- Small monitor on the camera unit: shows a QR code + 6-digit pair code during pairing, then a live per-zone count readout once paired.
+- Small monitor on the camera unit (touchscreen): shows a QR code + 6-digit pair code during pairing, then a live per-zone count readout once paired. A "View camera" button opens a popup with the feed, person boxes, and zones colored by state (green vacant, orange occupied, red full) labeled "Table 1 (1/4)". The admin zone canvas draws the same labels and colors.
 - Pairing: admin scans QR or types the code in the admin app, camera unit polls until claimed, stores the issued api_key locally. If short on time, hardcode the api_key for the demo.
 
 ---

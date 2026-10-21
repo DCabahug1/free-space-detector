@@ -250,6 +250,17 @@ class Unit:
             log.error("post failed: %s", e)
             self.status.message = f"Post failed: {e}"
 
+    def update_preview(self, image, people: list, zones: list[Zone], counts: dict[str, int]) -> None:
+        """Renders the monitor's camera popup frame, only while the popup is open."""
+        if not self.status.preview_open.is_set():
+            return
+        try:
+            from overlay import render_preview  # lazy, needs Pillow
+
+            self.status.preview = render_preview(image, people, zones, counts)
+        except Exception as e:  # noqa: BLE001
+            log.warning("preview render failed: %s", e)
+
     _upload_thread: threading.Thread | None = None
 
     def upload_frame(self, jpeg: bytes) -> None:
@@ -302,6 +313,12 @@ class Unit:
                     return 1
             counts = fake.next(zones)
             self.publish(zones, counts)
+            if frame_file and self.status.preview_open.is_set():
+                import io
+
+                from PIL import Image
+
+                self.update_preview(Image.open(io.BytesIO(frame_file)).convert("RGB"), [], zones, counts)
             if frame_file and time.time() >= next_frame:
                 self.upload_frame(frame_file)
                 next_frame = time.time() + self.cfg.frame_interval_s
@@ -356,6 +373,10 @@ class Unit:
                 latest = self.counter.count(zones, feet)
                 self.status.rows = [ZoneRow(z.name, z.type, z.capacity, latest.get(z.id, 0)) for z in zones]
                 self.status.mode = "live"
+                if self.status.preview_open.is_set():
+                    from overlay import bgr_to_image
+
+                    self.update_preview(bgr_to_image(frame), people, zones, latest)
                 now = time.time()
                 frames_since_log += 1
                 if self.args.verbose and now >= next_log:

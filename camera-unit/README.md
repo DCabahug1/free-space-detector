@@ -13,6 +13,8 @@ the admin zone editor can show a live frame. No video leaves the camera unit.
 - `api.py`: calls to `/api/ingest`, `/api/frame`, `/api/pair/register`, `/api/pair/status`.
 - `monitor.py`: fullscreen tkinter UI for the attached monitor.
 - `status.py`: shared state between the loop and the monitor, tile rules.
+- `overlay.py`: draws person boxes and state-colored zones on a frame, for
+  the monitor's camera popup.
 - `state.py`: `state.json`, the api_key issued at pairing (gitignored).
 - `config.py`: config from env vars, then `config.json`, then demo defaults.
 - `test_zones.py`: offline unit tests (`python3 -m unittest test_zones.py`).
@@ -182,6 +184,13 @@ size the admin app draws on.
   within about a second of the change.
 - The monitor UI scales to the screen. On screens shorter than 600 px (the
   Pi touchscreen) the pairing view puts the QR and pair code side by side.
+- The live screen has a "View camera" button. It opens a fullscreen popup
+  with the camera feed, the person boxes and foot points, and every zone
+  drawn over it, colored by state (green vacant, orange occupied, red full)
+  and labeled like "Table 1 (1/4)". Tap the picture or Close to go back. The
+  overlay is only rendered while the popup is open, so it costs nothing the
+  rest of the time. With `--fake --frame-file photo.jpg` the popup shows
+  that photo with the fake counts, handy for testing the monitor on a laptop.
 
 - Zones are fetched with the anon key, which RLS allows for published rooms.
   An unpublished room returns no zones. Re-fetched every 20 seconds, so zones drawn in the admin app go live fast, and the
