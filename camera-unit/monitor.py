@@ -77,6 +77,7 @@ class Monitor:
         self._settings: tk.Frame | None = None
         self._settings_buttons: list[tk.Button] = []
         self._settings_footer: tk.Label | None = None
+        self._sharing_button: tk.Button | None = None
         self._confirm: tk.Frame | None = None
         self._preview: tk.Frame | None = None
         self._preview_label: tk.Label | None = None
@@ -156,6 +157,8 @@ class Monitor:
         s = self.status
         if s.message:
             return s.message
+        if not s.sharing.is_set():
+            return "Sharing paused. Counts stay on this screen."
         if s.mode == "live":
             if s.posted_at:
                 ago = max(0, round(time.time() - s.posted_at))
@@ -307,7 +310,8 @@ class Monitor:
             count.configure(text=count_text(row.type, row.count, row.capacity), fg=color)
             state.configure(text=tile_label(st), fg=color)
         if self._footer:
-            self._footer.configure(text=self.footer_text(), fg=SHARED if self._updating else MUTED)
+            paused = not s.sharing.is_set()
+            self._footer.configure(text=self.footer_text(), fg=SHARED if self._updating or paused else MUTED)
 
     def say(self, text: str) -> None:
         """Footer text. Call on the tk thread."""
@@ -415,6 +419,8 @@ class Monitor:
         row2.pack(anchor="w")
         self._update_button = self.button(row1, "Updating" if self._updating else "Check for updates", self.start_update)
         self.button(row1, "Refresh zones", self.refresh_zones)
+        self._sharing_button = self.button(row1, "Resume sharing" if not s.sharing.is_set() else "Pause sharing",
+                                           self.toggle_sharing)
         self.button(row2, "Reboot", lambda: self.confirm("Reboot the camera unit?",
                                                          "It is back in about a minute.", "Reboot", self.do_reboot))
         self.button(row2, "Power off", lambda: self.confirm("Power off the camera unit?",
@@ -430,10 +436,27 @@ class Monitor:
                                          wraplength=self.screen_w - pad * 2)
         self._settings_footer.pack(side="bottom", fill="x", padx=pad, pady=(0, self.px(16)))
 
+    def toggle_sharing(self) -> None:
+        """Pause or resume posting counts and frames. The unit keeps counting."""
+        s = self.status
+        if s.sharing.is_set():
+            s.sharing.clear()
+            text = "Resume sharing"
+        else:
+            s.sharing.set()
+            text = "Pause sharing"
+        if self._sharing_button is not None:
+            try:
+                self._sharing_button.configure(text=text)
+            except tk.TclError:
+                pass
+        self.say("")
+
     def close_settings(self) -> None:
         top, self._settings = self._settings, None
         self._settings_buttons = []
         self._settings_footer = None
+        self._sharing_button = None
         self._update_button = None
         self._confirm = None
         if top is not None:

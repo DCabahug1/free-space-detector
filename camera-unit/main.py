@@ -256,7 +256,7 @@ class Unit:
         log.info("counts: %s", describe(zones, counts))
         self.status.mode = "live"
         self.status.rows = [ZoneRow(z.name, z.type, z.capacity, counts.get(z.id, 0)) for z in zones]
-        if self.args.dry_run or not counts:
+        if self.args.dry_run or not counts or not self.status.sharing.is_set():
             return
         try:
             result = post_counts(self.cfg.server_url, self.api_key, counts)
@@ -283,7 +283,7 @@ class Unit:
     def upload_frame(self, jpeg: bytes) -> None:
         """Uploads in the background so a slow network never stalls counting.
         If the previous upload is still in flight this frame is skipped."""
-        if self.args.dry_run:
+        if self.args.dry_run or not self.status.sharing.is_set():
             return
         if self._upload_thread is not None and self._upload_thread.is_alive():
             return

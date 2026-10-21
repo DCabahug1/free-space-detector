@@ -199,7 +199,9 @@ size the admin app draws on.
   that photo with the fake counts, handy for testing the monitor on a laptop.
 
 - The Settings button (on the live and pairing screens) opens Check for
-  updates, Refresh zones, Reboot and Power off. Reboot and Power off ask first,
+  updates, Refresh zones, Pause sharing, Reboot and Power off. Pause sharing
+  stops posting counts and frames until Resume sharing; the area reads
+  offline on the map after a minute. Reboot and Power off ask first,
   then run `systemctl reboot` or `systemctl poweroff` (`sudo -n` as the
   fallback). Check for updates runs `git pull
   --ff-only` on the repo, installs packages if `requirements.txt` changed,

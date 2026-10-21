@@ -57,6 +57,10 @@ class Status:
     people: int = 0
     frame_at: float = 0.0
     stop: threading.Event = field(default_factory=threading.Event)
+    # Set while counts and frames go to the server. Cleared by Pause sharing
+    # on the monitor's Settings screen: the unit keeps counting for its own
+    # screen and posts nothing, so the area reads offline after a minute.
+    sharing: threading.Event = field(default_factory=lambda: _set_event())
     # Camera preview popup on the monitor. The monitor sets preview_open while
     # the popup is up, and the worker renders the latest frame with boxes and
     # zones into preview only then, so the Pi does no extra work otherwise.
@@ -68,6 +72,12 @@ class Status:
     # Set by the monitor's "Update" button once new code has been pulled.
     # main.py re-executes itself after the monitor closes.
     restart: threading.Event = field(default_factory=threading.Event)
+
+
+def _set_event() -> threading.Event:
+    e = threading.Event()
+    e.set()
+    return e
 
 
 def tile_state(zone_type: str, count: int, capacity: int | None) -> str:
