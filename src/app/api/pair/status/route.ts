@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { findUnitByApiKey, touchLastSeen } from "@/lib/camera-units";
+import { findUnitByApiKey } from "@/lib/camera-units";
 
 // Camera units poll this with their api_key until an admin assigns a room.
 // Also used after pairing to learn the current room (admins can reassign).
@@ -26,7 +26,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown api_key" }, { status: 401 });
   }
 
-  await touchLastSeen(supabase, unit.id);
+  // Not a heartbeat on purpose: only count posts and frames bump last_seen,
+  // so a unit that paused sharing reads offline on the map.
 
   if (!unit.room_id) {
     return NextResponse.json({ ok: true, paired: false, unit_id: unit.id, name: unit.name });
