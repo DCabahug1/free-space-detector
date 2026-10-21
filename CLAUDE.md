@@ -1,6 +1,6 @@
 # free-space-detector
 
-Working name only. The real product name comes later. Do not bake "free-space-detector" into UI copy.
+Repo working name. The product is called **Spot**: use that in UI copy and titles, never "free-space-detector".
 
 Hackathon project, due **Oct 23 2026, 11:59 PM**. Sole developer. Teammates present it live in a classroom.
 **Priority: a demo that works on the first try beats completeness.** When in doubt, pick the simpler, more reliable option.
