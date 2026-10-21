@@ -108,7 +108,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span
           className={`inline-block size-2 rounded-full ${
-            live ? "bg-emerald-500" : "bg-muted-foreground/50"
+            live ? "bg-state-empty" : "bg-muted-foreground/50"
           }`}
           aria-hidden
         />

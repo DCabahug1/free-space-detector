@@ -12,21 +12,23 @@ export const FRAME_H = 720;
 // Clicking within this many frame pixels of the first vertex closes the shape.
 export const CLOSE_RADIUS = 24;
 
+// Zone types use the state tokens from globals.css: seating leans green,
+// open leans orange, legacy line zones stay blue.
 export const ZONE_COLORS: Record<ZoneType, string> = {
-  seating: "#10b981",
-  line: "#0ea5e9",
-  open: "#f59e0b",
+  seating: "var(--state-empty)",
+  line: "var(--state-line)",
+  open: "var(--state-shared)",
 };
 
 // Zones on the canvas are colored by state, the same as the public map and
 // the camera unit's monitor: green vacant, orange occupied, red full.
 export const STATE_COLORS: Record<TileState, string> = {
-  empty: "#22c55e",
-  shared: "#f59e0b",
-  some: "#f59e0b",
-  full: "#ef4444",
-  busy: "#ef4444",
-  line: "#38bdf8",
+  empty: "var(--state-empty)",
+  shared: "var(--state-shared)",
+  some: "var(--state-shared)",
+  full: "var(--state-full)",
+  busy: "var(--state-full)",
+  line: "var(--state-line)",
 };
 
 // "Table 3 (1/4)" for seating with a capacity, "Lounge (2)" otherwise, and

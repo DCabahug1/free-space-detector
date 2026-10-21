@@ -4,23 +4,21 @@ import type { Zone } from "@/lib/types";
 import { displayCount, tileLabel, tileState, type TileState } from "@/lib/occupancy";
 
 const STATE_STYLES: Record<TileState, string> = {
-  empty:
-    "border-emerald-500/40 bg-emerald-500/10 text-emerald-950 dark:text-emerald-50",
-  shared:
-    "border-amber-500/50 bg-amber-500/15 text-amber-950 dark:text-amber-50",
-  full: "border-rose-500/50 bg-rose-500/15 text-rose-950 dark:text-rose-50",
-  some: "border-amber-500/50 bg-amber-500/15 text-amber-950 dark:text-amber-50",
-  busy: "border-rose-500/50 bg-rose-500/15 text-rose-950 dark:text-rose-50",
-  line: "border-sky-500/40 bg-sky-500/10 text-sky-950 dark:text-sky-50",
+  empty: "border-state-empty/40 bg-state-empty/10",
+  shared: "border-state-shared/50 bg-state-shared/15",
+  full: "border-state-full/50 bg-state-full/15",
+  some: "border-state-shared/50 bg-state-shared/15",
+  busy: "border-state-full/50 bg-state-full/15",
+  line: "border-state-line/40 bg-state-line/10",
 };
 
 const DOT_STYLES: Record<TileState, string> = {
-  empty: "bg-emerald-500",
-  shared: "bg-amber-500",
-  full: "bg-rose-500",
-  some: "bg-amber-500",
-  busy: "bg-rose-500",
-  line: "bg-sky-500",
+  empty: "bg-state-empty",
+  shared: "bg-state-shared",
+  full: "bg-state-full",
+  some: "bg-state-shared",
+  busy: "bg-state-full",
+  line: "bg-state-line",
 };
 
 interface ZoneTileProps {
@@ -51,7 +49,7 @@ export function ZoneTile({ zone, count, stale, compact }: ZoneTileProps) {
   return (
     <div
       className={cn(
-        "relative flex flex-col justify-between rounded-lg border transition-colors",
+        "relative flex flex-col justify-between rounded-lg border text-card-foreground shadow-xs transition-colors",
         compact ? "min-h-20 p-3" : "min-h-28 p-4",
         STATE_STYLES[state],
         stale && "opacity-60 saturate-50"

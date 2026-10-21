@@ -1,22 +1,17 @@
 import type { Metadata } from "next";
-import { DM_Sans, DM_Serif_Text, DM_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const fontSans = DM_Sans({
+const fontSans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 });
 
-const fontSerif = DM_Serif_Text({
+// Georgia is a system font, not a Google font, so globals.css sets
+// --font-serif directly and nothing is loaded here.
+const fontMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-serif",
-});
-
-const fontMono = DM_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
   variable: "--font-mono",
 });
 
@@ -33,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} antialiased`}
+        className={`${fontSans.variable} ${fontMono.variable} antialiased`}
       >
         {children}
         <Toaster position="top-center" />
