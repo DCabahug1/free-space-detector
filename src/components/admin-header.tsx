@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface AdminHeaderProps {
   // The overview is wider than the setup page.
   wide?: boolean;
-  // Rendered under the top row, still on the band (the overview's tabs).
+  // Rendered under the top row as a second strip in band-2 (the overview's tabs).
   children?: React.ReactNode;
 }
 
@@ -40,8 +40,12 @@ export function AdminHeader({ wide, children }: AdminHeaderProps) {
             <ThemeToggle className={bandIconClass} />
           </div>
         </div>
-        {children}
       </div>
+      {children ? (
+        <div className="bg-band-2">
+          <div className={cn("mx-auto w-full", wide ? "max-w-[1360px] px-6" : "max-w-[1120px] px-4")}>{children}</div>
+        </div>
+      ) : null}
     </Band>
   );
 }
