@@ -34,9 +34,10 @@ export async function POST(req: Request) {
 
   const { data: room } = await supabase
     .from("rooms")
-    .select("id, name")
+    .select("id, name, buildings(name)")
     .eq("id", unit.room_id)
     .maybeSingle();
+  const building = Array.isArray(room?.buildings) ? room?.buildings[0] : room?.buildings;
 
   return NextResponse.json({
     ok: true,
@@ -45,5 +46,6 @@ export async function POST(req: Request) {
     name: unit.name,
     room_id: unit.room_id,
     room_name: room?.name ?? null,
+    building_name: (building as { name: string } | null | undefined)?.name ?? null,
   });
 }
