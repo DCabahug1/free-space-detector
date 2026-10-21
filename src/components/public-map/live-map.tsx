@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Pin } from "lucide-react";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
 import { durationText, freeSeats, relativeTime } from "@/lib/occupancy";
@@ -12,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { RoomRow } from "./room-row";
+import { PinButton, RoomRow } from "./room-row";
 
 interface LiveMapProps {
   rooms: PublicRoom[];
@@ -26,7 +25,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [filter, setFilter] = useState<Filter>("all");
   const live = useLiveSnapshot(rooms, initialCounts);
-  const { isPinned, toggle } = usePins();
+  const { isPinned, toggle, isBuildingPinned, toggleBuilding } = usePins();
 
   // Per room: free seats and whether its camera unit is offline.
   // A unit that paused sharing reads as offline here. Only the admin says paused.
@@ -53,8 +52,8 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     );
   });
 
-  // Directory: pinned areas first, then by free seats. A building with a
-  // pinned area comes first too.
+  // Directory: pinned areas first, then by free seats. A pinned building
+  // comes first, then a building with a pinned area, then the rest.
   const groups = (() => {
     const byBuilding = new Map<string, { building: PublicRoom["building"]; rooms: PublicRoom[] }>();
     for (const room of visible) {
@@ -71,11 +70,12 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           (a, b) => pinOf(b) - pinOf(a) || freeOf(b) - freeOf(a) || a.name.localeCompare(b.name)
         ),
         free: g.rooms.reduce((sum, r) => sum + freeOf(r), 0),
-        pinned: g.rooms.some((r) => isPinned(r.id)),
+        pinned: isBuildingPinned(g.building.id),
+        rank: isBuildingPinned(g.building.id) ? 2 : g.rooms.some((r) => isPinned(r.id)) ? 1 : 0,
       }))
       .sort(
         (a, b) =>
-          Number(b.pinned) - Number(a.pinned) ||
+          b.rank - a.rank ||
           b.free - a.free ||
           a.building.name.localeCompare(b.building.name)
       );
@@ -142,11 +142,13 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           {groups.map((g) => (
             <div key={g.building.id}>
               <div className="bg-accent px-4 py-3">
-                <h2 className="flex items-center gap-2 text-xl font-semibold">
+                <h2 className="flex items-center gap-1 text-xl font-semibold">
                   {g.building.name}
-                  {g.pinned ? (
-                    <Pin className="size-4 text-state-empty" fill="currentColor" aria-label="Pinned" />
-                  ) : null}
+                  <PinButton
+                    pinned={g.pinned}
+                    name={g.building.name}
+                    onClick={() => toggleBuilding(g.building.id)}
+                  />
                 </h2>
                 <p className="text-[13px] text-muted-foreground">
                   {g.free} free in {g.rooms.length} {g.rooms.length === 1 ? "area" : "areas"}
