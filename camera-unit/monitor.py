@@ -1,11 +1,12 @@
 """Small monitor attached to the camera unit.
 
-Fullscreen tkinter window with two screens:
-  pairing: a QR code plus the 6-digit pair code, until an admin claims the unit.
-  live:    per-zone counts, refreshed as the worker thread updates Status.
-           A "View camera" button (touch sized) opens a fullscreen overlay with
-           the live frame, person boxes, and each zone colored by its state.
-           "Refresh zones" re-fetches zones right away after edits in the web app.
+Fullscreen tkinter window, designed at 800x480 and scaled up to 1280x800:
+  starting: "Spot" and a status line while Wi-Fi and the server come up.
+  pairing:  a QR code plus the 6-digit pair code, until an admin claims the unit.
+  live:     one row per zone (name, count, state), a status line, and the
+            View camera, Refresh zones and Update buttons.
+            View camera opens a fullscreen overlay with the live frame, person
+            boxes, foot dots, and each zone colored by its state.
 
 tkinter must run on the main thread, so main.py starts the capture loop in a
 background thread and hands it the shared Status object. Press Escape or q
@@ -16,28 +17,26 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 import tkinter as tk
+import tkinter.font as tkfont
 
-from status import STATE_COLORS, Status, display_count, tile_label, tile_state
+from status import ACCENT, BG, BUTTON_ACTIVE, BUTTON_BG, FG, MUTED, STATE_COLORS, Status, count_text, tile_label, tile_state
 
 log = logging.getLogger("camera-unit.monitor")
 
-# Hex versions of the dark theme tokens in src/app/globals.css.
-BG = "#161616"  # --background
-FG = "#d1d5db"  # --foreground
-MUTED = "#8c8c8c"  # --muted-foreground
-BUTTON_BG = "#1e1e1e"  # --card
-BUTTON_ACTIVE = "#3a453d"  # --accent
-# The theme primary is too dark for a 72pt pair code on this background, so
-# the accent is the brighter vacant green from the state tokens.
-ACCENT = "#4cb86a"
+PAPER = "#faf8f3"
+DIM = "#75706a"  # rows at 50 % while updating
+SHARED = STATE_COLORS["shared"]
 
+DESIGN_W, DESIGN_H = 800, 480
+QR_PX = 220
+ROW_H = 52
+BUTTON_H = 52
+BUTTON_MIN_W = 140
 
-# Font sizes below are designed for a 1280x800 screen and scaled down from
-# there, so the same layout fits the Pi's small touchscreen (about 800x480)
-# and a full size monitor.
-DESIGN_W, DESIGN_H = 1280, 800
-COMPACT_BELOW_H = 600  # shorter screens put the QR and pair code side by side
+SANS_CANDIDATES = ("IBM Plex Sans", "DejaVu Sans", "Helvetica")
+MONO_CANDIDATES = ("JetBrains Mono", "DejaVu Sans Mono", "Courier")
 
 
 class Monitor:
@@ -45,15 +44,18 @@ class Monitor:
         self.status = status
         self.refresh_ms = refresh_ms
         self.root = tk.Tk()
-        self.root.title("Camera unit")
+        self.root.title("Spot camera unit")
         self.root.configure(bg=BG)
         self.screen_w = self.root.winfo_screenwidth()
         self.screen_h = self.root.winfo_screenheight()
         self.make_fullscreen(self.root)
-        self.scale = max(0.4, min(1.0, self.screen_w / DESIGN_W, self.screen_h / DESIGN_H))
-        self.compact = self.screen_h < COMPACT_BELOW_H
-        log.info("monitor %dx%d, scale %.2f, %s layout", self.screen_w, self.screen_h, self.scale,
-                 "compact" if self.compact else "tall")
+        self.scale = max(0.6, min(2.0, self.screen_w / DESIGN_W, self.screen_h / DESIGN_H))
+        # Tall screens stack the QR above the code.
+        self.stacked = self.screen_h > self.screen_w * 0.8
+        families = set(tkfont.families())
+        self.sans = next((f for f in SANS_CANDIDATES if f in families), "Helvetica")
+        self.mono = next((f for f in MONO_CANDIDATES if f in families), "Courier")
+        log.info("monitor %dx%d, scale %.2f, fonts %s / %s", self.screen_w, self.screen_h, self.scale, self.sans, self.mono)
         self.root.bind("<Escape>", lambda _e: self.quit())
         self.root.bind("q", lambda _e: self.quit())
         self.root.protocol("WM_DELETE_WINDOW", self.quit)
@@ -65,12 +67,16 @@ class Monitor:
         self._qr_image = None
         self._row_widgets: list[tuple[tk.Label, tk.Label, tk.Label]] = []
         self._footer: tk.Label | None = None
-        self._header: tk.Label | None = None
+        self._building: tk.Label | None = None
+        self._room: tk.Label | None = None
+        self._unit: tk.Label | None = None
+        self._buttons: list[tk.Button] = []
+        self._update_button: tk.Button | None = None
         self._preview: tk.Frame | None = None
         self._preview_label: tk.Label | None = None
+        self._preview_status: tk.Label | None = None
         self._preview_photo = None
         self._preview_shown = None
-        self._update_button: tk.Button | None = None
         self._updating = False
 
     # ----- lifecycle -----
@@ -96,22 +102,62 @@ class Monitor:
             return
         self.root.after(self.refresh_ms, self.tick)
 
-    # ----- rendering -----
+    # ----- helpers -----
 
     def fs(self, size: int) -> int:
         """Font size scaled to the screen."""
         return max(8, round(size * self.scale))
 
-    def pad(self, px: int) -> int:
-        return max(2, round(px * self.scale))
+    def px(self, n: int) -> int:
+        return max(1, round(n * self.scale))
+
+    def font(self, size: int, weight: str = "normal", mono: bool = False) -> tuple:
+        return (self.mono if mono else self.sans, self.fs(size), weight)
 
     def clear(self) -> None:
         for child in self.frame.winfo_children():
             child.destroy()
         self._row_widgets = []
         self._footer = None
-        self._header = None
+        self._building = self._room = self._unit = None
+        self._buttons = []
         self._update_button = None
+
+    def button(self, parent: tk.Misc, text: str, command) -> tk.Button:
+        """Touch sized button, 52 px tall, at least 140 px wide, packed left to right."""
+        b = tk.Button(
+            parent,
+            text=text,
+            command=command,
+            font=self.font(18, "bold"),
+            fg=FG,
+            bg=BUTTON_BG,
+            activeforeground=FG,
+            activebackground=BUTTON_ACTIVE,
+            disabledforeground=MUTED,
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            padx=self.px(20),
+            cursor="hand2",
+        )
+        b.pack(side="left", padx=(0, self.px(8)), ipady=max(0, (self.px(BUTTON_H) - self.fs(18) * 2) // 2))
+        b.configure(width=max(1, round(BUTTON_MIN_W / (self.fs(18) * 0.55))))
+        self._buttons.append(b)
+        return b
+
+    def footer_text(self) -> str:
+        s = self.status
+        if s.message:
+            return s.message
+        if s.mode == "live":
+            if s.posted_at:
+                ago = max(0, round(time.time() - s.posted_at))
+                return f"Posted {ago} s ago. Wi-Fi ok."
+            return "Waiting for the first post."
+        return ""
+
+    # ----- rendering -----
 
     def render(self) -> None:
         s = self.status
@@ -120,6 +166,8 @@ class Monitor:
                 self.clear()
                 self.build_pairing()
                 self._shown_mode, self._shown_code = "pairing", s.pair_code
+            if self._footer:
+                self._footer.configure(text=self.footer_text())
         elif s.mode == "live":
             if self._shown_mode != "live" or len(self._row_widgets) != len(s.rows):
                 self.clear()
@@ -129,153 +177,131 @@ class Monitor:
         else:
             if self._shown_mode != "starting":
                 self.clear()
-                tk.Label(self.frame, text="Starting", font=("Helvetica", self.fs(36)), fg=FG, bg=BG).pack(expand=True)
-                self._footer = tk.Label(self.frame, text="", font=("Helvetica", self.fs(16)), fg=MUTED, bg=BG,
-                                        wraplength=self.screen_w - 40)
-                self._footer.pack(pady=self.pad(20))
+                tk.Label(self.frame, text="Spot", font=self.font(40, "bold"), fg=FG, bg=BG).pack(expand=True)
+                self._footer = tk.Label(self.frame, text="", font=self.font(20), fg=MUTED, bg=BG,
+                                        wraplength=self.screen_w - self.px(48))
+                self._footer.pack(pady=(0, self.px(48)))
                 self._shown_mode = "starting"
             if self._footer:
-                self._footer.configure(text=s.message)
+                self._footer.configure(text=s.message or "Starting. Connecting to Wi-Fi")
 
     def build_pairing(self) -> None:
-        if self.compact:
-            self.build_pairing_compact()
-        else:
-            self.build_pairing_tall()
-
-    def build_pairing_tall(self) -> None:
-        """QR above the pair code. For screens at least 600 px tall."""
         s = self.status
-        # Budget: title + QR + code + help + footer must fit in screen_h.
-        qr_px = int(min(self.screen_h * 0.42, self.screen_w * 0.5))
-        tk.Label(self.frame, text="Pair this camera unit", font=("Helvetica", self.fs(32), "bold"), fg=FG, bg=BG).pack(
-            pady=(self.pad(40), self.pad(10))
-        )
-        qr = make_qr_photo(s.pair_url, target_px=qr_px)
-        if qr is not None:
-            self._qr_image = qr
-            tk.Label(self.frame, image=qr, bg=BG).pack(pady=self.pad(10))
-        tk.Label(self.frame, text=s.pair_code, font=("Courier", self.fs(72), "bold"), fg=ACCENT, bg=BG).pack(pady=self.pad(10))
-        tk.Label(
-            self.frame,
-            text="Scan the code or type it in the admin app under Camera units.",
-            font=("Helvetica", self.fs(18)),
-            fg=MUTED,
-            bg=BG,
-            wraplength=int(self.screen_w * 0.8),
-        ).pack(pady=(0, self.pad(10)))
-        self._footer = tk.Label(self.frame, text=s.message, font=("Helvetica", self.fs(14)), fg=MUTED, bg=BG,
-                                wraplength=self.screen_w - 40)
-        self._footer.pack(side="bottom", pady=self.pad(20))
-        self.build_update_row(self.pad(8))
+        pad = self.px(24)
+        tk.Label(self.frame, text="Pair this camera unit", font=self.font(28, "bold"), fg=FG, bg=BG,
+                 anchor="w").pack(fill="x", padx=pad, pady=(pad, self.px(12)))
 
-    def build_pairing_compact(self) -> None:
-        """QR on the left, title, pair code and help on the right. For the Pi touchscreen."""
-        s = self.status
-        self._footer = tk.Label(self.frame, text=s.message, font=("Helvetica", self.fs(14)), fg=MUTED, bg=BG,
-                                wraplength=self.screen_w - 40)
-        self._footer.pack(side="bottom", pady=self.pad(8))
-        self.build_update_row(self.pad(6))
+        # Footer first so it claims the bottom edge: status left, Update right.
+        footer = tk.Frame(self.frame, bg=BG)
+        footer.pack(side="bottom", fill="x", padx=pad, pady=(0, self.px(16)))
+        buttons = tk.Frame(footer, bg=BG)
+        buttons.pack(side="right")
+        self._update_button = self.button(buttons, "Update", self.start_update)
+        self._footer = tk.Label(footer, text=self.footer_text(), font=self.font(16), fg=MUTED, bg=BG,
+                                anchor="w", justify="left", wraplength=int(self.screen_w * 0.6))
+        self._footer.pack(side="left", fill="x", expand=True)
 
         body = tk.Frame(self.frame, bg=BG)
-        body.pack(fill="both", expand=True, padx=self.pad(24), pady=self.pad(16))
+        body.pack(fill="both", expand=True, padx=pad)
 
-        footer_h = self.fs(14) * 2 + self.pad(8) * 2
-        qr_px = int(min(self.screen_h - footer_h - self.pad(32), self.screen_w * 0.42))
-        qr = make_qr_photo(s.pair_url, target_px=qr_px)
+        qr_px = self.px(QR_PX)
+        qr = make_qr_photo(s.pair_url, target_px=qr_px - self.px(24))
+        paper = tk.Frame(body, bg=PAPER, width=qr_px, height=qr_px)
+        paper.pack_propagate(False)
         if qr is not None:
             self._qr_image = qr
-            tk.Label(body, image=qr, bg=BG).pack(side="left", padx=(0, self.pad(24)))
-            right_w = self.screen_w - qr_px - self.pad(24) * 3
-        else:
-            right_w = self.screen_w - self.pad(24) * 2
+            tk.Label(paper, image=qr, bg=PAPER).pack(expand=True)
 
         right = tk.Frame(body, bg=BG)
-        right.pack(side="left", fill="both", expand=True)
-        # Courier glyphs are about 0.6 em wide, 6 digits plus slack must fit in right_w.
-        code_size = int(min(self.screen_h * 0.16, right_w / (6 * 0.6 * 1.15)))
-        tk.Label(right, text="Pair this camera unit", font=("Helvetica", self.fs(28), "bold"), fg=FG, bg=BG,
-                 anchor="w", justify="left", wraplength=right_w).pack(anchor="w", pady=(self.pad(8), self.pad(6)))
-        tk.Label(right, text=s.pair_code, font=("Courier", code_size, "bold"), fg=ACCENT, bg=BG, anchor="w").pack(
-            anchor="w", pady=self.pad(6)
-        )
+        code = spaced_code(s.pair_code)
+        tk.Label(right, text=code, font=self.font(72, "bold", mono=True), fg=ACCENT, bg=BG, anchor="w").pack(anchor="w")
         tk.Label(
             right,
-            text="Scan the code or type it in the admin app under Camera units.",
-            font=("Helvetica", self.fs(18)),
+            text="Scan, or type the code in the admin app under Camera units.",
+            font=self.font(16),
             fg=MUTED,
             bg=BG,
             anchor="w",
             justify="left",
-            wraplength=right_w,
-        ).pack(anchor="w", pady=(self.pad(6), 0))
+            wraplength=int(self.screen_w - qr_px - pad * 3) if not self.stacked else self.screen_w - pad * 2,
+        ).pack(anchor="w", pady=(self.px(8), 0))
+
+        if self.stacked:
+            paper.pack(anchor="w", pady=(0, self.px(16)))
+            right.pack(anchor="w", fill="x")
+        else:
+            paper.pack(side="left", anchor="n", padx=(0, pad))
+            right.pack(side="left", anchor="n", fill="both", expand=True, pady=(self.px(4), 0))
 
     def build_live(self) -> None:
         s = self.status
-        self._header = tk.Label(self.frame, text=s.room_name or s.unit_name, font=("Helvetica", self.fs(32), "bold"),
-                                fg=FG, bg=BG, wraplength=self.screen_w - 40)
-        self._header.pack(pady=(self.pad(30), self.pad(10)))
-        self._footer = tk.Label(self.frame, text="", font=("Helvetica", self.fs(14)), fg=MUTED, bg=BG,
-                                wraplength=self.screen_w - 40)
-        self._footer.pack(side="bottom", pady=self.pad(12))
-        buttons = tk.Frame(self.frame, bg=BG)
-        buttons.pack(side="bottom", pady=(0, self.pad(4)))
-        self.touch_button(buttons, "View camera", self.open_preview, self.pad(12))
-        self.touch_button(buttons, "Refresh zones", self.refresh_zones, self.pad(12))
-        self._update_button = self.touch_button(buttons, "Update", self.start_update, self.pad(12))
+        pad = self.px(24)
+        header = tk.Frame(self.frame, bg=BG)
+        header.pack(fill="x", padx=pad, pady=(self.px(20), self.px(8)))
+        self._unit = tk.Label(header, text=s.unit_name, font=self.font(16), fg=MUTED, bg=BG, anchor="e")
+        self._unit.pack(side="right")
+        self._building = tk.Label(header, text="", font=self.font(26), fg=MUTED, bg=BG, anchor="w")
+        self._building.pack(side="left")
+        self._room = tk.Label(header, text="", font=self.font(26, "bold"), fg=FG, bg=BG, anchor="w")
+        self._room.pack(side="left")
 
-        # Shrink rows further when there are more zones than fit at full size.
-        header_h = self.fs(32) * 1.6 + self.pad(40)
-        footer_h = self.fs(14) * 1.6 + self.pad(24) + self.fs(20) * 1.6 + self.pad(28)
-        avail_h = max(50, self.screen_h - header_h - footer_h)
-        row_h = self.fs(40) * 1.7 + self.pad(16)
-        row_scale = min(1.0, avail_h / (row_h * max(1, len(s.rows))))
-
-        def rfs(size: int) -> int:
-            return max(8, round(self.fs(size) * row_scale))
+        bottom = tk.Frame(self.frame, bg=BG)
+        bottom.pack(side="bottom", fill="x", padx=pad, pady=(self.px(8), self.px(16)))
+        buttons = tk.Frame(bottom, bg=BG)
+        buttons.pack(side="right")
+        self.button(buttons, "View camera", self.open_preview)
+        self.button(buttons, "Refresh zones", self.refresh_zones)
+        self._update_button = self.button(buttons, "Update", self.start_update)
+        self._footer = tk.Label(bottom, text="", font=self.font(16), fg=MUTED, bg=BG, anchor="w",
+                                justify="left", wraplength=int(self.screen_w * 0.45))
+        self._footer.pack(side="left", fill="x", expand=True)
 
         grid = tk.Frame(self.frame, bg=BG)
-        grid.pack(fill="both", expand=True, padx=self.pad(40))
+        grid.pack(fill="both", expand=True, padx=pad)
+        if not s.rows:
+            tk.Label(grid, text="No zones yet", font=self.font(26, "bold"), fg=FG, bg=BG).pack(anchor="w", pady=(self.px(24), 0))
+            tk.Label(grid, text="Draw them in the admin app. This screen updates on its own.", font=self.font(16),
+                     fg=MUTED, bg=BG, wraplength=self.screen_w - pad * 2, justify="left").pack(anchor="w")
+            return
+
+        # Rows are 52 px and shrink together when there are more than fit.
+        header_h = self.fs(26) * 1.8 + self.px(28)
+        bottom_h = self.px(BUTTON_H) + self.px(32)
+        avail = max(60, self.screen_h - header_h - bottom_h)
+        row_scale = min(1.0, avail / (self.px(ROW_H) * len(s.rows)))
+
+        def rf(size: int, weight: str = "normal", mono: bool = False) -> tuple:
+            return (self.mono if mono else self.sans, max(8, round(self.fs(size) * row_scale)), weight)
+
         grid.columnconfigure(0, weight=3)
-        grid.columnconfigure(1, weight=1)
-        grid.columnconfigure(2, weight=3)
-        name_w = int(self.screen_w * 0.4)
+        grid.columnconfigure(1, weight=0)
+        grid.columnconfigure(2, weight=2)
         for i, row in enumerate(s.rows):
-            name = tk.Label(grid, text=row.name, font=("Helvetica", rfs(26)), fg=FG, bg=BG, anchor="w", wraplength=name_w)
-            count = tk.Label(grid, text="0", font=("Courier", rfs(40), "bold"), fg=FG, bg=BG)
-            state = tk.Label(grid, text="", font=("Helvetica", rfs(22), "bold"), fg=MUTED, bg=BG, anchor="w")
-            name.grid(row=i, column=0, sticky="w", pady=round(self.pad(6) * row_scale))
-            count.grid(row=i, column=1, sticky="e", padx=self.pad(20))
+            name = tk.Label(grid, text=row.name, font=rf(22), fg=FG, bg=BG, anchor="w")
+            count = tk.Label(grid, text="", font=rf(38, "bold", mono=True), fg=FG, bg=BG, anchor="e")
+            state = tk.Label(grid, text="", font=rf(22), fg=MUTED, bg=BG, anchor="w")
+            pady = max(0, round((self.px(ROW_H) * row_scale - self.fs(38) * row_scale * 1.3) / 2))
+            name.grid(row=i, column=0, sticky="w", pady=pady)
+            count.grid(row=i, column=1, sticky="e", padx=self.px(24))
             state.grid(row=i, column=2, sticky="w")
             self._row_widgets.append((name, count, state))
-        if not s.rows:
-            tk.Label(grid, text="No zones yet. Draw some in the admin app.", font=("Helvetica", self.fs(22)),
-                     fg=MUTED, bg=BG, wraplength=self.screen_w - 80).pack(expand=True)
 
-    def touch_button(self, parent: tk.Misc, text: str, command, pady: int) -> tk.Button:
-        """Touch sized button, packed left to right in parent."""
-        button = tk.Button(
-            parent,
-            text=text,
-            command=command,
-            font=("Helvetica", self.fs(20), "bold"),
-            fg=FG,
-            bg=BUTTON_BG,
-            activeforeground=FG,
-            activebackground=BUTTON_ACTIVE,
-            relief="flat",
-            padx=self.pad(28),
-            pady=pady,
-            cursor="hand2",
-        )
-        button.pack(side="left", padx=self.pad(10))
-        return button
-
-    def build_update_row(self, pady: int) -> None:
-        """A lone Update button along the bottom, for screens without a button row."""
-        buttons = tk.Frame(self.frame, bg=BG)
-        buttons.pack(side="bottom", pady=(0, self.pad(4)))
-        self._update_button = self.touch_button(buttons, "Update", self.start_update, pady)
+    def update_live(self) -> None:
+        s = self.status
+        if self._building is not None and self._room is not None:
+            building = f"{s.building_name}, " if s.building_name else ""
+            self._building.configure(text=building)
+            self._room.configure(text=s.room_name or s.unit_name)
+        if self._unit is not None:
+            self._unit.configure(text=s.unit_name)
+        for (name, count, state), row in zip(self._row_widgets, s.rows):
+            st = tile_state(row.type, row.count, row.capacity)
+            color = DIM if self._updating else STATE_COLORS[st]
+            name.configure(text=row.name, fg=DIM if self._updating else FG)
+            count.configure(text=count_text(row.type, row.count, row.capacity), fg=color)
+            state.configure(text=tile_label(st), fg=color)
+        if self._footer:
+            self._footer.configure(text=self.footer_text(), fg=SHARED if self._updating else MUTED)
 
     def say(self, text: str) -> None:
         """Footer text. Call on the tk thread."""
@@ -286,14 +312,20 @@ class Monitor:
             except tk.TclError:
                 pass
 
+    # ----- actions -----
+
     def start_update(self) -> None:
         """Pull the latest code in the background, then restart the unit if
         anything changed. The worker keeps counting meanwhile."""
         if self._updating:
             return
         self._updating = True
+        for b in self._buttons:
+            b.configure(state="disabled")
         if self._update_button:
-            self._update_button.configure(state="disabled", text="Updating")
+            self._update_button.configure(text="Updating")
+        if self._footer:
+            self._footer.configure(fg=SHARED)
         self.say("Checking for updates")
 
         def work() -> None:
@@ -311,31 +343,22 @@ class Monitor:
             self.status.restart.set()
             self.root.after(1500, self.quit)
             return
-        if self._update_button:
-            try:
-                self._update_button.configure(state="normal", text="Update")
-            except tk.TclError:
-                pass
+        try:
+            for b in self._buttons:
+                b.configure(state="normal")
+            if self._update_button:
+                self._update_button.configure(text="Update")
+            if self._footer:
+                self._footer.configure(fg=MUTED)
+        except tk.TclError:
+            pass
+        # Keep the result on screen for a moment, then go back to the post status.
+        self.root.after(4000, lambda: self.say("") if self.status.message == result.message else None)
 
     def refresh_zones(self) -> None:
         """Ask the worker to re-fetch zones now, after an admin edits them in the web app."""
         self.status.refresh_zones.set()
-        self.status.message = "Refreshing zones"
-        if self._footer:
-            self._footer.configure(text=self.status.message)
-
-    def update_live(self) -> None:
-        s = self.status
-        if self._header:
-            self._header.configure(text=s.room_name or s.unit_name)
-        for (name, count, state), row in zip(self._row_widgets, s.rows):
-            st = tile_state(row.type, row.count, row.capacity)
-            cap = f" / {row.capacity}" if row.capacity else ""
-            name.configure(text=row.name)
-            count.configure(text=f"{display_count(row.type, row.count, row.capacity)}{cap}")
-            state.configure(text=tile_label(st, row.count), fg=STATE_COLORS[st])
-        if self._footer:
-            self._footer.configure(text=s.message)
+        self.say("Refreshing zones")
 
     # ----- camera preview popup -----
 
@@ -371,13 +394,24 @@ class Monitor:
         self.root.bind("q", lambda _e: self.close_preview())
         self._preview = top
 
-        buttons = tk.Frame(top, bg="black")
-        buttons.pack(side="bottom", pady=self.pad(6))
-        self.touch_button(buttons, "Close", self.close_preview, self.pad(10))
-        self.touch_button(buttons, "Refresh zones", self.refresh_zones, self.pad(10))
-        label = tk.Label(top, text="Waiting for the camera", font=("Helvetica", self.fs(24)), fg=MUTED, bg="black")
+        bar = tk.Frame(top, bg="black")
+        bar.pack(side="top", fill="x", padx=self.px(12), pady=self.px(8))
+        right = tk.Frame(bar, bg="black")
+        right.pack(side="right")
+        saved = self._buttons
+        self._buttons = []
+        self.button(right, "Refresh zones", self.refresh_zones)
+        self.button(right, "Close", self.close_preview)
+        self._buttons = saved
+
+        strip = tk.Frame(top, bg="black")
+        strip.pack(side="bottom", fill="x", padx=self.px(16), pady=self.px(8))
+        tk.Label(strip, text="Tap the picture to close", font=self.font(14), fg=MUTED, bg="black").pack(side="left")
+        self._preview_status = tk.Label(strip, text="", font=self.font(14), fg=MUTED, bg="black")
+        self._preview_status.pack(side="right")
+
+        label = tk.Label(top, text="Waiting for the camera", font=self.font(22), fg=MUTED, bg="black")
         label.pack(fill="both", expand=True)
-        # Tapping the picture closes it too, so the button is not the only way out.
         label.bind("<Button-1>", lambda _e: self.close_preview())
         self._preview_label = label
         self._preview_shown = None
@@ -388,6 +422,7 @@ class Monitor:
         self.status.preview = None
         top, self._preview = self._preview, None
         self._preview_label = None
+        self._preview_status = None
         self._preview_photo = None
         self._preview_shown = None
         self.root.bind("<Escape>", lambda _e: self.quit())
@@ -405,15 +440,18 @@ class Monitor:
         if self.status.stop.is_set():
             self.close_preview()
             return
-        image = self.status.preview
+        s = self.status
+        if self._preview_status is not None:
+            ago = max(0, round(time.time() - s.frame_at)) if s.frame_at else None
+            people = f"{s.people} {'person' if s.people == 1 else 'people'}"
+            self._preview_status.configure(text=f"{people}, {ago} s ago" if ago is not None else people)
+        image = s.preview
         if image is not None and image is not self._preview_shown:
             try:
                 from PIL import ImageTk
 
-                # The popup is fullscreen, so size against the screen rather
-                # than winfo_width, which reads 1 until the window is mapped.
                 box_w = self.screen_w
-                box_h = max(1, self.screen_h - self.fs(20) * 2 - self.pad(26))
+                box_h = max(1, self.screen_h - self.px(BUTTON_H) - self.fs(14) * 2 - self.px(40))
                 scale = min(box_w / image.width, box_h / image.height)
                 size = (max(1, int(image.width * scale)), max(1, int(image.height * scale)))
                 photo = ImageTk.PhotoImage(image.resize(size))
@@ -427,12 +465,20 @@ class Monitor:
         top.after(self.PREVIEW_REFRESH_MS, self.preview_tick)
 
 
+def spaced_code(code: str) -> str:
+    """"482913" -> "482 913"."""
+    code = (code or "").replace(" ", "")
+    if len(code) == 6:
+        return f"{code[:3]} {code[3:]}"
+    return code
+
+
 def qr_box_size(modules: int, target_px: int, border: int = 2) -> int:
     """Largest whole pixel size per module that keeps the QR within target_px."""
     return max(2, target_px // (modules + 2 * border))
 
 
-def make_qr_photo(url: str, target_px: int = 300):
+def make_qr_photo(url: str, target_px: int = 200):
     """Returns a tkinter PhotoImage of the QR code no larger than target_px on a
     side, or None if qrcode or PIL is missing."""
     if not url:
@@ -443,10 +489,10 @@ def make_qr_photo(url: str, target_px: int = 300):
     except ImportError:
         log.warning("qrcode or Pillow not installed, showing the pair code only")
         return None
-    border = 2
+    border = 1
     qr = qrcode.QRCode(border=border)
     qr.add_data(url)
     qr.make(fit=True)
     qr.box_size = qr_box_size(qr.modules_count, target_px, border)
-    img = qr.make_image(fill_color="black", back_color="white").get_image()
+    img = qr.make_image(fill_color="#26221d", back_color=PAPER).get_image()
     return ImageTk.PhotoImage(img)

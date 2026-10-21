@@ -167,7 +167,7 @@ class Unit:
                 return
             except Exception as e:  # noqa: BLE001
                 log.error("registration failed, retrying in 5s: %s", e)
-                self.status.message = f"Cannot reach {self.cfg.server_url}: {e}"
+                self.status.message = f"Cannot reach the server. Retrying. {e}"
                 self.status.stop.wait(5)
 
     def wait_until_paired(self) -> bool:
@@ -195,11 +195,12 @@ class Unit:
                 if self.cfg.room_id and not self.args.pair:
                     log.warning("server unreachable, falling back to configured room %s", self.cfg.room_id)
                     return True
-                self.status.message = "Waiting for the server"
+                self.status.message = "Waiting for the admin app. No connection."
             elif data.get("paired"):
                 self.cache.set_room(data["room_id"])
                 self.status.unit_name = data.get("name", "")
                 self.status.room_name = data.get("room_name") or ""
+                self.status.building_name = data.get("building_name") or ""
                 self.status.message = ""
                 self.last_status_check = time.time()
                 log.info("paired to room %s (%s)", data.get("room_name"), data["room_id"])
@@ -211,7 +212,8 @@ class Unit:
                 self.status.mode = "pairing"
                 self.status.pair_code = self.state.pair_code
                 self.status.pair_url = pair_url
-                self.status.message = f"Unit {data.get('name', '')}. Checking every {self.cfg.pair_poll_s:.0f}s."
+                self.status.unit_name = data.get("name", "")
+                self.status.message = "Waiting for the admin app. Wi-Fi ok."
 
             if self.args.once:
                 return False
@@ -231,6 +233,7 @@ class Unit:
         if data.get("paired"):
             self.cache.set_room(data["room_id"])
             self.status.room_name = data.get("room_name") or ""
+            self.status.building_name = data.get("building_name") or ""
         else:
             log.warning("unit was unassigned from its room, waiting for pairing")
             self.wait_until_paired()
@@ -243,7 +246,7 @@ class Unit:
         self.recheck_room(force)
         zones = self.cache.get(force)
         if force:
-            self.status.message = f"Refreshed zones at {time.strftime('%H:%M:%S')}"
+            self.status.message = f"Refreshed zones, {len(zones)} loaded."
         return zones
 
     # ----- publishing -----
@@ -257,10 +260,11 @@ class Unit:
         try:
             result = post_counts(self.cfg.server_url, self.api_key, counts)
             log.info("posted: accepted=%s ignored=%s", result.get("accepted"), result.get("ignored", 0))
-            self.status.message = f"Posted {result.get('accepted')} counts at {time.strftime('%H:%M:%S')}"
+            self.status.posted_at = time.time()
+            self.status.message = ""
         except Exception as e:  # noqa: BLE001
             log.error("post failed: %s", e)
-            self.status.message = f"Post failed: {e}"
+            self.status.message = f"Post failed. {e}"
 
     def update_preview(self, image, people: list, zones: list[Zone], counts: dict[str, int]) -> None:
         """Renders the monitor's camera popup frame, only while the popup is open."""
@@ -297,7 +301,7 @@ class Unit:
 
     def run(self) -> int:
         try:
-            self.status.message = "Connecting"
+            self.status.message = "Starting. Connecting to Wi-Fi"
             self.resolve_api_key()
             if not self.wait_until_paired():
                 log.error("not paired")
@@ -380,6 +384,8 @@ class Unit:
                 frame = detector.capture()
                 people = detector.detect(frame)
                 feet = [p.foot for p in people]
+                self.status.people = len(people)
+                self.status.frame_at = time.time()
                 latest = self.counter.count(zones, feet)
                 self.status.rows = [ZoneRow(z.name, z.type, z.capacity, latest.get(z.id, 0)) for z in zones]
                 self.status.mode = "live"

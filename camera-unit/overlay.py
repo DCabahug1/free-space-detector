@@ -1,9 +1,9 @@
 """Draws what the camera unit sees onto a frame.
 
 Person boxes with their foot points, and every zone as a polygon colored by
-its state (green vacant, orange occupied, red full) labeled
-"Zone 1 (1/4)". PIL only, no model imports, so the monitor preview and the
---fake --frame-file path can use it without ultralytics installed.
+its state (green empty, orange shared, red full) labeled "Table 1 1/4", the
+same as the admin canvas. PIL only, no model imports, so the monitor
+preview and the --fake --frame-file path can use it without ultralytics.
 """
 
 from __future__ import annotations
@@ -13,24 +13,25 @@ from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
-from status import STATE_COLORS, display_count, tile_state
+from status import STATE_COLORS, count_text, tile_state
 
 log = logging.getLogger("camera-unit.overlay")
 
-BOX_COLOR = (250, 204, 21)  # yellow
-FOOT_COLOR = (239, 68, 68)  # red
-FILL_ALPHA = 70
+BOX_COLOR = (108, 192, 126)  # state-empty green
+FOOT_COLOR = (236, 230, 218)  # foreground
+FILL_ALPHA = 56  # 22 %
 OUTLINE_WIDTH = 4
+LABEL_BG = (20, 18, 15, 210)
 
 _font_cache: dict[int, Any] = {}
 
 
 def label_font(size: int):
-    """A scalable font if one is available, else PIL's built-in bitmap font."""
+    """A scalable mono font if one is available, else PIL's built-in bitmap font."""
     if size in _font_cache:
         return _font_cache[size]
     font = None
-    for name in ("DejaVuSans-Bold.ttf", "DejaVuSans.ttf", "Arial.ttf"):
+    for name in ("DejaVuSansMono-Bold.ttf", "DejaVuSans-Bold.ttf", "DejaVuSans.ttf", "Arial.ttf"):
         try:
             font = ImageFont.truetype(name, size)
             break
@@ -51,11 +52,8 @@ def hex_rgb(value: str) -> tuple[int, int, int]:
 
 
 def zone_label(name: str, zone_type: str, count: int, capacity: int | None) -> str:
-    """Matches the admin canvas: "Table 3 (1/4)" for seating with a capacity, "Lounge (2)" otherwise."""
-    shown = display_count(zone_type, count, capacity)
-    if zone_type == "seating" and capacity:
-        return f"{name} ({shown}/{capacity})"
-    return f"{name} ({shown})"
+    """Matches the admin canvas: "Table 3 1/4" for seating with a capacity, "Lounge 2" otherwise."""
+    return f"{name} {count_text(zone_type, count, capacity)}"
 
 
 def centroid(polygon: list[tuple[float, float]]) -> tuple[float, float]:
@@ -64,19 +62,18 @@ def centroid(polygon: list[tuple[float, float]]) -> tuple[float, float]:
 
 
 def draw_people(image: Image.Image, people: list[Any], radius: int = 7) -> None:
-    """Box, confidence, and foot point per person. people need .box, .foot, .confidence."""
+    """Box and foot point per person. people need .box and .foot."""
     draw = ImageDraw.Draw(image)
     for p in people:
         x1, y1, x2, y2 = p.box
-        draw.rectangle((x1, y1, x2, y2), outline=BOX_COLOR, width=3)
-        draw.text((x1 + 4, max(0, y1 - 14)), f"{p.confidence:.2f}", fill=BOX_COLOR)
+        draw.rectangle((x1, y1, x2, y2), outline=BOX_COLOR, width=OUTLINE_WIDTH)
         fx, fy = p.foot
         # Keep the marker visible when the foot sits on the bottom edge.
         fy = min(fy, image.height - radius - 1)
-        draw.ellipse((fx - radius, fy - radius, fx + radius, fy + radius), fill=FOOT_COLOR, outline=(255, 255, 255), width=2)
+        draw.ellipse((fx - radius, fy - radius, fx + radius, fy + radius), fill=FOOT_COLOR, outline=BOX_COLOR, width=2)
 
 
-def draw_zones(image: Image.Image, zones: list[Any], counts: dict[str, int], font_size: int = 28) -> Image.Image:
+def draw_zones(image: Image.Image, zones: list[Any], counts: dict[str, int], font_size: int = 22) -> Image.Image:
     """Returns a new RGB image with each zone filled and outlined in its state
     color and labeled at its centroid. zones need .id, .name, .type, .capacity, .polygon."""
     base = image.convert("RGBA")
@@ -92,7 +89,7 @@ def draw_zones(image: Image.Image, zones: list[Any], counts: dict[str, int], fon
         draw.line(points + [points[0]], fill=rgb + (255,), width=OUTLINE_WIDTH, joint="curve")
     out = Image.alpha_composite(base, layer)
 
-    draw = ImageDraw.Draw(out)
+    draw = ImageDraw.Draw(out, "RGBA")
     font = label_font(font_size)
     for z in zones:
         if len(z.polygon) < 3:
@@ -100,14 +97,15 @@ def draw_zones(image: Image.Image, zones: list[Any], counts: dict[str, int], fon
         text = zone_label(z.name, z.type, counts.get(z.id, 0), z.capacity)
         cx, cy = centroid(z.polygon)
         left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
-        x = cx - (right - left) / 2 - left
-        y = cy - (bottom - top) / 2 - top
-        draw.text((x, y), text, font=font, fill=(255, 255, 255, 255), stroke_width=3, stroke_fill=(0, 0, 0, 200))
+        w, h = right - left, bottom - top
+        pad_x, pad_y = 12, 7
+        draw.rectangle((cx - w / 2 - pad_x, cy - h / 2 - pad_y, cx + w / 2 + pad_x, cy + h / 2 + pad_y), fill=LABEL_BG)
+        draw.text((cx - w / 2 - left, cy - h / 2 - top), text, font=font, fill=(255, 255, 255, 255))
     return out.convert("RGB")
 
 
 def render_preview(image: Image.Image, people: list[Any], zones: list[Any], counts: dict[str, int]) -> Image.Image:
-    """Everything the dashboard shows, on the frame: zones by state, then people on top."""
+    """Everything the admin canvas shows, on the frame: zones by state, then people on top."""
     out = draw_zones(image, zones, counts)
     if people:
         draw_people(out, people)

@@ -8,16 +8,25 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-# Hex versions of the --state-* dark theme tokens in src/app/globals.css, so
-# the monitor, the overlay, the admin canvas, and the public map agree.
+# Hex versions of the dark theme tokens in docs/DESIGN.md, so the monitor,
+# the overlay, the admin canvas, and the public map agree.
+BG = "#1f1c18"
+FG = "#ece6da"
+MUTED = "#a39b90"
+BUTTON_BG = "#27231e"
+BUTTON_ACTIVE = "#332e28"
+ACCENT = "#7fa66f"
+
 STATE_COLORS = {
-    "empty": "#4cb86a",
-    "shared": "#ed9e2f",
-    "full": "#d74843",
-    "some": "#ed9e2f",
-    "busy": "#d74843",
-    "line": "#48a1db",
+    "empty": "#6cc07e",
+    "shared": "#e0a24a",
+    "full": "#e2655a",
+    "some": "#e0a24a",
+    "busy": "#e2655a",
+    "unknown": "#7d756b",
 }
+
+BUSY_FROM = 4
 
 
 @dataclass
@@ -36,9 +45,15 @@ class Status:
     pair_code: str = ""
     pair_url: str = ""
     unit_name: str = ""
+    building_name: str = ""
     room_name: str = ""
     rows: list[ZoneRow] = field(default_factory=list)
     message: str = ""
+    # Seconds since the epoch of the last successful post, 0 before the first.
+    posted_at: float = 0.0
+    # Number of people in the last frame and when it was captured.
+    people: int = 0
+    frame_at: float = 0.0
     stop: threading.Event = field(default_factory=threading.Event)
     # Camera preview popup on the monitor. The monitor sets preview_open while
     # the popup is up, and the worker renders the latest frame with boxes and
@@ -54,14 +69,12 @@ class Status:
 
 
 def tile_state(zone_type: str, count: int, capacity: int | None) -> str:
-    """Mirrors src/lib/occupancy.ts so the monitor agrees with the public map."""
-    if zone_type == "line":
-        return "line"
+    """Mirrors tileState in src/lib/occupancy.ts. Line zones count like open ones."""
     if count <= 0:
         return "empty"
     if zone_type == "seating":
         return "full" if capacity is not None and count >= capacity else "shared"
-    return "busy" if count >= 4 else "some"
+    return "busy" if count >= BUSY_FROM else "some"
 
 
 def display_count(zone_type: str, count: int, capacity: int | None) -> int:
@@ -71,10 +84,20 @@ def display_count(zone_type: str, count: int, capacity: int | None) -> int:
     return count
 
 
-def tile_label(state: str, count: int) -> str:
-    if state == "line":
-        if count == 0:
-            return "No line"
-        minutes = max(1, round(count * 45 / 60))
-        return f"{count} waiting, about {minutes} min"
-    return {"empty": "Empty", "shared": "Shared", "full": "Full", "some": "Some people", "busy": "Busy"}[state]
+def count_text(zone_type: str, count: int, capacity: int | None) -> str:
+    """"2/4" for seating with a capacity, "2" otherwise."""
+    shown = display_count(zone_type, count, capacity)
+    if zone_type == "seating" and capacity:
+        return f"{shown}/{capacity}"
+    return str(shown)
+
+
+def tile_label(state: str, count: int = 0) -> str:
+    return {
+        "empty": "Empty",
+        "shared": "Shared",
+        "full": "Full",
+        "some": "Some people",
+        "busy": "Busy",
+        "unknown": "Unknown",
+    }[state]
