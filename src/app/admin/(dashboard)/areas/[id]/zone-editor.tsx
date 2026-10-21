@@ -7,9 +7,11 @@ import { createZone, deleteZone, updateZone, type ZoneInput } from "@/app/admin/
 import type { Polygon, Zone, ZoneType } from "@/lib/types";
 import { countText, stateColor, tileState } from "@/lib/occupancy";
 import { type LiveFrame, useLiveFrame } from "@/hooks/use-live-frame";
+import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { CLOSE_RADIUS, ZoneCanvas, distance } from "./zone-canvas";
@@ -319,10 +321,48 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
           onCanvasClick={onCanvasClick}
           onZoneClick={(id) => select(id === selectedId ? null : id)}
         />
-        <p className="text-[13px] text-muted-foreground">
-          1280 x 720{liveFrame ? ` from ${liveFrame.unitName}` : ""}. Boxes are people. Dots are feet,
-          which is what counts.
-        </p>
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <span>1280 x 720{liveFrame ? ` from ${liveFrame.unitName}` : ""}</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" aria-label="What the canvas shows">
+                <Info className="size-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-80 space-y-3 text-[13px]">
+              <dl className="space-y-2">
+                <div>
+                  <dt className="font-medium text-foreground">Box</dt>
+                  <dd className="text-muted-foreground">A person the camera unit detected.</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-foreground">Dot</dt>
+                  <dd className="text-muted-foreground">
+                    The bottom center of that box, where the feet are. A person is in a zone when the dot is
+                    inside it.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-foreground">Zone fill</dt>
+                  <dd className="text-muted-foreground">
+                    Green is empty, orange has people, red is at capacity. The label shows the count.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-foreground">Dashed outline</dt>
+                  <dd className="text-muted-foreground">
+                    A zone being drawn. Click near the first point to close it.
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-muted-foreground">
+                Feet are used instead of the whole box because the camera unit looks down from a corner.
+                Heads and shoulders lean over tables and across zone edges, but feet stay on the floor
+                where the person actually is. Draw zones around the floor space, not the furniture.
+              </p>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       <div className="space-y-6">
