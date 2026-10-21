@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useClock } from "@/hooks/use-clock";
 import { durationText, isOffline } from "@/lib/occupancy";
 import { GroupSection, ListFilters } from "@/components/admin/group-section";
+import { Highlight } from "@/components/highlight";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,6 +75,7 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
           <GroupSection
             key={g.name}
             title={g.name}
+            query={query}
             caption={`${g.rooms.length} ${g.rooms.length === 1 ? "area" : "areas"}, ${published} published`}
           >
             {g.rooms.map((room) => (
@@ -83,9 +85,13 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-card sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_auto]"
               >
                 <div className="min-w-0">
-                  <div className="truncate text-[15px] font-medium">{room.name}</div>
+                  <div className="truncate text-[15px] font-medium">
+                    <Highlight text={room.name} query={query} />
+                  </div>
                   {room.description ? (
-                    <div className="truncate text-[13px] text-muted-foreground">{room.description}</div>
+                    <div className="truncate text-[13px] text-muted-foreground">
+                      <Highlight text={room.description} query={query} />
+                    </div>
                   ) : null}
                 </div>
                 <div className="col-start-1 text-[13px] sm:col-start-auto">

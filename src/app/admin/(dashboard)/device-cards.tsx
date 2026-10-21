@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GroupSection, ListFilters } from "@/components/admin/group-section";
+import { Highlight } from "@/components/highlight";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -152,13 +153,14 @@ export function DeviceCards({ units, rooms }: UnitListProps) {
           <GroupSection
             key={g.key}
             title={g.name}
+            query={query}
             muted={g.key === UNASSIGNED}
             caption={`${g.units.length} ${g.units.length === 1 ? "camera unit" : "camera units"}${
               offlineCount > 0 ? `, ${offlineCount} offline` : ""
             }`}
           >
             {g.units.map((unit) => (
-              <UnitRow key={unit.id} unit={unit} rooms={rooms} now={now} />
+              <UnitRow key={unit.id} unit={unit} rooms={rooms} now={now} query={query} />
             ))}
           </GroupSection>
         );
@@ -171,10 +173,12 @@ function UnitRow({
   unit,
   rooms,
   now,
+  query,
 }: {
   unit: AdminUnit & { frameUrl: string };
   rooms: RoomOption[];
   now: number;
+  query: string;
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -247,13 +251,17 @@ function UnitRow({
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[15px] font-medium">{unit.name}</span>
+          <span className="truncate text-[15px] font-medium">
+            <Highlight text={unit.name} query={query} />
+          </span>
           {unit.pair_code ? (
-            <span className="shrink-0 font-mono text-[13px] text-muted-foreground">{unit.pair_code}</span>
+            <span className="shrink-0 font-mono text-[13px] text-muted-foreground">
+              <Highlight text={unit.pair_code} query={query} />
+            </span>
           ) : null}
         </div>
         <div className="truncate text-[13px] text-muted-foreground">
-          {unit.room ? unit.room.name : "Not paired to an area"}
+          {unit.room ? <Highlight text={unit.room.name} query={query} /> : "Not paired to an area"}
         </div>
         <div
           className={cn(

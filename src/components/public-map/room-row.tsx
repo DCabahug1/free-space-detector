@@ -9,6 +9,7 @@ import { roomPath } from "@/lib/types";
 import { freeSeats, roomSummary, stateColor, tileState } from "@/lib/occupancy";
 import { Button } from "@/components/ui/button";
 import { ZoneTile } from "./zone-tile";
+import { Highlight } from "@/components/highlight";
 
 interface RoomRowProps {
   room: PublicRoom;
@@ -17,6 +18,8 @@ interface RoomRowProps {
   offlineFor: string | null;
   pinned: boolean;
   onTogglePin: () => void;
+  // Search text to highlight in the name.
+  query?: string;
   className?: string;
 }
 
@@ -24,7 +27,7 @@ interface RoomRowProps {
 // a 4 px strip with one segment per zone in its state color, and a chevron
 // that opens the area's spots as tiles beneath the row. Closed by default.
 // The name links to the area page. Hairlines come from the parent (divide-y).
-export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, className }: RoomRowProps) {
+export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query = "", className }: RoomRowProps) {
   const [open, setOpen] = useState(false);
   const offline = offlineFor != null;
   const free = freeSeats(room.zones, counts);
@@ -40,7 +43,9 @@ export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, classNa
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3">
         <div className="flex min-w-0 items-center gap-1">
           <Link href={roomPath(room)} className="min-w-0 hover:underline">
-            <div className="truncate text-[15px] font-medium">{room.name}</div>
+            <div className="truncate text-[15px] font-medium">
+              <Highlight text={room.name} query={query} />
+            </div>
           </Link>
           <PinButton pinned={pinned} name={room.name} onClick={onTogglePin} />
         </div>

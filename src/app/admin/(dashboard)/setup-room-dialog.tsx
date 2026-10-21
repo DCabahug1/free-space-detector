@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { Highlight } from "@/components/highlight";
 
 // Building is free text with the existing names offered in a dropdown as the
 // admin types. Picking one reuses that building, any other name makes a new one.
@@ -165,7 +166,7 @@ function BuildingInput({ buildings }: { buildings: Building[] }) {
               }}
               onMouseEnter={() => setActive(i)}
             >
-              {b.name}
+              <Highlight text={b.name} query={value} />
             </li>
           ))}
         </ul>

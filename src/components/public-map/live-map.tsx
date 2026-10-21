@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PinButton, RoomRow } from "./room-row";
+import { Highlight } from "@/components/highlight";
 
 interface LiveMapProps {
   rooms: PublicRoom[];
@@ -145,6 +146,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
               pinned={g.pinned}
               onTogglePin={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id))}
               forceOpen={q.length > 0}
+              query={query}
             >
               {g.rooms.map((room) => (
                 <RoomRow
@@ -154,6 +156,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                   offlineFor={stats.get(room.id)?.offlineFor ?? null}
                   pinned={isPinned(room.id)}
                   onTogglePin={() => toggle(room.id, room.building_id)}
+                  query={query}
                 />
               ))}
             </BuildingGroup>
@@ -173,13 +176,24 @@ interface BuildingGroupProps {
   onTogglePin: () => void;
   // A search keeps every matching building open so its results show.
   forceOpen: boolean;
+  query: string;
   children: React.ReactNode;
 }
 
 // One building in the directory: header on the accent background with the
 // name, pin, area count, free total on the right, and a chevron. Closed by
 // default, the same way an area row's spots are.
-function BuildingGroup({ name, areaCount, free, offline, pinned, onTogglePin, forceOpen, children }: BuildingGroupProps) {
+function BuildingGroup({
+  name,
+  areaCount,
+  free,
+  offline,
+  pinned,
+  onTogglePin,
+  forceOpen,
+  query,
+  children,
+}: BuildingGroupProps) {
   const [opened, setOpened] = useState(false);
   const open = opened || forceOpen;
   const freeColor = offline ? "var(--state-unknown)" : free > 0 ? "var(--state-empty)" : "var(--state-full)";
@@ -187,7 +201,9 @@ function BuildingGroup({ name, areaCount, free, offline, pinned, onTogglePin, fo
     <section className="border">
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-accent px-4 py-3">
         <h2 className="flex min-w-0 items-center gap-1 text-xl font-semibold">
-          <span className="truncate">{name}</span>
+          <span className="truncate">
+            <Highlight text={name} query={query} />
+          </span>
           <PinButton
             pinned={pinned}
             name={name}

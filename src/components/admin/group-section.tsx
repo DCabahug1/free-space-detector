@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Highlight } from "@/components/highlight";
 
 interface GroupSectionProps {
   title: string;
@@ -11,18 +12,22 @@ interface GroupSectionProps {
   // Open on first render. Collapsed groups keep their header only.
   defaultOpen?: boolean;
   muted?: boolean;
+  // Search text to highlight in the title.
+  query?: string;
   children: React.ReactNode;
 }
 
 // A building group in the admin lists, styled like the public map: a
 // header on the accent background with a chevron, rows beneath it.
-export function GroupSection({ title, caption, defaultOpen = true, muted, children }: GroupSectionProps) {
+export function GroupSection({ title, caption, defaultOpen = true, muted, query = "", children }: GroupSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="border">
       <div className="flex items-center justify-between gap-3 bg-accent px-4 py-3">
         <div className="min-w-0">
-          <h2 className={cn("truncate text-xl font-semibold", muted && "text-muted-foreground")}>{title}</h2>
+          <h2 className={cn("truncate text-xl font-semibold", muted && "text-muted-foreground")}>
+            <Highlight text={title} query={query} />
+          </h2>
           <p className="text-[13px] text-muted-foreground">{caption}</p>
         </div>
         <Button
