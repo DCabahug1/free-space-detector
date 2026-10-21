@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { frameUrl } from "@/lib/camera-units";
 import { loadPublicSnapshot } from "@/lib/public-data";
@@ -19,6 +20,9 @@ export default function RoomSetup({ params }: RoomPageProps) {
 }
 
 async function RoomContent({ params }: RoomPageProps) {
+  // The Supabase session read uses Date.now(), which cacheComponents rejects
+  // during prerender. Render these admin pages at request time.
+  await connection();
   const { id } = await params;
   const supabase = await createClient();
   const { rooms, counts } = await loadPublicSnapshot(supabase, { roomId: id });

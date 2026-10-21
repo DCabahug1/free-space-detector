@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { frameUrl } from "@/lib/camera-units";
 import type { Building } from "@/lib/types";
@@ -48,6 +49,9 @@ function one<T>(v: T | T[] | null): T | null {
 }
 
 async function Overview({ searchParams }: OverviewProps) {
+  // The Supabase session read uses Date.now(), which cacheComponents rejects
+  // during prerender. Render these admin pages at request time.
+  await connection();
   const { code } = await searchParams;
   const initialCode = code && /^\d{6}$/.test(code) ? code : "";
   const supabase = await createClient();
