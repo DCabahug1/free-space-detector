@@ -114,6 +114,8 @@ export async function deleteRoom(roomId: string): Promise<ActionResult> {
 
 const pointSchema = z.tuple([z.number().finite(), z.number().finite()]);
 
+// "line" is deprecated: existing line zones can still be edited, new ones
+// cannot be created (see createZone).
 const zoneInputSchema = z.object({
   name: z.string().trim().min(1, "Give the zone a name.").max(80),
   type: z.enum(["seating", "line", "open"]),
@@ -142,6 +144,9 @@ export async function createZone(
 ): Promise<ActionResult & { id?: string }> {
   const { data, error } = normalizeZone(input);
   if (error || !data) return { error };
+  if (data.type === "line") {
+    return { error: "Line zones are no longer supported. Use an open area instead." };
+  }
 
   const supabase = await createClient();
   const { data: row, error: dbError } = await supabase

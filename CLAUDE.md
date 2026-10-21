@@ -24,8 +24,8 @@ Students check it before walking somewhere (empty library tables, food line wait
 
 Zone types:
 - `seating`: has capacity, shows empty / shared / full
-- `line`: count + wait estimate
 - `open`: empty / some / busy
+- `line`: deprecated. Not offered for new zones. Existing line zones still render (count + wait estimate) until retyped or deleted.
 
 ---
 
@@ -85,7 +85,7 @@ RLS:
 1. Admin app on the projector, live frame from the camera unit mounted high in a classroom corner.
 2. Draw 4 to 6 zones over the real classroom tables live. Publish.
 3. Public map. Judges sit at a table, tile flips to shared, then full. They stand, it flips to empty.
-4. One line zone across the doorway. Five people line up, a wait estimate appears.
+4. One open zone across the doorway. Five people stand in it, the tile flips to busy.
 
 ---
 

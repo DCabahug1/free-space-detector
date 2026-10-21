@@ -1,4 +1,6 @@
 export type RoomKind = "seating" | "line";
+// "line" is deprecated. New zones cannot be created with it, but zones that
+// already have it keep rendering until they are retyped or deleted.
 export type ZoneType = "seating" | "line" | "open";
 
 // Polygon vertices in frame pixels, [x, y].

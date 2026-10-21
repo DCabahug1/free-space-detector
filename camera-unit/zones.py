@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 class Zone:
     id: str
     name: str
-    type: str  # seating | line | open
+    type: str  # seating | open (line is deprecated, still counted if present)
     capacity: int | None
     polygon: list[tuple[float, float]]
 

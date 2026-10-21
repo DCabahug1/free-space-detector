@@ -204,7 +204,7 @@ export function ZoneEditor({ room, zones, counts, liveFrame }: ZoneEditorProps) 
     setNewFields({
       ...EMPTY_FIELDS,
       name: `Zone ${zones.length + 1}`,
-      type: room.kind === "line" ? "line" : "seating",
+      type: "seating",
     });
     setNewOpen(true);
   }
@@ -556,8 +556,10 @@ function ZoneFieldInputs({ idPrefix, fields, onChange, autoFocus }: ZoneFieldInp
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="seating">Seating: empty / shared / full</SelectItem>
-            <SelectItem value="line">Line: count and wait estimate</SelectItem>
             <SelectItem value="open">Open area: empty / some / busy</SelectItem>
+            {fields.type === "line" ? (
+              <SelectItem value="line">Line (deprecated): count and wait estimate</SelectItem>
+            ) : null}
           </SelectContent>
         </Select>
       </div>

@@ -2,7 +2,7 @@ import type { Zone, ZoneType } from "@/lib/types";
 
 // Tile state rules shared by the public map and the admin preview.
 //   seating: empty (0) / shared (0 < count < capacity) / full (count >= capacity)
-//   line:    count plus a wait estimate
+//   line:    count plus a wait estimate (deprecated, kept for existing zones)
 //   open:    empty (0) / some (1 to 3) / busy (4+)
 
 export type TileState = "empty" | "shared" | "full" | "some" | "busy" | "line";
@@ -100,6 +100,6 @@ export function roomSummary(
 
 export const ZONE_TYPE_LABEL: Record<ZoneType, string> = {
   seating: "Seating",
-  line: "Line",
+  line: "Line (deprecated)",
   open: "Open area",
 };
