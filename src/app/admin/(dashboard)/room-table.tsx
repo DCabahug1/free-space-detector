@@ -82,7 +82,7 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
               <Link
                 key={room.id}
                 href={`/admin/areas/${room.id}`}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-card sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_auto]"
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-card sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_6rem]"
               >
                 <div className="min-w-0">
                   <div className="truncate text-[15px] font-medium">
@@ -100,7 +100,7 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
                 <div className="col-start-1 text-[13px] text-muted-foreground sm:col-start-auto">
                   {room.zoneCount === 1 ? "1 zone" : `${room.zoneCount} zones`}
                 </div>
-                <div className="col-start-2 row-span-3 row-start-1 self-center sm:col-start-auto sm:row-span-1">
+                <div className="col-start-2 row-span-3 row-start-1 self-center justify-self-end sm:col-start-auto sm:row-span-1">
                   <Badge variant={room.published ? "outline" : "secondary"}>
                     {room.published ? "Published" : "Draft"}
                   </Badge>
