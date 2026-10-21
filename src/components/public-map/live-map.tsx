@@ -29,14 +29,13 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const { isPinned } = usePins();
 
   // Per room: free seats and whether its camera unit is offline.
-  const stats = new Map<string, { free: number; offlineFor: string | null; paused: boolean }>();
+  // A unit that paused sharing reads as offline here. Only the admin says paused.
+  const stats = new Map<string, { free: number; offlineFor: string | null }>();
   for (const room of rooms) {
-    const paused = live.roomPaused(room);
-    const offline = !paused && live.roomOffline(room);
+    const offline = live.roomPaused(room) || live.roomOffline(room);
     stats.set(room.id, {
-      free: paused || offline ? 0 : freeSeats(room.zones, live.countNumbers),
+      free: offline ? 0 : freeSeats(room.zones, live.countNumbers),
       offlineFor: offline ? durationText(live.heartbeat(room), live.now) || "never" : null,
-      paused,
     });
   }
 
@@ -158,7 +157,6 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                     room={room}
                     counts={live.countNumbers}
                     offlineFor={stats.get(room.id)?.offlineFor ?? null}
-                    paused={stats.get(room.id)?.paused ?? false}
                     pinned={isPinned(room.id)}
                   />
                 ))}

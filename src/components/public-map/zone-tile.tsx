@@ -24,8 +24,6 @@ interface ZoneTileProps {
   count: number | undefined;
   // "4 min" while the camera unit is offline, otherwise null.
   offlineFor?: string | null;
-  // The camera unit paused sharing. Shown as Unknown with the word "Paused".
-  paused?: boolean;
   size?: keyof typeof COUNT_SIZE;
   className?: string;
 }
@@ -33,12 +31,12 @@ interface ZoneTileProps {
 // Card background, zone name, mono count in the state color, state word,
 // and a 6 px bar along the bottom edge. The bar and the numeral are the
 // only things that change. On a state change the bar flashes for 300 ms.
-export function ZoneTile({ zone, count, offlineFor, paused, size = "sm", className }: ZoneTileProps) {
+export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: ZoneTileProps) {
   const raw = count ?? 0;
   const offline = offlineFor != null;
-  const state: TileState = paused || offline ? "unknown" : tileState(zone.type, raw, zone.capacity);
+  const state: TileState = offline ? "unknown" : tileState(zone.type, raw, zone.capacity);
   const color = stateColor(state);
-  const word = paused ? "Paused" : offline ? `Unknown, ${offlineFor}` : stateWord(state);
+  const word = offline ? `Unknown, ${offlineFor}` : stateWord(state);
 
   const previous = useRef<TileState>(state);
   const [flashKey, setFlashKey] = useState(0);
