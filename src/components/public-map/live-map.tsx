@@ -133,7 +133,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       {groups.length > 0 ? (
         <section className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((g) => (
-            <div key={g.building.id}>
+            <div key={g.building.id} className="shadow-sm">
               <div className="bg-accent px-4 py-3">
                 <h2 className="flex items-center gap-1 text-xl font-semibold">
                   {g.building.name}
