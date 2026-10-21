@@ -143,7 +143,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           ) : null}
 
           {groups.length > 0 ? (
-            <section className="grid items-start gap-8 grid-cols-[repeat(auto-fill,minmax(min(340px,100%),1fr))]">
+            <section className="flex flex-col gap-4">
               {groups.map((g) => (
                 <BuildingGroup
                   key={g.building.id}

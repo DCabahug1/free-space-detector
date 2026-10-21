@@ -9,7 +9,7 @@ import { Highlight } from "@/components/highlight";
 interface GroupSectionProps {
   title: string;
   caption: string;
-  // Open on first render. Collapsed groups keep their header only.
+  // Open on first render. Groups start collapsed, header only.
   defaultOpen?: boolean;
   muted?: boolean;
   // Search text to highlight in the title.
@@ -19,8 +19,11 @@ interface GroupSectionProps {
 
 // A building group in the admin lists, styled like the public map: a
 // header on the building background with a chevron, rows beneath it.
-export function GroupSection({ title, caption, defaultOpen = true, muted, query = "", children }: GroupSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+export function GroupSection({ title, caption, defaultOpen = false, muted, query = "", children }: GroupSectionProps) {
+  const [opened, setOpened] = useState(defaultOpen);
+  // A search keeps every matching group open so its results show.
+  const forced = query.trim().length > 0;
+  const open = opened || forced;
   return (
     <section className="overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground">
       <div className="flex items-center justify-between gap-3 bg-building px-4 py-3 text-building-foreground">
@@ -36,7 +39,8 @@ export function GroupSection({ title, caption, defaultOpen = true, muted, query 
           className="text-building-muted hover:bg-background dark:hover:bg-background"
           aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
           aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
+          disabled={forced}
+          onClick={() => setOpened((o) => !o)}
         >
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
         </Button>
