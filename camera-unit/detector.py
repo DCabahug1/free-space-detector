@@ -20,6 +20,7 @@ from PIL import Image
 from ultralytics import YOLO
 
 from overlay import BOX_COLOR, FOOT_COLOR, draw_people
+from status import CameraUnavailable
 
 log = logging.getLogger("camera-unit.detector")
 
@@ -46,20 +47,35 @@ class PiCamera:
     def __init__(self, width: int, height: int) -> None:
         from picamera2 import Picamera2  # apt: python3-picamera2, Pi only
 
-        self.camera = Picamera2()
-        # Picamera2's "RGB888" lays pixels out as B, G, R in memory, which is
-        # the OpenCV order that Ultralytics expects for numpy input.
-        config = self.camera.create_video_configuration(main={"size": (width, height), "format": "RGB888"})
-        self.camera.configure(config)
+        if not Picamera2.global_camera_info():
+            raise CameraUnavailable("no Pi camera found, check the ribbon cable")
+        try:
+            self.camera = Picamera2()
+            # Picamera2's "RGB888" lays pixels out as B, G, R in memory, which is
+            # the OpenCV order that Ultralytics expects for numpy input.
+            config = self.camera.create_video_configuration(main={"size": (width, height), "format": "RGB888"})
+            self.camera.configure(config)
+        except Exception as e:  # noqa: BLE001
+            raise CameraUnavailable(f"could not open the Pi camera: {e}") from e
 
     def start(self) -> None:
-        self.camera.start()
+        try:
+            self.camera.start()
+        except Exception as e:  # noqa: BLE001
+            raise CameraUnavailable(f"could not start the Pi camera: {e}") from e
 
     def stop(self) -> None:
-        self.camera.stop()
+        try:
+            self.camera.stop()
+            self.camera.close()
+        except Exception as e:  # noqa: BLE001
+            log.warning("Pi camera stop failed: %s", e)
 
     def capture(self):
-        return self.camera.capture_array()
+        try:
+            return self.camera.capture_array()
+        except Exception as e:  # noqa: BLE001
+            raise CameraUnavailable(f"Pi camera returned no frame: {e}") from e
 
 
 class Webcam:
@@ -78,7 +94,8 @@ class Webcam:
         cv2 = self.cv2
         self.cap = cv2.VideoCapture(self.index)
         if not self.cap.isOpened():
-            raise RuntimeError(f"could not open webcam {self.index}, try --webcam-index 1")
+            self.stop()
+            raise CameraUnavailable(f"could not open webcam {self.index}, check the USB cable or try --webcam-index 1")
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
 
@@ -90,7 +107,7 @@ class Webcam:
     def capture(self):
         ok, frame = self.cap.read()
         if not ok:
-            raise RuntimeError("webcam returned no frame")
+            raise CameraUnavailable("webcam returned no frame, check the USB cable")
         # Webcams ignore the requested size when they do not support it, so
         # resize: zone polygons are in frame pixels at the configured size.
         if frame.shape[1] != self.width or frame.shape[0] != self.height:
@@ -111,15 +128,30 @@ class Detector:
         self.width = width
         self.height = height
         self.confidence = confidence
+        self.webcam = webcam
+        self.webcam_index = webcam_index
+        # Fail fast on a missing library, here where main.py reports it.
+        if webcam:
+            import cv2  # noqa: F401
+        else:
+            import picamera2  # noqa: F401
         self.model = YOLO(model)
-        self.camera = Webcam(width, height, webcam_index) if webcam else PiCamera(width, height)
+        # Opened in start() so a missing camera can be retried without
+        # reloading the model.
+        self.camera: PiCamera | Webcam | None = None
 
     def start(self) -> None:
-        self.camera.start()
-        log.info("%s started at %dx%d", type(self.camera).__name__, self.width, self.height)
+        """Opens the camera. Raises CameraUnavailable when it is not there."""
+        self.stop()
+        camera = Webcam(self.width, self.height, self.webcam_index) if self.webcam else PiCamera(self.width, self.height)
+        camera.start()
+        self.camera = camera
+        log.info("%s started at %dx%d", type(camera).__name__, self.width, self.height)
 
     def stop(self) -> None:
-        self.camera.stop()
+        if self.camera is not None:
+            self.camera.stop()
+            self.camera = None
 
     def capture(self):
         return self.camera.capture()

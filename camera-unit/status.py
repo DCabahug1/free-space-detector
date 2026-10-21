@@ -29,6 +29,12 @@ STATE_COLORS = {
 BUSY_FROM = 4
 
 
+class CameraUnavailable(RuntimeError):
+    """The camera is missing, unplugged, or stopped returning frames. main.py
+    shows this on the monitor and retries instead of exiting. Lives here, not
+    in detector.py, so main.py can catch it without importing ultralytics."""
+
+
 @dataclass
 class ZoneRow:
     name: str

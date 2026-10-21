@@ -35,9 +35,12 @@ from pathlib import Path
 
 from api import ApiError, pair_status, post_counts, post_frame, register
 from config import Config, load_config
-from status import Status, ZoneRow
+from status import CameraUnavailable, Status, ZoneRow
 from state import State
 from zones import Confirmer, Zone, ZoneCounter, fetch_zones
+
+# Seconds between attempts to open a missing camera.
+CAMERA_RETRY_S = 3.0
 
 log = logging.getLogger("camera-unit")
 
@@ -347,6 +350,26 @@ class Unit:
             self.status.stop.wait(self.post_interval)
         return 0
 
+    def open_camera(self, detector) -> bool:
+        """Opens the camera, retrying every CAMERA_RETRY_S while it is missing
+        so an unplugged camera shows a message instead of crashing the unit.
+        False only when the unit is stopping."""
+        logged = False
+        while not self.status.stop.is_set():
+            try:
+                detector.start()
+                self.status.message = ""
+                return True
+            except CameraUnavailable as e:
+                if not logged:
+                    log.error("%s. Retrying every %.0fs", e, CAMERA_RETRY_S)
+                    logged = True
+                kind = "webcam" if self.args.webcam else "camera"
+                self.status.mode = "starting"
+                self.status.message = f"No {kind} found. Plug it in, retrying."
+                self.status.stop.wait(CAMERA_RETRY_S)
+        return False
+
     def run_camera(self) -> int:
         try:
             from detector import Detector  # lazy, needs ultralytics plus picamera2 or opencv
@@ -371,7 +394,8 @@ class Unit:
             "webcam" if self.args.webcam else "camera",
             self.cfg.frame_width, self.cfg.frame_height, self.args.model, self.post_interval, self.cfg.frame_interval_s,
         )
-        detector.start()
+        if not self.open_camera(detector):
+            return 0
         try:
             next_post = time.time()
             next_frame = time.time()
@@ -384,7 +408,13 @@ class Unit:
             # last_seen and updated_at fresh.
             while not self.status.stop.is_set():
                 zones = self.current_zones()
-                frame = detector.capture()
+                try:
+                    frame = detector.capture()
+                except CameraUnavailable as e:
+                    log.error("camera lost: %s", e)
+                    if not self.open_camera(detector):
+                        return 0
+                    continue
                 people = detector.detect(frame)
                 feet = [p.foot for p in people]
                 self.status.people = len(people)
