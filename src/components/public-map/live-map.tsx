@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import type { PublicRoom, ZoneCount } from "@/lib/types";
+import { toast } from "sonner";
+import type { Building, PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
-import { durationText, freeSeats } from "@/lib/occupancy";
+import { buildingState, durationText, freeSeats, stateColor, type BuildingState } from "@/lib/occupancy";
+import { distanceMeters, distanceText } from "@/lib/geo";
 import { usePins } from "@/lib/pins";
+import { useSortPref } from "@/lib/prefs";
+import { useGeolocation } from "@/hooks/use-geolocation";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
 import { Band, Wrap } from "@/components/band";
 import { Button } from "@/components/ui/button";
@@ -15,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PinButton } from "./pin-button";
 import { RoomRow } from "./room-row";
+import { CampusMap, type MapPin } from "./campus-map";
 import { Highlight } from "@/components/highlight";
 
 interface LiveMapProps {
@@ -24,15 +29,61 @@ interface LiveMapProps {
 
 type Filter = "all" | "free";
 
-// The public map: hero band with the headline and the live line, then the
-// search, the Free now filter, and the building directory.
+interface Group {
+  building: Building;
+  rooms: PublicRoom[];
+  free: number;
+  // Every camera unit in the building is offline, so the total is unknown.
+  offline: boolean;
+  state: BuildingState;
+  // Metres from the person, when Nearest is on and the building has a location.
+  distance: number | null;
+  pinned: boolean;
+}
+
+// The public map: hero band with the headline and the live line, the campus
+// map, then the search, the Free now filter and the Nearest sort, and the
+// building directory as a Pinned list and an All buildings list.
 export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [filter, setFilter] = useState<Filter>("all");
+  const [sort, setSort] = useSortPref();
+  const geo = useGeolocation();
   const live = useLiveSnapshot(rooms, initialCounts);
   const { isPinned, toggle, isBuildingPinned, toggleBuilding, isZonePinned, toggleZone } = usePins();
   const zoneIdsOf = (list: PublicRoom[]) => list.flatMap((r) => r.zones.map((z) => z.id));
+  // A pin tap on the map opens that building in the All buildings list.
+  const [focus, setFocus] = useState<{ id: string; tick: number } | null>(null);
+
+  // Nearest kept from an earlier visit: ask for the position again. The
+  // browser remembers the answer, so there is no second prompt.
+  const nearest = sort === "nearest";
+  const { status: geoStatus, request: requestGeo } = geo;
+  useEffect(() => {
+    if (nearest && geoStatus === "idle") requestGeo();
+  }, [nearest, geoStatus, requestGeo]);
+  useEffect(() => {
+    if (!nearest) return;
+    if (geoStatus === "denied") {
+      toast("Location is off for this site.");
+      setSort("free");
+    } else if (geoStatus === "unavailable") {
+      toast("Location is not available.");
+      setSort("free");
+    }
+  }, [nearest, geoStatus, setSort]);
+  const position = nearest ? geo.position : null;
+
+  function toggleNearest() {
+    if (nearest) {
+      setSort("free");
+      geo.stop();
+    } else {
+      setSort("nearest");
+      geo.request();
+    }
+  }
 
   // Per room: free seats and whether its camera unit is offline.
   // A unit that paused sharing reads as offline here. Only the admin says paused.
@@ -56,11 +107,11 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     );
   });
 
-  // Directory order, for areas within a building and for the buildings
-  // themselves: pinned, then free seats (most first), then occupied, then
-  // offline. A pinned building comes before a building with a pinned area.
+  // Areas within a building: pinned, then free seats (most first), then
+  // occupied, then offline. Buildings: by distance while Nearest is on,
+  // otherwise offline last and free seats first. Pins have their own list.
   const groups = (() => {
-    const byBuilding = new Map<string, { building: PublicRoom["building"]; rooms: PublicRoom[] }>();
+    const byBuilding = new Map<string, { building: Building; rooms: PublicRoom[] }>();
     for (const room of visible) {
       const g = byBuilding.get(room.building_id) ?? { building: room.building, rooms: [] };
       g.rooms.push(room);
@@ -69,32 +120,85 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     const freeOf = (r: PublicRoom) => stats.get(r.id)?.free ?? 0;
     const pinOf = (r: PublicRoom) => (isPinned(r.id) ? 1 : 0);
     const offlineOf = (r: PublicRoom) => (stats.get(r.id)?.offlineFor != null ? 1 : 0);
-    return [...byBuilding.values()]
-      .map((g) => ({
-        ...g,
+    return [...byBuilding.values()].map((g): Group => {
+      const offline = g.rooms.every((r) => offlineOf(r) === 1);
+      const liveZones = g.rooms.filter((r) => offlineOf(r) === 0).flatMap((r) => r.zones);
+      const b = g.building;
+      return {
+        building: b,
         rooms: [...g.rooms].sort(
-          (a, b) =>
-            pinOf(b) - pinOf(a) ||
-            offlineOf(a) - offlineOf(b) ||
-            freeOf(b) - freeOf(a) ||
-            a.name.localeCompare(b.name)
+          (a, c) =>
+            pinOf(c) - pinOf(a) ||
+            offlineOf(a) - offlineOf(c) ||
+            freeOf(c) - freeOf(a) ||
+            a.name.localeCompare(c.name)
         ),
         free: g.rooms.reduce((sum, r) => sum + freeOf(r), 0),
-        // Every camera unit in the building is offline, so the total is unknown.
-        offline: g.rooms.every((r) => stats.get(r.id)?.offlineFor != null),
-        pinned: isBuildingPinned(g.building.id),
-        rank: isBuildingPinned(g.building.id) ? 2 : g.rooms.some((r) => isPinned(r.id)) ? 1 : 0,
-      }))
-      .sort(
-        (a, b) =>
-          b.rank - a.rank ||
-          Number(a.offline) - Number(b.offline) ||
-          b.free - a.free ||
-          a.building.name.localeCompare(b.building.name)
-      );
+        offline,
+        state: buildingState(liveZones, live.countNumbers, offline),
+        distance:
+          position && b.lat != null && b.lng != null ? distanceMeters(position, { lat: b.lat, lng: b.lng }) : null,
+        pinned: isBuildingPinned(b.id),
+      };
+    });
   })();
+  const sortGroups = (list: Group[]) =>
+    [...list].sort((a, b) =>
+      position
+        ? (a.distance ?? Infinity) - (b.distance ?? Infinity) || a.building.name.localeCompare(b.building.name)
+        : Number(a.offline) - Number(b.offline) || b.free - a.free || a.building.name.localeCompare(b.building.name)
+    );
+  const allGroups = sortGroups(groups);
+  const pinnedGroups = sortGroups(groups.filter((g) => g.pinned));
+
+  const pins: MapPin[] = allGroups.flatMap((g) =>
+    g.building.lat != null && g.building.lng != null
+      ? [
+          {
+            id: g.building.id,
+            name: g.building.name,
+            lat: g.building.lat,
+            lng: g.building.lng,
+            state: g.state,
+            free: g.free,
+            offline: g.offline,
+          },
+        ]
+      : []
+  );
 
   const reconnecting = live.connection === "reconnecting";
+
+  const renderGroup = (g: Group, inAll: boolean) => (
+    <BuildingGroup
+      key={g.building.id}
+      name={g.building.name}
+      areaCount={g.rooms.length}
+      free={g.free}
+      offline={g.offline}
+      state={g.state}
+      distance={g.distance}
+      pinned={g.pinned}
+      onTogglePin={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id), zoneIdsOf(g.rooms))}
+      forceOpen={q.length > 0}
+      focus={inAll && focus?.id === g.building.id ? focus.tick : null}
+      query={query}
+    >
+      {g.rooms.map((room) => (
+        <RoomRow
+          key={room.id}
+          room={room}
+          counts={live.countNumbers}
+          offlineFor={stats.get(room.id)?.offlineFor ?? null}
+          pinned={isPinned(room.id)}
+          onTogglePin={() => toggle(room.id, room.building_id, zoneIdsOf([room]))}
+          isZonePinned={isZonePinned}
+          onToggleZonePin={(zoneId) => toggleZone(zoneId, room.id, room.building_id)}
+          query={query}
+        />
+      ))}
+    </BuildingGroup>
+  );
 
   return (
     <>
@@ -117,22 +221,38 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           <p className="text-[15px] text-muted-foreground">Areas appear here once staff publish them.</p>
         </Wrap>
       ) : (
-        <Wrap className="flex flex-col gap-8 pt-6 pb-12">
-          <div className="flex flex-wrap items-center gap-3">
+        <Wrap className="flex flex-col gap-6 pt-6 pb-12">
+          <CampusMap
+            pins={pins}
+            position={position}
+            onSelect={(id) => setFocus((f) => ({ id, tick: (f?.tick ?? 0) + 1 }))}
+          />
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Area or building"
               aria-label="Search areas"
-              className="max-w-xs"
+              className="w-full sm:max-w-xs"
             />
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="free">Free now</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center justify-between gap-3">
+              <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+                <TabsList>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="free">Free now</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Button
+                variant={nearest ? "default" : "outline"}
+                aria-pressed={nearest}
+                disabled={nearest && geo.status === "locating"}
+                onClick={toggleNearest}
+              >
+                {nearest && geo.status === "locating" ? "Finding you" : "Nearest"}
+              </Button>
+            </div>
           </div>
 
           {visible.length === 0 ? (
@@ -148,42 +268,51 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
             </div>
           ) : null}
 
-          {groups.length > 0 ? (
-            <section className="flex flex-col gap-4">
-              {groups.map((g) => (
-                <BuildingGroup
-                  key={g.building.id}
-                  name={g.building.name}
-                  areaCount={g.rooms.length}
-                  free={g.free}
-                  offline={g.offline}
-                  pinned={g.pinned}
-                  onTogglePin={() =>
-                    toggleBuilding(g.building.id, g.rooms.map((r) => r.id), zoneIdsOf(g.rooms))
-                  }
-                  forceOpen={q.length > 0}
-                  query={query}
-                >
-                  {g.rooms.map((room) => (
-                    <RoomRow
-                      key={room.id}
-                      room={room}
-                      counts={live.countNumbers}
-                      offlineFor={stats.get(room.id)?.offlineFor ?? null}
-                      pinned={isPinned(room.id)}
-                      onTogglePin={() => toggle(room.id, room.building_id, zoneIdsOf([room]))}
-                      isZonePinned={isZonePinned}
-                      onToggleZonePin={(zoneId) => toggleZone(zoneId, room.id, room.building_id)}
-                      query={query}
-                    />
-                  ))}
-                </BuildingGroup>
-              ))}
-            </section>
+          {pinnedGroups.length > 0 ? (
+            <>
+              <DirectorySection title="Pinned" collapsible>
+                {pinnedGroups.map((g) => renderGroup(g, false))}
+              </DirectorySection>
+              <DirectorySection title="All buildings">{allGroups.map((g) => renderGroup(g, true))}</DirectorySection>
+            </>
+          ) : allGroups.length > 0 ? (
+            <section className="flex flex-col gap-4">{allGroups.map((g) => renderGroup(g, true))}</section>
           ) : null}
         </Wrap>
       )}
     </>
+  );
+}
+
+interface DirectorySectionProps {
+  title: string;
+  // The Pinned list can be folded away. Open by default.
+  collapsible?: boolean;
+  children: React.ReactNode;
+}
+
+// A titled run of building groups. Only shown once there is a Pinned list,
+// so a first visit sees one plain list.
+function DirectorySection({ title, collapsible, children }: DirectorySectionProps) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex h-8 items-center justify-between">
+        <h2 className="text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground">{title}</h2>
+        {collapsible ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={open ? `Hide ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+          >
+            <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
+          </Button>
+        ) : null}
+      </div>
+      {open ? <div className="flex flex-col gap-4">{children}</div> : null}
+    </section>
   );
 }
 
@@ -192,10 +321,15 @@ interface BuildingGroupProps {
   areaCount: number;
   free: number;
   offline: boolean;
+  state: BuildingState;
+  distance: number | null;
   pinned: boolean;
   onTogglePin: () => void;
   // A search keeps every matching building open so its results show.
   forceOpen: boolean;
+  // A pin tap on the map: opens the group and scrolls it into view. The
+  // number changes on every tap so a second tap on the same pin works.
+  focus: number | null;
   query: string;
   children: React.ReactNode;
 }
@@ -209,24 +343,38 @@ function BuildingGroup({
   areaCount,
   free,
   offline,
+  state,
+  distance,
   pinned,
   onTogglePin,
   forceOpen,
+  focus,
   query,
   children,
 }: BuildingGroupProps) {
   const [opened, setOpened] = useState(false);
+  const [seenFocus, setSeenFocus] = useState<number | null>(null);
+  const ref = useRef<HTMLElement>(null);
+  if (focus != null && focus !== seenFocus) {
+    setSeenFocus(focus);
+    setOpened(true);
+  }
+  useEffect(() => {
+    if (focus != null) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [focus]);
   const open = opened || forceOpen;
-  const freeColor = offline ? "var(--state-unknown)" : free > 0 ? "var(--state-empty)" : "var(--state-full)";
+  const freeColor = stateColor(state);
+  const caption = `${areaCount} ${areaCount === 1 ? "area" : "areas"}${distance != null ? `, ${distanceText(distance)}` : ""}`;
   return (
-    <section className="overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground">
+    <section
+      ref={ref}
+      className="scroll-mt-4 overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground"
+    >
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground">
         <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.01em]">
           <Highlight text={name} query={query} />
         </h2>
-        <p className="col-start-1 row-start-2 text-[13px] text-building-muted">
-          {areaCount} {areaCount === 1 ? "area" : "areas"}
-        </p>
+        <p className="col-start-1 row-start-2 text-[13px] text-building-muted">{caption}</p>
         <PinButton
           pinned={pinned}
           name={name}
