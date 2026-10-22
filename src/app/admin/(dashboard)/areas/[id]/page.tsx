@@ -6,7 +6,18 @@ import { frameUrl } from "@/lib/camera-units";
 import { loadPublicSnapshot } from "@/lib/public-data";
 import { AdminHeader } from "@/components/admin-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { AdminUnit } from "../../admin-types";
 import { SetupPage } from "./setup-page";
+
+type UnitRow = {
+  id: string;
+  name: string;
+  pair_code: string | null;
+  room_id: string | null;
+  last_seen: string | null;
+  paused: boolean;
+  rooms: { id: string; name: string; buildings: { id: string; name: string } | { id: string; name: string }[] | null } | null;
+};
 
 interface RoomPageProps {
   params: Promise<{ id: string }>;
@@ -31,9 +42,29 @@ async function RoomContent({ params }: RoomPageProps) {
   await connection();
   const { id } = await params;
   const supabase = await createClient();
-  const { rooms, counts } = await loadPublicSnapshot(supabase, { roomId: id });
+  const [{ rooms, counts }, { data: unitRows }] = await Promise.all([
+    loadPublicSnapshot(supabase, { roomId: id }),
+    supabase
+      .from("camera_units")
+      .select("id, name, pair_code, room_id, last_seen, paused, rooms(id, name, buildings(id, name))")
+      .order("created_at"),
+  ]);
   const room = rooms[0];
   if (!room) notFound();
+
+  const units: AdminUnit[] = ((unitRows ?? []) as unknown as UnitRow[]).map((u) => {
+    const b = u.rooms?.buildings;
+    const building = Array.isArray(b) ? (b[0] ?? null) : b;
+    return {
+      id: u.id,
+      name: u.name,
+      pair_code: u.pair_code,
+      room_id: u.room_id,
+      last_seen: u.last_seen,
+      paused: u.paused,
+      room: u.rooms && building ? { id: u.rooms.id, name: u.rooms.name, building } : null,
+    };
+  });
 
   // The camera unit with the newest heartbeat, for the live frame.
   const unit = [...room.units].sort((a, b) =>
@@ -43,7 +74,7 @@ async function RoomContent({ params }: RoomPageProps) {
     ? { url: frameUrl(unit.id), unitName: unit.name, lastSeen: unit.last_seen }
     : null;
 
-  return <SetupPage room={room} initialCounts={counts} liveFrame={liveFrame} />;
+  return <SetupPage room={room} initialCounts={counts} liveFrame={liveFrame} units={units} />;
 }
 
 function RoomSkeleton() {

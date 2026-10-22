@@ -305,13 +305,54 @@ const pairSchema = z.object({
   room_id: z.string().uuid("Pick an area."),
 });
 
+// A unit that is already paired to a different area. The client confirms
+// before the move goes through.
+export type UnitTransfer = { id: string; name: string; from: string };
+
+type UnitHome = {
+  id: string;
+  name: string;
+  room_id: string | null;
+  rooms: { name: string; buildings: { name: string } | { name: string }[] | null } | null;
+};
+
+function homeLabel(unit: UnitHome) {
+  const b = unit.rooms?.buildings;
+  const building = Array.isArray(b) ? b[0] : b;
+  return unit.rooms ? `${building?.name ?? ""}, ${unit.rooms.name}` : "";
+}
+
+// Moves a unit to a room. Without allowTransfer, a unit paired to a different
+// room is left alone and the caller gets a transfer to confirm.
+async function moveUnit(
+  supabase: Db,
+  unit: UnitHome,
+  roomId: string,
+  allowTransfer: boolean
+): Promise<ActionResult & { unit?: { id: string; name: string }; transfer?: UnitTransfer }> {
+  if (unit.room_id && unit.room_id !== roomId && !allowTransfer) {
+    return { transfer: { id: unit.id, name: unit.name, from: homeLabel(unit) } };
+  }
+  const { error } = await supabase.from("camera_units").update({ room_id: roomId }).eq("id", unit.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/areas/${roomId}`);
+  if (unit.room_id && unit.room_id !== roomId) revalidatePath(`/admin/areas/${unit.room_id}`);
+  revalidatePath("/");
+  return { unit: { id: unit.id, name: unit.name } };
+}
+
+const UNIT_HOME = "id, name, room_id, rooms(name, buildings(name))";
+
 // Claims a camera unit by its 6-digit pair code and assigns it to a room.
-// The camera unit polls /api/pair/status until this lands. Typing the code
-// of a unit that is already paired moves it to the new room.
+// The camera unit polls /api/pair/status until this lands. The code of a
+// unit paired to another room comes back as a transfer until confirmed.
 export async function pairCameraUnit(
   pairCode: string,
-  roomId: string
-): Promise<ActionResult & { unit?: { id: string; name: string } }> {
+  roomId: string,
+  allowTransfer = false
+): Promise<ActionResult & { unit?: { id: string; name: string }; transfer?: UnitTransfer }> {
   const parsed = pairSchema.safeParse({ pair_code: pairCode, room_id: roomId });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -320,31 +361,37 @@ export async function pairCameraUnit(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("camera_units")
-    .update({ room_id: parsed.data.room_id })
+    .select(UNIT_HOME)
     .eq("pair_code", parsed.data.pair_code)
-    .select("id, name");
+    .maybeSingle();
   if (error) return { error: error.message };
-  if (!data || data.length === 0) {
-    return { error: "No camera unit is showing that code." };
-  }
-
-  revalidatePath("/admin");
-  revalidatePath(`/admin/areas/${roomId}`);
-  return { unit: { id: data[0].id as string, name: data[0].name as string } };
+  if (!data) return { error: "No camera unit is showing that code." };
+  return moveUnit(supabase, data as unknown as UnitHome, parsed.data.room_id, allowTransfer);
 }
 
+// Assigns a unit to a room by id, or unpairs it with null. Same transfer
+// rule as pairing: a unit paired elsewhere needs allowTransfer.
 export async function assignCameraUnit(
   unitId: string,
-  roomId: string | null
-): Promise<ActionResult> {
+  roomId: string | null,
+  allowTransfer = false
+): Promise<ActionResult & { unit?: { id: string; name: string }; transfer?: UnitTransfer }> {
   const supabase = await createClient();
-  const { error } = await supabase
+  if (roomId === null) {
+    const { error } = await supabase.from("camera_units").update({ room_id: null }).eq("id", unitId);
+    if (error) return { error: error.message };
+    revalidatePath("/admin");
+    revalidatePath("/");
+    return {};
+  }
+  const { data, error } = await supabase
     .from("camera_units")
-    .update({ room_id: roomId })
-    .eq("id", unitId);
+    .select(UNIT_HOME)
+    .eq("id", unitId)
+    .maybeSingle();
   if (error) return { error: error.message };
-  revalidatePath("/admin");
-  return {};
+  if (!data) return { error: "Camera unit not found." };
+  return moveUnit(supabase, data as unknown as UnitHome, roomId, allowTransfer);
 }
 
 export async function renameCameraUnit(

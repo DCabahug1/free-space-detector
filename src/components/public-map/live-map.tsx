@@ -191,7 +191,8 @@ interface BuildingGroupProps {
 }
 
 // One building in the directory: header on the accent background with the
-// name, pin, area count, free total on the right, and a chevron. Closed by
+// name and area count, then the pin, free total and chevron in fixed
+// columns so they line up from card to card. Closed by
 // default, the same way an area row's spots are.
 function BuildingGroup({
   name,
@@ -209,22 +210,20 @@ function BuildingGroup({
   const freeColor = offline ? "var(--state-unknown)" : free > 0 ? "var(--state-empty)" : "var(--state-full)";
   return (
     <section className="overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground">
-        <h2 className="flex min-w-0 items-center gap-1 text-xl font-semibold tracking-[-0.01em]">
-          <span className="break-words">
-            <Highlight text={name} query={query} />
-          </span>
-          <PinButton
-            pinned={pinned}
-            name={name}
-            onClick={onTogglePin}
-            className="text-building-muted hover:bg-background dark:hover:bg-background"
-            pinnedClassName="text-building-foreground"
-          />
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground">
+        <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.01em]">
+          <Highlight text={name} query={query} />
         </h2>
         <p className="col-start-1 row-start-2 text-[13px] text-building-muted">
           {areaCount} {areaCount === 1 ? "area" : "areas"}
         </p>
+        <PinButton
+          pinned={pinned}
+          name={name}
+          onClick={onTogglePin}
+          className="row-span-2 text-building-muted hover:bg-background dark:hover:bg-background"
+          pinnedClassName="text-building-foreground"
+        />
         <div className="row-span-2 flex items-baseline gap-1">
           <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
             {offline ? "?" : free}

@@ -23,7 +23,7 @@ interface RoomRowProps {
   className?: string;
 }
 
-// One directory row: name with a pin toggle, summary caption, free count,
+// One directory row: name and summary caption, then the pin, free count,
 // a 4 px strip with one segment per zone in its state color, and a chevron
 // that opens the area's spots as tiles beneath the row. Closed by default.
 // The name links to the area page. Hairlines come from the parent (divide-y).
@@ -40,20 +40,18 @@ export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query =
 
   return (
     <div className={cn("px-4 py-3", className)}>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3">
-        <div className="flex min-w-0 items-center gap-1">
-          <Link href={roomPath(room)} className="min-w-0 hover:underline">
-            <div className="break-words text-[15px] font-medium">
-              <Highlight text={room.name} query={query} />
-            </div>
-          </Link>
-          <PinButton pinned={pinned} name={room.name} onClick={onTogglePin} />
-        </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3">
+        <Link href={roomPath(room)} className="min-w-0 hover:underline">
+          <div className="break-words text-[15px] font-medium">
+            <Highlight text={room.name} query={query} />
+          </div>
+        </Link>
         <Link href={roomPath(room)} className="col-start-1 row-start-2 min-w-0">
           <div className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
             {offline ? `Camera unit offline, ${offlineFor}` : roomSummary(room.zones, counts)}
           </div>
         </Link>
+        <PinButton pinned={pinned} name={room.name} onClick={onTogglePin} className="row-span-2" />
         <div className="row-span-2 flex items-baseline gap-1">
           <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
             {offline ? "?" : free}

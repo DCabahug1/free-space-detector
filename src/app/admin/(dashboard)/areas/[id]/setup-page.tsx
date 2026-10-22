@@ -15,6 +15,8 @@ import { RoomView } from "@/components/public-map/room-view";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PairCard } from "../../device-cards";
+import { UnitPicker } from "../../unit-picker";
+import type { AdminUnit } from "../../admin-types";
 import { BackLink } from "@/components/back-link";
 import { RoomHeader } from "./room-header";
 import { ZoneEditor } from "./zone-editor";
@@ -23,12 +25,14 @@ interface SetupPageProps {
   room: PublicRoom;
   initialCounts: ZoneCount[];
   liveFrame: LiveFrame | null;
+  // Every registered camera unit, for the picker on step 2.
+  units: AdminUnit[];
 }
 
 // The projector screen. Step rail on the left, the current step's content
 // on the right. Zones live in local state so saves and deletes show at
 // once; the server's copy replaces it after each refresh.
-export function SetupPage({ room, initialCounts, liveFrame }: SetupPageProps) {
+export function SetupPage({ room, initialCounts, liveFrame, units }: SetupPageProps) {
   const [zoneOverride, setZoneOverride] = useState<{ base: Zone[]; zones: Zone[] } | null>(null);
   // The override is dropped as soon as the server sends a different list.
   const zones = zoneOverride && zoneOverride.base === room.zones ? zoneOverride.zones : room.zones;
@@ -71,7 +75,7 @@ export function SetupPage({ room, initialCounts, liveFrame }: SetupPageProps) {
           {step === 1 ? (
             <BuildingStep room={room} onNext={() => setStep(2)} />
           ) : step === 2 ? (
-            <PairStep room={room} unitOnline={unitOnline} liveFrame={liveFrame} now={live.now} onNext={() => setStep(3)} />
+            <PairStep room={room} units={units} unitOnline={unitOnline} liveFrame={liveFrame} now={live.now} onNext={() => setStep(3)} />
           ) : step === 3 ? (
             <ZoneEditor
               roomId={room.id}
@@ -111,12 +115,14 @@ function BuildingStep({ room, onNext }: { room: PublicRoom; onNext: () => void }
 
 function PairStep({
   room,
+  units,
   unitOnline,
   liveFrame,
   now,
   onNext,
 }: {
   room: PublicRoom;
+  units: AdminUnit[];
   unitOnline: boolean;
   liveFrame: LiveFrame | null;
   now: number;
@@ -127,7 +133,13 @@ function PairStep({
   return (
     <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
       <div className="space-y-4">
-        <PairCard rooms={[]} fixedRoomId={room.id} onPaired={() => router.refresh()} />
+        <PairCard
+          rooms={[]}
+          fixedRoomId={room.id}
+          fixedRoomLabel={`${room.building.name}, ${room.name}`}
+          onPaired={() => router.refresh()}
+        />
+        <UnitPicker units={units} room={room} now={now} onAssigned={() => router.refresh()} />
         {liveFrame ? (
           <Button variant="outline" onClick={onNext}>
             Next: draw zones

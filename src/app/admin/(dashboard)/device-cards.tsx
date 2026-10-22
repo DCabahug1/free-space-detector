@@ -53,6 +53,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { AdminUnit } from "./admin-types";
+import { TransferDialog } from "./unit-picker";
+import type { UnitTransfer } from "@/app/admin/actions";
 
 export interface RoomOption {
   id: string;
@@ -204,7 +206,7 @@ function UnitRow({
       }
       const nextRoom = roomValue === NONE ? null : roomValue;
       if (nextRoom !== unit.room_id) {
-        const assigned = await assignCameraUnit(unit.id, nextRoom);
+        const assigned = await assignCameraUnit(unit.id, nextRoom, true);
         if (assigned.error) {
           toast(assigned.error);
           return;
@@ -349,29 +351,45 @@ interface PairFormProps {
   initialCode?: string;
   // On the setup page the room is fixed and the select is hidden.
   fixedRoomId?: string;
+  // "{building}, {area}" of the fixed room, for the transfer prompt.
+  fixedRoomLabel?: string;
   onPaired?: (unit: { id: string; name: string }) => void;
 }
 
-// Code input, room select (unless fixed), Pair button.
-export function PairForm({ rooms, initialCode = "", fixedRoomId, onPaired }: PairFormProps) {
+// Code input, room select (unless fixed), Pair button. A code from a unit
+// paired to another area opens the transfer prompt before it moves.
+export function PairForm({ rooms, initialCode = "", fixedRoomId, fixedRoomLabel, onPaired }: PairFormProps) {
   const router = useRouter();
   const [code, setCode] = useState(initialCode);
   const [roomId, setRoomId] = useState<string>(fixedRoomId ?? rooms[0]?.id ?? "");
+  const [transfer, setTransfer] = useState<UnitTransfer | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const target = rooms.find((r) => r.id === roomId);
+  const to = fixedRoomLabel ?? (target ? `${target.building}, ${target.name}` : "this area");
+
+  function pair(allowTransfer: boolean) {
     startTransition(async () => {
-      const result = await pairCameraUnit(code, roomId);
+      const result = await pairCameraUnit(code, roomId, allowTransfer);
       if (result.error) {
         toast(result.error);
         return;
       }
+      if (result.transfer) {
+        setTransfer(result.transfer);
+        return;
+      }
+      setTransfer(null);
       toast(`Paired ${result.unit?.name ?? "camera unit"}.`);
       setCode("");
       if (result.unit) onPaired?.(result.unit);
       router.refresh();
     });
+  }
+
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    pair(false);
   }
 
   return (
@@ -407,6 +425,13 @@ export function PairForm({ rooms, initialCode = "", fixedRoomId, onPaired }: Pai
       <Button type="submit" disabled={pending || !roomId || code.replace(/\s/g, "").length !== 6}>
         {pending ? "Pairing" : "Pair"}
       </Button>
+      <TransferDialog
+        transfer={transfer}
+        to={to}
+        pending={pending}
+        onConfirm={() => pair(true)}
+        onCancel={() => setTransfer(null)}
+      />
     </form>
   );
 }
