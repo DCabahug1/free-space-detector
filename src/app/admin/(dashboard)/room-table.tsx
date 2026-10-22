@@ -160,7 +160,7 @@ interface AreaRowsProps {
 // same without a mouse.
 function AreaRows({ rooms, now, query, canReorder, onReorder }: AreaRowsProps) {
   const ids = rooms.map((r) => r.id);
-  const { itemProps, move, dragging, over } = useDragReorder(ids, onReorder);
+  const { itemProps, move, dragging, over, overAfter } = useDragReorder(ids, onReorder);
   return (
     <>
       {rooms.map((room, i) => (
@@ -170,7 +170,8 @@ function AreaRows({ rooms, now, query, canReorder, onReorder }: AreaRowsProps) {
           className={cn(
             "relative grid grid-cols-[auto_minmax(0,1fr)] items-center",
             dragging === room.id && "opacity-50",
-            over === room.id && "before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary"
+            over === room.id && "before:absolute before:inset-x-0 before:z-10 before:h-0.5 before:bg-primary",
+            over === room.id && (overAfter ? "before:bottom-0" : "before:top-0")
           )}
         >
           {canReorder ? (

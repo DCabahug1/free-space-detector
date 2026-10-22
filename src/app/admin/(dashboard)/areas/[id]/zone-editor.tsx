@@ -403,7 +403,8 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
                   className={cn(
                     "relative grid grid-cols-[auto_minmax(0,1fr)] items-center",
                     reorder.dragging === zone.id && "opacity-50",
-                    reorder.over === zone.id && "before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary"
+                    reorder.over === zone.id && "before:absolute before:inset-x-0 before:z-10 before:h-0.5 before:bg-primary",
+                    reorder.over === zone.id && (reorder.overAfter ? "before:bottom-0" : "before:top-0")
                   )}
                 >
                   {canDrag ? (
