@@ -224,7 +224,7 @@ function BuildingGroup({
           className="row-span-2 text-building-muted hover:bg-background dark:hover:bg-background"
           pinnedClassName="text-building-foreground"
         />
-        <div className="row-span-2 flex items-baseline gap-1">
+        <div className="row-span-2 flex w-[104px] items-baseline justify-end gap-1">
           <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
             {offline ? "?" : free}
           </span>
