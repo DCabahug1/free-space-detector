@@ -6,7 +6,7 @@ import { ChevronDown, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicRoom } from "@/lib/types";
 import { roomPath } from "@/lib/types";
-import { freeSeats, roomSummary, stateColor, tileState } from "@/lib/occupancy";
+import { freeSeats, roomSummary } from "@/lib/occupancy";
 import { Button } from "@/components/ui/button";
 import { ZoneTile } from "./zone-tile";
 import { Highlight } from "@/components/highlight";
@@ -24,8 +24,8 @@ interface RoomRowProps {
 }
 
 // One directory row: name and summary caption, then the pin, free count,
-// a 4 px strip with one segment per zone in its state color, and a chevron
-// that opens the area's spots as tiles beneath the row. Closed by default.
+// and a chevron that opens the area's spots as tiles beneath the row.
+// Closed by default.
 // The name links to the area page. Hairlines come from the parent (divide-y).
 export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query = "", className }: RoomRowProps) {
   const [open, setOpen] = useState(false);
@@ -70,21 +70,6 @@ export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query =
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
         </Button>
       </div>
-      {hasZones ? (
-        <div className="mt-2 flex h-1 gap-px" aria-hidden>
-          {room.zones.map((z) => (
-            <span
-              key={z.id}
-              className="flex-1 rounded-[2px]"
-              style={{
-                backgroundColor: offline
-                  ? "var(--state-unknown)"
-                  : stateColor(tileState(z.type, counts[z.id] ?? 0, z.capacity)),
-              }}
-            />
-          ))}
-        </div>
-      ) : null}
       {open && hasZones ? (
         <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
           {room.zones.map((zone) => (
