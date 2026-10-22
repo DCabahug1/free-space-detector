@@ -238,6 +238,17 @@
   }
 }
 
+/* BuildingGroup: the header background pulses once after a pin tap on the map. */
+@keyframes header-pulse {
+  0%,
+  100% {
+    background-color: var(--building);
+  }
+  30% {
+    background-color: color-mix(in oklch, var(--primary) 45%, var(--building));
+  }
+}
+
 /* ZoneTile: the bottom bar flashes to ink for 300 ms when the state changes. */
 @keyframes bar-flash {
   0%,

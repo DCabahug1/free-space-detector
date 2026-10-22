@@ -368,20 +368,13 @@ function BuildingGroup({
 }: BuildingGroupProps) {
   const [opened, setOpened] = useState(false);
   const [seenFocus, setSeenFocus] = useState<number | null>(null);
-  // A primary ring that pulses for a moment after a pin tap, so the eye
-  // lands on the right building.
-  const [pulsing, setPulsing] = useState(false);
   const ref = useRef<HTMLElement>(null);
   if (focus != null && focus !== seenFocus) {
     setSeenFocus(focus);
     setOpened(true);
-    setPulsing(true);
   }
   useEffect(() => {
-    if (focus == null) return;
-    ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-    const timer = setTimeout(() => setPulsing(false), 1600);
-    return () => clearTimeout(timer);
+    if (focus != null) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [focus]);
   const open = opened || forceOpen;
   const freeColor = stateColor(state);
@@ -389,12 +382,17 @@ function BuildingGroup({
   return (
     <section
       ref={ref}
-      className={cn(
-        "scroll-mt-4 overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground",
-        pulsing && "animate-pulse ring-2 ring-primary"
-      )}
+      className="scroll-mt-4 overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground"
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground">
+      {/* After a pin tap the header background pulses once. The key replays
+          the animation when the same pin is tapped again. */}
+      <div
+        key={focus ?? 0}
+        className={cn(
+          "grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground",
+          focus != null && "animate-[header-pulse_900ms_ease-out]"
+        )}
+      >
         <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.01em]">
           <Highlight text={name} query={query} />
         </h2>
