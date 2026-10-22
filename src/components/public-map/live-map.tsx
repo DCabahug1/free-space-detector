@@ -15,6 +15,7 @@ import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
 import { Band, Wrap } from "@/components/band";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PinButton } from "./pin-button";
@@ -177,6 +178,9 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   );
 
   const reconnecting = live.connection === "reconnecting";
+  // Until the client clock starts nothing can be called offline, so counts
+  // show a placeholder rather than a number that may flip to unknown.
+  const loading = live.now === 0;
 
   const renderGroup = (g: Group, inAll: boolean) => (
     <BuildingGroup
@@ -185,6 +189,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       areaCount={g.rooms.length}
       free={g.free}
       offline={g.offline}
+      loading={loading}
       state={g.state}
       distance={g.distance}
       pinned={g.pinned}
@@ -199,6 +204,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           room={room}
           counts={live.countNumbers}
           offlineFor={stats.get(room.id)?.offlineFor ?? null}
+          loading={loading}
           pinned={isPinned(room.id)}
           onTogglePin={() => toggle(room.id, room.building_id, zoneIdsOf([room]))}
           isZonePinned={isZonePinned}
@@ -335,6 +341,8 @@ interface BuildingGroupProps {
   areaCount: number;
   free: number;
   offline: boolean;
+  // The clock has not started: a placeholder stands in for the count.
+  loading: boolean;
   state: BuildingState;
   distance: number | null;
   pinned: boolean;
@@ -357,6 +365,7 @@ function BuildingGroup({
   areaCount,
   free,
   offline,
+  loading,
   state,
   distance,
   pinned,
@@ -405,10 +414,16 @@ function BuildingGroup({
           pinnedClassName="text-building-foreground"
         />
         <div className="row-span-2 flex w-[104px] items-baseline justify-end gap-1">
-          <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
-            {offline ? "?" : free}
-          </span>
-          <span className="text-[13px] text-building-muted">{offline ? "unknown" : "free"}</span>
+          {loading ? (
+            <Skeleton className="h-5 w-14 bg-building-border" />
+          ) : (
+            <>
+              <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
+                {offline ? "?" : free}
+              </span>
+              <span className="text-[13px] text-building-muted">{offline ? "unknown" : "free"}</span>
+            </>
+          )}
         </div>
         <Button
           className="row-span-2 text-building-muted hover:bg-background dark:hover:bg-background"

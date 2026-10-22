@@ -1,50 +1,28 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Pin } from "lucide-react";
-import { toast } from "sonner";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
-import { roomPath, roomTitle } from "@/lib/types";
 import { clockTime, durationText, freeSeats, relativeTime, roomSummary } from "@/lib/occupancy";
 import { usePins } from "@/lib/pins";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
-import { Band, Wrap, bandOutlineClass } from "@/components/band";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ZoneTile, sortPinnedFirst } from "./zone-tile";
 
 interface RoomViewProps {
   room: PublicRoom;
   initialCounts: ZoneCount[];
-  // The admin preview renders this inside a narrow column with no buttons.
-  embedded?: boolean;
 }
 
-// The public area page body. Also rendered by the setup page's preview step.
-export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
+// The setup page's preview: the area as the public map shows it, in a
+// narrow column with no buttons. The area page itself is gone; its old URL
+// redirects to the map.
+export function RoomView({ room, initialCounts }: RoomViewProps) {
   const live = useLiveSnapshot([room], initialCounts);
-  const { isPinned, toggle, isZonePinned, toggleZone } = usePins();
-  const pinned = isPinned(room.id);
-  const zoneIds = room.zones.map((z) => z.id);
+  const { isZonePinned } = usePins();
   const heartbeat = live.heartbeat(room);
   // A unit that paused sharing reads as offline here. Only the admin says paused.
   const offline = room.zones.length > 0 && (live.roomPaused(room) || live.roomOffline(room));
   const offlineFor = offline ? durationText(heartbeat, live.now) || "never" : null;
   const free = freeSeats(room.zones, live.countNumbers);
-
-  async function share() {
-    const url = `${window.location.origin}${roomPath(room)}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: roomTitle(room), url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      toast("Link copied.");
-    } catch {
-      // Cancelled share sheet, nothing to say.
-    }
-  }
 
   const body =
     room.zones.length === 0 ? (
@@ -62,12 +40,12 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
               <h2
                 className={cn(
                   "font-semibold leading-none tracking-[-0.02em] text-state-full",
-                  embedded ? "text-[26px]" : "text-[44px]"
+                  "text-[26px]"
                 )}
               >
                 Camera unit offline
               </h2>
-              <p className={cn("mt-2 text-muted-foreground", embedded ? "text-[10px]" : "text-[13px]")}>
+              <p className={cn("mt-2 text-muted-foreground", "text-[10px]")}>
                 {heartbeat
                   ? `Last update ${clockTime(heartbeat)}, ${offlineFor} ago.`
                   : "No update yet from the camera unit."}
@@ -78,23 +56,20 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
               <h2
                 className={cn(
                   "font-semibold leading-none tracking-[-0.02em]",
-                  embedded ? "text-[26px]" : "text-[44px]"
+                  "text-[26px]"
                 )}
               >
                 <span className={free > 0 ? "text-state-empty" : "text-state-full"}>{free}</span> free{" "}
                 {free === 1 ? "seat" : "seats"}
               </h2>
-              <p className={cn("mt-2 text-muted-foreground", embedded ? "text-[10px]" : "text-[13px]")}>
+              <p className={cn("mt-2 text-muted-foreground", "text-[10px]")}>
                 {roomSummary(room.zones, live.countNumbers)}. Updated {relativeTime(heartbeat, live.now)}
               </p>
             </>
           )}
         </div>
         <div
-          className={cn(
-            "grid",
-            embedded ? "grid-cols-2 gap-1.5" : "grid-cols-[repeat(auto-fill,minmax(165px,1fr))] gap-2.5"
-          )}
+          className="grid grid-cols-2 gap-1.5"
         >
           {sortPinnedFirst(room.zones, isZonePinned).map((zone) => (
             <ZoneTile
@@ -102,66 +77,23 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
               zone={zone}
               count={live.countNumbers[zone.id]}
               offlineFor={offlineFor}
-              size={embedded ? "xs" : "md"}
+              size="xs"
               pinned={isZonePinned(zone.id)}
-              // The admin preview is a picture of the page, not a place to pin from.
-              onTogglePin={embedded ? undefined : () => toggleZone(zone.id, room.id, room.building_id)}
+              // A picture of the map, not a place to pin from.
+              onTogglePin={undefined}
             />
           ))}
         </div>
       </>
     );
 
-  if (embedded) {
-    return (
-      <div className="flex flex-col gap-3">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{room.building.name}</div>
-          <div className="text-lg font-semibold tracking-[-0.01em]">{room.name}</div>
-        </div>
-        {body}
-      </div>
-    );
-  }
-
   return (
-    <>
-      <Band className="pt-5 pb-9">
-        <Wrap className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <div>
-            <Link
-              href="/"
-              className="mb-4 flex h-8 w-fit items-center gap-1.5 text-sm text-band-muted hover:text-band-foreground"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Back to map
-            </Link>
-            <Link
-              href={`/?q=${encodeURIComponent(room.building.name)}`}
-              className="mb-1 block text-xs font-medium uppercase tracking-[0.08em] text-band-muted hover:text-band-foreground"
-            >
-              {room.building.name}
-            </Link>
-            <h1 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em]">{room.name}</h1>
-            {room.description ? <p className="mt-1 text-sm text-band-muted">{room.description}</p> : null}
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className={bandOutlineClass}
-              onClick={() => toggle(room.id, room.building_id, zoneIds)}
-              aria-pressed={pinned}
-            >
-              <Pin className={cn(pinned && "text-band-accent")} fill={pinned ? "currentColor" : "none"} aria-hidden />
-              {pinned ? "Pinned" : "Pin"}
-            </Button>
-            <Button variant="outline" className={bandOutlineClass} onClick={share}>
-              Share
-            </Button>
-          </div>
-        </Wrap>
-      </Band>
-      <Wrap className="flex flex-col gap-6 pt-6 pb-12">{body}</Wrap>
-    </>
+    <div className="flex flex-col gap-3">
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{room.building.name}</div>
+        <div className="text-lg font-semibold tracking-[-0.01em]">{room.name}</div>
+      </div>
+      {body}
+    </div>
   );
 }

@@ -37,7 +37,7 @@ Zone types:
 ## Stack
 
 - Next.js App Router, TypeScript, Tailwind, deployed on Vercel. One repo.
-  - Routes: `/` public map, `/areas/[building]/[area]` public area page, `/admin` overview (Buildings and Camera units tabs), `/admin/areas/[id]` setup page, `/admin/login`, `/api/ingest` POST route.
+  - Routes: `/` public map, `/areas/[building]/[area]` retired (redirects to `/?q={building}`), `/admin` overview (Buildings and Camera units tabs), `/admin/areas/[id]` setup page, `/admin/login`, `/api/ingest` POST route.
 - Frontend UI: **shadcn/ui** restyled only through the tokens in `src/app/globals.css`: the tweakcn theme `cmvgcddyy000104jtc2lxai96` (paper palette, cobalt primary, DM Sans, radius 0.5rem, tracking -0.01em) plus Spot's `state-*`, `band-*` and `building-*` tokens. Every page opens with the primary header band. shadcn parts keep their shapes. Custom components: ZoneTile, RoomRow, StepRail, the band header (see `docs/DESIGN.md`).
 - Fonts: DM Sans for everything, JetBrains Mono only for counts and pair codes, both via `next/font/google` in `layout.tsx`.
 - Supabase: Postgres, Realtime (public map subscribes to `zone_counts`), Auth for admins only, RLS.
@@ -101,8 +101,8 @@ Redesign order (follow `docs/DESIGN.md`):
 ## Demo script the presenters will run
 
 1. Admin setup page on the projector, live frame from the camera unit mounted high in a classroom corner.
-2. Draw 4 to 6 zones over the real classroom tables live. Preview step shows the public room page. Publish.
-3. Public room page. Judges sit at a table, the tile's count and bar flip to Shared, then Full. They stand, it flips to Empty.
+2. Draw 4 to 6 zones over the real classroom tables live. Preview step shows the area as the public map renders it. Publish.
+3. Public map with the building opened. Judges sit at a table, the tile's count and bar flip to Shared, then Full. They stand, it flips to Empty.
 4. One open zone across the doorway. Five people stand in it, the tile flips to busy.
 
 ---

@@ -28,7 +28,7 @@ function MapSkeleton() {
       <Band className="pt-5 pb-9">
         <Wrap className="flex flex-col gap-2.5">
           <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">Find a free spot</h1>
-          <Skeleton className="h-[13px] w-56 bg-band-2" />
+          <p className="text-[13px] text-band-muted">Live seat availability across campus.</p>
         </Wrap>
       </Band>
       <Wrap className="flex flex-col gap-6 pt-6 pb-12" aria-busy aria-label="Loading">

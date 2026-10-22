@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { setRoomPublished } from "@/app/admin/actions";
 import type { Building, PublicRoom, Zone, ZoneCount } from "@/lib/types";
-import { roomPath } from "@/lib/types";
 import { durationText, isOffline } from "@/lib/occupancy";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
 import { useLiveFrame, type LiveFrame } from "@/hooks/use-live-frame";
@@ -106,8 +105,6 @@ function BuildingStep({ room, onNext }: { room: PublicRoom; onNext: () => void }
         <dd>{room.name}</dd>
         <dt className="text-muted-foreground">Description</dt>
         <dd>{room.description ?? "None"}</dd>
-        <dt className="text-muted-foreground">Link</dt>
-        <dd className="font-mono text-[13px]">{roomPath(room)}</dd>
       </dl>
       <p className="text-[13px] text-muted-foreground">Change these with the pencil beside the area name.</p>
       <Button onClick={onNext}>Next: pair the camera unit</Button>
@@ -213,13 +210,12 @@ function PreviewStep({
         : `${room.zones.length}, ${unnamed === 0 ? "all named" : `${unnamed} unnamed`}`,
       room.zones.length > 0 && unnamed === 0,
     ],
-    ["Link slug", roomPath(room), true],
   ];
 
   return (
     <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-12">
       <div className="rounded-lg border bg-background p-4">
-        <RoomView room={room} initialCounts={initialCounts} embedded />
+        <RoomView room={room} initialCounts={initialCounts} />
       </div>
       <div className="space-y-6">
         <div>
@@ -237,8 +233,8 @@ function PreviewStep({
           <div className="space-y-2">
             <p className="text-sm">Published.</p>
             <Button asChild variant="outline">
-              <Link href={roomPath(room)} target="_blank">
-                Open the public page
+              <Link href={`/?q=${encodeURIComponent(room.building.name)}`} target="_blank">
+                Open the public map
               </Link>
             </Button>
           </div>

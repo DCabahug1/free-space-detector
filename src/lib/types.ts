@@ -58,7 +58,3 @@ export interface PublicRoom extends Room {
 export function roomTitle(room: { name: string; building: { name: string } }) {
   return `${room.building.name}, ${room.name}`;
 }
-
-export function roomPath(room: { slug: string; building: { slug: string } }) {
-  return `/areas/${room.building.slug}/${room.slug}`;
-}

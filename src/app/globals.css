@@ -238,6 +238,16 @@
   }
 }
 
+/* CampusMap: the building name under each pin, with a halo in the page color
+   so it reads over streets in both schemes. */
+.spot-pin-label {
+  white-space: nowrap;
+  text-shadow:
+    0 0 3px var(--background),
+    0 0 3px var(--background),
+    0 0 6px var(--background);
+}
+
 /* BuildingGroup: the header background pulses once after a pin tap on the map. */
 @keyframes header-pulse {
   0%,

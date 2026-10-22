@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicRoom } from "@/lib/types";
-import { roomPath } from "@/lib/types";
 import { freeSeats, roomSummary } from "@/lib/occupancy";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PinButton } from "./pin-button";
 import { ZoneTile, sortPinnedFirst } from "./zone-tile";
 import { Highlight } from "@/components/highlight";
@@ -17,6 +16,8 @@ interface RoomRowProps {
   counts: Record<string, number | undefined>;
   // "4 min" while the camera unit is offline, otherwise null.
   offlineFor: string | null;
+  // The clock has not started: placeholders stand in for the count and caption.
+  loading?: boolean;
   pinned: boolean;
   onTogglePin: () => void;
   isZonePinned: (zoneId: string) => boolean;
@@ -28,12 +29,13 @@ interface RoomRowProps {
 
 // One directory row: name and summary caption, then the pin, free count,
 // and a chevron that opens the area's spots as tiles beneath the row.
-// Closed by default. Pinned spots come first in the tiles.
-// The name links to the area page. Hairlines come from the parent (divide-y).
+// Closed by default. Pinned spots come first in the tiles. The name opens
+// the row too. Hairlines come from the parent (divide-y).
 export function RoomRow({
   room,
   counts,
   offlineFor,
+  loading = false,
   pinned,
   onTogglePin,
   isZonePinned,
@@ -54,22 +56,36 @@ export function RoomRow({
   return (
     <div className={cn("px-4 py-3", className)}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3">
-        <Link href={roomPath(room)} className="min-w-0 hover:underline">
+        <button
+          type="button"
+          className="row-span-2 min-w-0 text-left"
+          disabled={!hasZones}
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
           <div className="break-words text-[15px] font-medium">
             <Highlight text={room.name} query={query} />
           </div>
-        </Link>
-        <Link href={roomPath(room)} className="col-start-1 row-start-2 min-w-0">
-          <div className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
-            {offline ? `Camera unit offline, ${offlineFor}` : roomSummary(room.zones, counts)}
-          </div>
-        </Link>
+          {loading ? (
+            <Skeleton className="mt-1 h-[13px] w-32" />
+          ) : (
+            <div className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
+              {offline ? `Camera unit offline, ${offlineFor}` : roomSummary(room.zones, counts)}
+            </div>
+          )}
+        </button>
         <PinButton pinned={pinned} name={room.name} onClick={onTogglePin} className="row-span-2" />
         <div className="row-span-2 flex w-[104px] items-baseline justify-end gap-1">
-          <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
-            {offline ? "?" : free}
-          </span>
-          <span className="text-[13px] text-muted-foreground">{offline ? "unknown" : "free"}</span>
+          {loading ? (
+            <Skeleton className="h-5 w-14" />
+          ) : (
+            <>
+              <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
+                {offline ? "?" : free}
+              </span>
+              <span className="text-[13px] text-muted-foreground">{offline ? "unknown" : "free"}</span>
+            </>
+          )}
         </div>
         <Button
           className="row-span-2"

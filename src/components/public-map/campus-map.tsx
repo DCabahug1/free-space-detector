@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   APIProvider,
   ControlPosition,
@@ -52,6 +52,9 @@ const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
 ];
 
+// A 1x1 transparent icon carries the building name label under each pin.
+const BLANK_ICON = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>');
+
 const STATE_TOKEN: Record<BuildingState, string> = {
   empty: "--state-empty",
   shared: "--state-shared",
@@ -60,8 +63,8 @@ const STATE_TOKEN: Record<BuildingState, string> = {
 };
 
 // One pin per building that has a location, in the building's state color
-// with its free total inside and a primary outline. The person is a primary
-// dot inside a soft halo. Renders nothing without a key, after a load
+// with its free total inside and a primary outline, the building's name
+// under it. The person is a primary dot inside a soft halo. Renders nothing without a key, after a load
 // failure, or with no located building, so the page never shows a broken
 // map.
 export function CampusMap({ pins, position, onRequestPosition, onSelect }: CampusMapProps) {
@@ -145,6 +148,7 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect }: Campu
 interface TokenColors {
   theme: string;
   primary: string;
+  foreground: string;
   state: Record<BuildingState, string>;
 }
 
@@ -165,28 +169,48 @@ function SpotMarkers({ pins, position, colors, onSelect }: SpotMarkersProps) {
       {pins
         .filter((p) => p.shown)
         .map((p) => (
-          <Marker
-            key={p.id}
-            position={{ lat: p.lat, lng: p.lng }}
-            title={p.name}
-            onClick={() => onSelect(p.id)}
-            zIndex={2}
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 15,
-              fillColor: colors.state[p.state],
-              fillOpacity: 1,
-              strokeColor: colors.primary,
-              strokeWeight: 2,
-            }}
-            label={{
-              text: p.offline ? "?" : String(p.free),
-              color: "#ffffff",
-              fontFamily: "JetBrains Mono, ui-monospace, monospace",
-              fontSize: "12px",
-              fontWeight: "700",
-            }}
-          />
+          <Fragment key={p.id}>
+            <Marker
+              position={{ lat: p.lat, lng: p.lng }}
+              title={p.name}
+              onClick={() => onSelect(p.id)}
+              zIndex={2}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 15,
+                fillColor: colors.state[p.state],
+                fillOpacity: 1,
+                strokeColor: colors.primary,
+                strokeWeight: 2,
+              }}
+              label={{
+                text: p.offline ? "?" : String(p.free),
+                color: "#ffffff",
+                fontFamily: "JetBrains Mono, ui-monospace, monospace",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            />
+            <Marker
+              position={{ lat: p.lat, lng: p.lng }}
+              clickable={false}
+              zIndex={1}
+              icon={{
+                url: BLANK_ICON,
+                scaledSize: new google.maps.Size(1, 1),
+                anchor: new google.maps.Point(0, 0),
+                labelOrigin: new google.maps.Point(0, 26),
+              }}
+              label={{
+                text: p.name,
+                className: "spot-pin-label",
+                color: colors.foreground,
+                fontFamily: "DM Sans, sans-serif",
+                fontSize: "12px",
+                fontWeight: "600",
+              }}
+            />
+          </Fragment>
         ))}
       {position ? (
         <>
@@ -232,6 +256,7 @@ function useTokenColors(mounted: boolean, dark: boolean): TokenColors | null {
     return {
       theme: dark ? "dark" : "light",
       primary: read("--primary"),
+      foreground: read("--foreground"),
       state: {
         empty: read(STATE_TOKEN.empty),
         shared: read(STATE_TOKEN.shared),
