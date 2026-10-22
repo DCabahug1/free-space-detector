@@ -179,15 +179,12 @@ export async function updateBuilding(buildingId: string, input: BuildingInput): 
   return {};
 }
 
-// Only an empty building can go. Areas are deleted from their setup page.
+// Deletes a building with its areas. Zones and counts cascade with the
+// areas; camera units paired there stay registered, unpaired.
 export async function deleteBuilding(buildingId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { count } = await supabase
-    .from("rooms")
-    .select("id", { count: "exact", head: true })
-    .eq("building_id", buildingId);
-  if (count && count > 0) return { error: "Delete its areas first." };
-
+  const { error: roomsError } = await supabase.from("rooms").delete().eq("building_id", buildingId);
+  if (roomsError) return { error: roomsError.message };
   const { error } = await supabase.from("buildings").delete().eq("id", buildingId);
   if (error) return { error: error.message };
 
@@ -345,7 +342,12 @@ async function moveUnit(
   if (unit.room_id && unit.room_id !== roomId && !allowTransfer) {
     return { transfer: { id: unit.id, name: unit.name, from: homeLabel(unit) } };
   }
-  const { error } = await supabase.from("camera_units").update({ room_id: roomId }).eq("id", unit.id);
+  // The unit is alive (it is showing its code or polling), so stamp the
+  // heartbeat now. Its own posts take over within the offline window.
+  const { error } = await supabase
+    .from("camera_units")
+    .update({ room_id: roomId, last_seen: new Date().toISOString() })
+    .eq("id", unit.id);
   if (error) return { error: error.message };
 
   revalidatePath("/admin");

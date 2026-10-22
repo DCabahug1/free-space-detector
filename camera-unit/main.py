@@ -276,10 +276,29 @@ class Unit:
 
     # ----- publishing -----
 
+    def zone_rows(self, zones: list[Zone], counts: dict[str, int]) -> list[ZoneRow]:
+        """Monitor rows: the held count per zone, plus the change still in
+        its confirm hold so the screen can count it down."""
+        pending = self.confirmer.pending()
+        rows = []
+        for z in zones:
+            held = pending.get(z.id)
+            rows.append(
+                ZoneRow(
+                    z.name,
+                    z.type,
+                    z.capacity,
+                    counts.get(z.id, 0),
+                    pending=held[0] if held else None,
+                    pending_until=held[1] if held else 0.0,
+                )
+            )
+        return rows
+
     def publish(self, zones: list[Zone], counts: dict[str, int]) -> None:
         log.info("counts: %s", describe(zones, counts))
         self.status.mode = "live"
-        self.status.rows = [ZoneRow(z.name, z.type, z.capacity, counts.get(z.id, 0)) for z in zones]
+        self.status.rows = self.zone_rows(zones, counts)
         if self.args.dry_run or not counts or not self.status.sharing.is_set():
             return
         try:
@@ -298,7 +317,7 @@ class Unit:
         try:
             from overlay import render_preview  # lazy, needs Pillow
 
-            self.status.preview = render_preview(image, people, zones, counts)
+            self.status.preview = render_preview(image, people, zones, counts, self.confirmer.pending())
         except Exception as e:  # noqa: BLE001
             log.warning("preview render failed: %s", e)
 
@@ -439,7 +458,7 @@ class Unit:
                 latest = self.counter.count(zones, feet)
                 now = time.time()
                 stable, changed = self.confirmer.update(latest, now)
-                self.status.rows = [ZoneRow(z.name, z.type, z.capacity, stable.get(z.id, 0)) for z in zones]
+                self.status.rows = self.zone_rows(zones, stable)
                 self.status.mode = "live"
                 if self.status.preview_open.is_set():
                     from overlay import bgr_to_image

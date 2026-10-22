@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -74,23 +75,55 @@ export function SetupPage({ room, buildings, initialCounts, liveFrame, units }: 
         <StepRail steps={steps} current={step} onSelect={setStep} />
         <div className="min-w-0">
           {step === 1 ? (
-            <BuildingStep room={room} onNext={() => setStep(2)} />
+            <div className="space-y-5">
+              <StepHeader n={1} title="Building and area" caption="Change these with the pencil beside the area name." />
+              <BuildingStep room={room} onNext={() => setStep(2)} />
+            </div>
           ) : step === 2 ? (
-            <PairStep room={room} units={units} unitOnline={unitOnline} liveFrame={liveFrame} now={live.now} onNext={() => setStep(3)} />
+            <div className="space-y-5">
+              <StepHeader
+                n={2}
+                title="Pair the camera unit"
+                caption={unit ? `${unit.name} is paired here.` : "Type the code from its screen, or pick a registered unit."}
+              />
+              <PairStep room={room} units={units} unitOnline={unitOnline} liveFrame={liveFrame} now={live.now} onNext={() => setStep(3)} />
+            </div>
           ) : step === 3 ? (
-            <ZoneEditor
-              roomId={room.id}
-              zones={zones}
-              onZonesChange={(next) => setZoneOverride({ base: room.zones, zones: next })}
-              counts={live.countNumbers}
-              liveFrame={liveFrame}
-              now={live.now}
-            />
+            <div className="space-y-5">
+              <StepHeader
+                n={3}
+                title="Draw zones"
+                caption="Click points over each spot in the live frame. Close the shape near the first point."
+              />
+              <ZoneEditor
+                roomId={room.id}
+                zones={zones}
+                onZonesChange={(next) => setZoneOverride({ base: room.zones, zones: next })}
+                counts={live.countNumbers}
+                liveFrame={liveFrame}
+                now={live.now}
+              />
+            </div>
           ) : (
-            <PreviewStep room={liveRoom} initialCounts={initialCounts} unitOnline={unitOnline} />
+            <div className="space-y-5">
+              <StepHeader n={4} title="Preview and publish" caption="What students see on the map." />
+              <PreviewStep room={liveRoom} initialCounts={initialCounts} unitOnline={unitOnline} />
+            </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// "Step 2 of 4" over a 20px title and a one-line caption, so each step
+// reads as one page with one job.
+function StepHeader({ n, title, caption }: { n: number; title: string; caption: string }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground">Step {n} of 4</p>
+      <h2 className="text-xl font-semibold tracking-[-0.01em]">{title}</h2>
+      <p className="text-[13px] text-muted-foreground">{caption}</p>
     </div>
   );
 }
@@ -106,7 +139,6 @@ function BuildingStep({ room, onNext }: { room: PublicRoom; onNext: () => void }
         <dt className="text-muted-foreground">Description</dt>
         <dd>{room.description ?? "None"}</dd>
       </dl>
-      <p className="text-[13px] text-muted-foreground">Change these with the pencil beside the area name.</p>
       <Button onClick={onNext}>Next: pair the camera unit</Button>
     </div>
   );
@@ -129,20 +161,64 @@ function PairStep({
 }) {
   const router = useRouter();
   const frame = useLiveFrame(unitOnline ? liveFrame : null, false);
+  // The unit paired here, newest heartbeat first.
+  const paired = [...room.units].sort((a, b) => (b.last_seen ?? "").localeCompare(a.last_seen ?? ""))[0];
+  const [changing, setChanging] = useState(false);
+  const showForms = !paired || changing;
+  const status = !paired
+    ? null
+    : paired.paused
+      ? { text: "Sharing paused", className: "text-state-shared" }
+      : unitOnline
+        ? { text: `Online, ${durationText(paired.last_seen, now)} ago`, className: "text-state-empty" }
+        : {
+            text: `Offline, ${paired.last_seen ? durationText(paired.last_seen, now) : "never seen"}`,
+            className: "text-state-full",
+          };
   return (
     <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
       <div className="space-y-4">
-        <PairCard
-          rooms={[]}
-          fixedRoomId={room.id}
-          fixedRoomLabel={`${room.building.name}, ${room.name}`}
-          onPaired={() => router.refresh()}
-        />
-        <UnitPicker units={units} room={room} now={now} onAssigned={() => router.refresh()} />
-        {liveFrame ? (
-          <Button variant="outline" onClick={onNext}>
-            Next: draw zones
-          </Button>
+        {paired && status ? (
+          <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
+            <div>
+              <div className="text-[13px] text-muted-foreground">Camera unit</div>
+              <div className="break-words text-xl font-semibold tracking-[-0.01em]">{paired.name}</div>
+              <div className={cn("text-[15px]", status.className)}>{status.text}</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={onNext}>Next: draw zones</Button>
+              <Button
+                variant="ghost"
+                onClick={() => setChanging((c) => !c)}
+                aria-expanded={changing}
+              >
+                Change camera unit
+                <ChevronDown className={cn("transition-transform", changing && "rotate-180")} aria-hidden />
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        {showForms ? (
+          <>
+            <PairCard
+              rooms={[]}
+              fixedRoomId={room.id}
+              fixedRoomLabel={`${room.building.name}, ${room.name}`}
+              onPaired={() => {
+                setChanging(false);
+                router.refresh();
+              }}
+            />
+            <UnitPicker
+              units={units}
+              room={room}
+              now={now}
+              onAssigned={() => {
+                setChanging(false);
+                router.refresh();
+              }}
+            />
+          </>
         ) : null}
       </div>
       <div>

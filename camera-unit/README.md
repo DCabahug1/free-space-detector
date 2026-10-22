@@ -190,7 +190,8 @@ size the admin app draws on.
   the same for `confirm_s` seconds (5 by default) and `confirm_frames`
   frames so someone walking past, or one missed detection, never flips a
   tile. The monitor shows the held counts too, so the Pi screen and the map
-  agree. On top of that a heartbeat post every `post_interval_s` (15 s)
+  agree. While a change is held, the row's state word becomes a countdown,
+  "-> 2/4 in 3 s", and the camera popup label gets the same suffix. On top of that a heartbeat post every `post_interval_s` (15 s)
   keeps `last_seen` and `updated_at` fresh. The public map subscribes to
   Realtime, so a tile flips about a second after the hold ends. `--confirm 0`
   turns the hold off for testing.

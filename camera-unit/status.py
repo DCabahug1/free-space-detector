@@ -46,6 +46,9 @@ class ZoneRow:
     type: str
     capacity: int | None
     count: int
+    # A count change still in its confirm hold: the value and when it lands.
+    pending: int | None = None
+    pending_until: float = 0.0
 
 
 @dataclass

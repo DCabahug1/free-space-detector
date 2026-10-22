@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Building, PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
-import { buildingState, durationText, freeSeats, stateColor, type BuildingState } from "@/lib/occupancy";
+import { buildingState, durationText, freeSeats, relativeTime, stateColor, type BuildingState } from "@/lib/occupancy";
 import { distanceMeters, distanceText } from "@/lib/geo";
 import { usePins } from "@/lib/pins";
 import { useSortPref } from "@/lib/prefs";
@@ -204,6 +204,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           room={room}
           counts={live.countNumbers}
           offlineFor={stats.get(room.id)?.offlineFor ?? null}
+          updated={relativeTime(live.heartbeat(room), live.now)}
           loading={loading}
           pinned={isPinned(room.id)}
           onTogglePin={() => toggle(room.id, room.building_id, zoneIdsOf([room]))}

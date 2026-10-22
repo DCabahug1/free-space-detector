@@ -17,6 +17,7 @@ to quit.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 import tkinter as tk
@@ -325,12 +326,19 @@ class Monitor:
         s = self.status
         if self._unit is not None:
             self._unit.configure(text=s.unit_name)
+        now = time.time()
         for (name, count, state), row in zip(self._row_widgets, s.rows):
             st = tile_state(row.type, row.count, row.capacity)
             color = DIM if self._updating else STATE_COLORS[st]
             name.configure(text=row.name, fg=DIM if self._updating else FG)
             count.configure(text=count_text(row.type, row.count, row.capacity), fg=color)
-            state.configure(text=tile_label(st), fg=color)
+            # A change in its confirm hold: "-> 2/4 in 3 s" in place of the
+            # state word, in amber, so the delay reads as a countdown.
+            if row.pending is not None and not self._updating:
+                left = max(1, math.ceil(row.pending_until - now))
+                state.configure(text=f"-> {count_text(row.type, row.pending, row.capacity)} in {left} s", fg=SHARED)
+            else:
+                state.configure(text=tile_label(st), fg=color)
         if self._footer:
             paused = not s.sharing.is_set()
             self._footer.configure(text=self.footer_text(), fg=SHARED if self._updating or paused else MUTED)

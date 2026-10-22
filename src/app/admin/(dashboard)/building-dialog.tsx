@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { APIProvider, Map, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, Marker, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 import { Crosshair, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { createBuilding, deleteBuilding, updateBuilding } from "@/app/admin/actions";
@@ -36,7 +36,7 @@ interface BuildingDialogProps {
   // Without a building the dialog creates one, from the "Add a building"
   // button. With one it edits it, from the pencil on its header.
   building?: Building;
-  // How many areas the building holds. Only an empty building can be deleted.
+  // How many areas the building holds, for the delete confirmation.
   areaCount?: number;
   // Where the map opens for a building without a location: another
   // located building on this campus, if there is one.
@@ -46,9 +46,10 @@ interface BuildingDialogProps {
 const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 const WORLD: LatLng = { lat: 37.3352, lng: -121.8811 };
 
-// Name and map location of a building, by address or by dragging the map
-// under the crosshair. Saving stores the map's center. Without a Maps key
-// only the name is asked for.
+// Name and map location of a building. The map moves freely under a
+// crosshair; "Place pin here" fixes the point, and only another placement,
+// an address match or Use my location moves it again. Saving stores the
+// pin. Without a Maps key only the name is asked for.
 export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: BuildingDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -57,7 +58,7 @@ export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: Buil
   const name = building?.name ?? "";
   const saved: LatLng | null =
     building && building.lat != null && building.lng != null ? { lat: building.lat, lng: building.lng } : null;
-  // The point under the crosshair once placed, null until then or after Remove.
+  // The pin, null until placed or after Remove location.
   const [center, setCenter] = useState<LatLng | null>(saved);
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -145,31 +146,29 @@ export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: Buil
           <DialogFooter className="sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               {building ? (
-                areaCount === 0 ? (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button type="button" variant="ghost" className="text-destructive hover:text-destructive">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="ghost" className="text-destructive hover:text-destructive">
+                      Delete building
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete {name}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {areaCount === 0
+                          ? "It has no areas. This cannot be undone."
+                          : `Its ${areaCount} ${areaCount === 1 ? "area and its zones go" : "areas and their zones go"} with it. Camera units paired there stay registered. This cannot be undone.`}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction variant="destructive" onClick={onDelete} disabled={pending}>
                         Delete building
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete {name}?</AlertDialogTitle>
-                        <AlertDialogDescription>It has no areas. This cannot be undone.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction variant="destructive" onClick={onDelete}>
-                          Delete building
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                ) : (
-                  <p className="text-[13px] text-muted-foreground">
-                    {areaCount} {areaCount === 1 ? "area" : "areas"}. Delete them first to delete the building.
-                  </p>
-                )
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               ) : null}
             </div>
             <div className="flex items-center gap-2">
@@ -210,6 +209,12 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
   const places = useMapsLibrary("places");
   const [address, setAddress] = useState("");
   const [finding, setFinding] = useState(false);
+  // Pan the map and plant the pin there.
+  function moveTo(point: LatLng) {
+    onChange(point);
+    map?.panTo(point);
+    map?.setZoom(17);
+  }
   // Place suggestions under the Address field as the admin types. One
   // session token per search so Google bills the keystrokes as one lookup.
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -277,18 +282,12 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
       toast("No match for that address.");
     }
   }
-  // Dragging, Find and Use my location all place the point. Until then
-  // the map can move without setting a location.
-  const [placed, setPlaced] = useState(saved != null);
-
   const start = saved ?? fallbackCenter ?? WORLD;
   const startZoom = saved ? 17 : fallbackCenter ? 15 : 3;
 
-  function moveTo(point: LatLng) {
-    setPlaced(true);
-    onChange(point);
-    map?.panTo(point);
-    map?.setZoom(17);
+  function placeHere() {
+    const c = map?.getCenter();
+    if (c) onChange({ lat: c.lat(), lng: c.lng() });
   }
 
   async function find() {
@@ -408,23 +407,40 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
           clickableIcons={false}
           streetViewControl={false}
           className="h-full w-full"
-          onDragstart={() => setPlaced(true)}
-          onCameraChanged={(e) => {
-            if (placed) onChange(e.detail.center);
-          }}
-        />
+        >
+          {/* Only once the map exists, so the Google symbol constants are loaded. */}
+          {center && map ? (
+            <Marker
+              position={center}
+              clickable={false}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 9,
+                fillColor: "#2563eb",
+                fillOpacity: 1,
+                strokeColor: "#ffffff",
+                strokeWeight: 3,
+              }}
+            />
+          ) : null}
+        </Map>
         <Crosshair
           className="pointer-events-none absolute left-1/2 top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 text-primary"
           strokeWidth={1.5}
           aria-hidden
         />
       </div>
-      <div className="flex items-center justify-between gap-3">
-        <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
-          Use my location
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" size="sm" onClick={placeHere}>
+            Place pin here
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
+            Use my location
+          </Button>
+        </div>
         <p className="text-[13px] tabular-nums text-muted-foreground">
-          {center ? `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}` : "No location"}
+          {center ? `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}` : "No pin yet"}
         </p>
       </div>
     </div>

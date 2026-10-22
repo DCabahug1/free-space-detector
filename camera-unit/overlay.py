@@ -8,6 +8,9 @@ preview and the --fake --frame-file path can use it without ultralytics.
 
 from __future__ import annotations
 
+import math
+import time
+
 import logging
 from typing import Any
 
@@ -51,9 +54,23 @@ def hex_rgb(value: str) -> tuple[int, int, int]:
     return int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
 
 
-def zone_label(name: str, zone_type: str, count: int, capacity: int | None) -> str:
-    """Matches the admin canvas: "Table 3 1/4" for seating with a capacity, "Lounge 2" otherwise."""
-    return f"{name} {count_text(zone_type, count, capacity)}"
+def zone_label(
+    name: str,
+    zone_type: str,
+    count: int,
+    capacity: int | None,
+    pending: tuple[int, float] | None = None,
+    now: float | None = None,
+) -> str:
+    """Matches the admin canvas: "Table 3 1/4" for seating with a capacity,
+    "Lounge 2" otherwise. A change in its confirm hold is appended as
+    "-> 2/4 in 3 s" so the delay reads as a countdown, not a lag."""
+    text = f"{name} {count_text(zone_type, count, capacity)}"
+    if pending is not None:
+        now = time.time() if now is None else now
+        left = max(1, math.ceil(pending[1] - now))
+        text += f" -> {count_text(zone_type, pending[0], capacity)} in {left} s"
+    return text
 
 
 def centroid(polygon: list[tuple[float, float]]) -> tuple[float, float]:
@@ -73,9 +90,17 @@ def draw_people(image: Image.Image, people: list[Any], radius: int = 7) -> None:
         draw.ellipse((fx - radius, fy - radius, fx + radius, fy + radius), fill=FOOT_COLOR, outline=BOX_COLOR, width=2)
 
 
-def draw_zones(image: Image.Image, zones: list[Any], counts: dict[str, int], font_size: int = 22) -> Image.Image:
+def draw_zones(
+    image: Image.Image,
+    zones: list[Any],
+    counts: dict[str, int],
+    font_size: int = 22,
+    pending: dict[str, tuple[int, float]] | None = None,
+) -> Image.Image:
     """Returns a new RGB image with each zone filled and outlined in its state
-    color and labeled at its centroid. zones need .id, .name, .type, .capacity, .polygon."""
+    color and labeled at its centroid. zones need .id, .name, .type, .capacity, .polygon.
+    pending maps zone id to (new count, time it lands) for the countdown."""
+    now = time.time()
     base = image.convert("RGBA")
     layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
@@ -94,7 +119,7 @@ def draw_zones(image: Image.Image, zones: list[Any], counts: dict[str, int], fon
     for z in zones:
         if len(z.polygon) < 3:
             continue
-        text = zone_label(z.name, z.type, counts.get(z.id, 0), z.capacity)
+        text = zone_label(z.name, z.type, counts.get(z.id, 0), z.capacity, (pending or {}).get(z.id), now)
         cx, cy = centroid(z.polygon)
         left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
         w, h = right - left, bottom - top
@@ -104,9 +129,15 @@ def draw_zones(image: Image.Image, zones: list[Any], counts: dict[str, int], fon
     return out.convert("RGB")
 
 
-def render_preview(image: Image.Image, people: list[Any], zones: list[Any], counts: dict[str, int]) -> Image.Image:
+def render_preview(
+    image: Image.Image,
+    people: list[Any],
+    zones: list[Any],
+    counts: dict[str, int],
+    pending: dict[str, tuple[int, float]] | None = None,
+) -> Image.Image:
     """Everything the admin canvas shows, on the frame: zones by state, then people on top."""
-    out = draw_zones(image, zones, counts)
+    out = draw_zones(image, zones, counts, pending=pending)
     if people:
         draw_people(out, people)
     return out

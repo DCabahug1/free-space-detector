@@ -16,6 +16,8 @@ interface RoomRowProps {
   counts: Record<string, number | undefined>;
   // "4 min" while the camera unit is offline, otherwise null.
   offlineFor: string | null;
+  // "8 s ago" from the newest heartbeat or count, "" before the clock starts.
+  updated?: string;
   // The clock has not started: placeholders stand in for the count and caption.
   loading?: boolean;
   pinned: boolean;
@@ -35,6 +37,7 @@ export function RoomRow({
   room,
   counts,
   offlineFor,
+  updated = "",
   loading = false,
   pinned,
   onTogglePin,
@@ -70,7 +73,9 @@ export function RoomRow({
             <Skeleton className="mt-1 h-[13px] w-32" />
           ) : (
             <div className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
-              {offline ? `Camera unit offline, ${offlineFor}` : roomSummary(room.zones, counts)}
+              {offline
+                ? `Camera unit offline, ${offlineFor}`
+                : `${roomSummary(room.zones, counts)}.${updated ? ` Updated ${updated}` : ""}`}
             </div>
           )}
         </button>

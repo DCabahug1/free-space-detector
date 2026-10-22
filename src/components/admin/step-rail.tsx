@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type StepStatus = "Done" | "In progress" | "Waiting" | "Needs attention" | "Ready";
@@ -16,15 +17,27 @@ interface StepRailProps {
   onSelect: (n: number) => void;
 }
 
-// Number in the margin (mono 12), step title (14), status caption (12). The
-// current step gets a 2 px primary left rule, a bold title and a primary
-// status. A vertical rail on laptop, a grid of two (phone) or four (tablet)
+const STATUS_TEXT: Record<StepStatus, string> = {
+  Done: "text-state-empty",
+  "Needs attention": "text-state-shared",
+  "In progress": "text-primary",
+  Ready: "text-primary",
+  Waiting: "text-muted-foreground",
+};
+
+// A mark in the margin, the step title (14) and a status caption (12). The
+// mark tells the state at a glance: a filled check for Done, an amber "!"
+// for Needs attention, a primary ring for the current step, a muted number
+// otherwise. The current step also gets a 2 px primary left rule and a bold
+// title. A vertical rail on laptop, a grid of two (phone) or four (tablet)
 // above the content below it.
 export function StepRail({ steps, current, onSelect }: StepRailProps) {
   return (
     <ol className="grid grid-cols-2 gap-1 sm:grid-cols-4 lg:flex lg:flex-col lg:gap-0">
       {steps.map((step) => {
         const active = step.n === current;
+        const done = step.status === "Done";
+        const attention = step.status === "Needs attention";
         return (
           <li key={step.n} className="min-w-0">
             <button
@@ -36,8 +49,20 @@ export function StepRail({ steps, current, onSelect }: StepRailProps) {
                 active ? "border-primary" : "border-transparent hover:bg-muted"
               )}
             >
-              <span className={cn("font-mono text-xs", active ? "text-primary" : "text-muted-foreground")}>
-                {step.n}
+              <span
+                className={cn(
+                  "mt-px flex size-[22px] items-center justify-center rounded-full text-xs font-semibold",
+                  done
+                    ? "bg-state-empty text-white"
+                    : attention
+                      ? "bg-state-shared text-white"
+                      : active
+                        ? "border-2 border-primary text-primary"
+                        : "border border-muted-foreground/40 text-muted-foreground"
+                )}
+                aria-hidden
+              >
+                {done ? <Check className="size-3.5" strokeWidth={3} /> : attention ? "!" : step.n}
               </span>
               <span
                 className={cn(
@@ -48,18 +73,7 @@ export function StepRail({ steps, current, onSelect }: StepRailProps) {
               >
                 {step.title}
               </span>
-              <span
-                className={cn(
-                  "col-start-2 text-xs",
-                  active
-                    ? "text-primary"
-                    : step.status === "Needs attention"
-                      ? "text-state-shared"
-                      : "text-muted-foreground"
-                )}
-              >
-                {step.status}
-              </span>
+              <span className={cn("col-start-2 text-xs", STATUS_TEXT[step.status])}>{step.status}</span>
             </button>
           </li>
         );

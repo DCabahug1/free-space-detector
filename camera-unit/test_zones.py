@@ -48,6 +48,17 @@ class DwellTest(unittest.TestCase):
         self.assertEqual(self.counter.count([self.table], [], now=1000)["t"], 3)
 
 
+class ConfirmerPendingTest(unittest.TestCase):
+    def test_pending_reports_value_and_deadline(self):
+        c = Confirmer(confirm_s=5)
+        c.update({"a": 0}, now=100.0)
+        c.update({"a": 2}, now=101.0)
+        self.assertEqual(c.pending(), {"a": (2, 106.0)})
+        c.update({"a": 2}, now=106.0)
+        self.assertEqual(c.pending(), {})
+        self.assertEqual(c.stable["a"], 2)
+
+
 class ConfirmerTest(unittest.TestCase):
     def test_first_sight_is_immediate(self):
         c = Confirmer(confirm_s=5)

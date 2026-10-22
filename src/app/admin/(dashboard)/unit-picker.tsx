@@ -134,7 +134,9 @@ export function UnitPicker({ units, room, now, onAssigned }: UnitPickerProps) {
             <li key={unit.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2">
               <div className="min-w-0">
                 <div className="break-words text-[15px] font-medium">{unit.name}</div>
-                <div className="break-words text-[13px] text-muted-foreground">{home}</div>
+                <div className={cn("break-words text-[13px]", here ? "font-medium text-state-empty" : "text-muted-foreground")}>
+                  {home}
+                </div>
                 <div
                   className={cn(
                     "text-[13px]",

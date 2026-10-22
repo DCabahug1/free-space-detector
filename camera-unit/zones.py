@@ -100,6 +100,12 @@ class Confirmer:
                 self.candidate.pop(zone_id, None)
         return dict(self.stable), changed
 
+    def pending(self) -> dict[str, tuple[int, float]]:
+        """The change each zone is holding: (new count, time it lands).
+        Empty for zones with nothing pending. The monitor and the camera
+        popup show it as a countdown."""
+        return {zone_id: (value, since + self.confirm_s) for zone_id, (value, since, _frames) in self.candidate.items()}
+
 
 def point_in_polygon(point: tuple[float, float], polygon: list[tuple[float, float]]) -> bool:
     """Ray casting test. Points on an edge count as inside often enough for us."""
