@@ -10,14 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import type { Building } from "@/lib/types";
 import type { AdminRoom, UnitHeartbeat } from "./admin-types";
+import { AddAreaDialog } from "./add-area-dialog";
 import { BuildingDialog } from "./building-dialog";
 
 type Filter = "all" | "published" | "draft";
 
-// Areas grouped under collapsible building headers, with a search box and
-// a Published / Draft filter. Each row links to the setup page.
-export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
+// Every building as a collapsible header, its areas as rows beneath, with a
+// search box and a Published / Draft filter. A building with no areas shows
+// one line and the Add area action. Each area row links to the setup page.
+export function RoomTable({ rooms, buildings }: { rooms: AdminRoom[]; buildings: Building[] }) {
   const now = useClock();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -34,19 +37,20 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
     );
   });
 
-  const groups = new Map<string, { id: string; name: string; lat: number | null; lng: number | null; rooms: AdminRoom[] }>();
-  for (const room of visible) {
-    const b = room.building;
-    const g = groups.get(room.building_id) ?? { id: b.id, name: b.name, lat: b.lat, lng: b.lng, rooms: [] };
-    g.rooms.push(room);
-    groups.set(room.building_id, g);
-  }
+  // A building stays in the list while any of its areas match, or, with no
+  // Published / Draft filter, while its own name matches the search.
+  const sorted = buildings
+    .map((b) => ({
+      building: b,
+      rooms: visible.filter((r) => r.building_id === b.id).sort((a, c) => a.name.localeCompare(c.name)),
+      total: rooms.filter((r) => r.building_id === b.id).length,
+    }))
+    .filter((g) => g.rooms.length > 0 || (filter === "all" && (!q || g.building.name.toLowerCase().includes(q))))
+    .sort((a, b) => a.building.name.localeCompare(b.building.name));
+
   // Where the location map opens for a building without one.
-  const located = rooms.map((r) => r.building).find((b) => b.lat != null && b.lng != null);
+  const located = buildings.find((b) => b.lat != null && b.lng != null);
   const fallbackCenter = located && located.lat != null && located.lng != null ? { lat: located.lat, lng: located.lng } : null;
-  const sorted = [...groups.values()]
-    .map((g) => ({ ...g, rooms: [...g.rooms].sort((a, b) => a.name.localeCompare(b.name)) }))
-    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="space-y-6">
@@ -78,12 +82,24 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
         const published = g.rooms.filter((r) => r.published).length;
         return (
           <GroupSection
-            key={g.id}
-            title={g.name}
+            key={g.building.id}
+            title={g.building.name}
             query={query}
-            action={<BuildingDialog id={g.id} name={g.name} lat={g.lat} lng={g.lng} fallbackCenter={fallbackCenter} />}
-            caption={`${g.rooms.length} ${g.rooms.length === 1 ? "area" : "areas"}, ${published} published`}
+            action={
+              <>
+                <AddAreaDialog building={g.building} />
+                <BuildingDialog building={g.building} areaCount={g.total} fallbackCenter={fallbackCenter} />
+              </>
+            }
+            caption={
+              g.total === 0
+                ? "No areas"
+                : `${g.rooms.length} ${g.rooms.length === 1 ? "area" : "areas"}, ${published} published`
+            }
           >
+            {g.rooms.length === 0 ? (
+              <p className="px-4 py-3 text-[13px] text-muted-foreground">No areas yet. Add one with the button above.</p>
+            ) : null}
             {g.rooms.map((room) => (
               <Link
                 key={room.id}

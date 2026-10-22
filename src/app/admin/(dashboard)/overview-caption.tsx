@@ -13,10 +13,17 @@ interface OverviewCaptionProps {
 // "3 areas in 2 buildings, 2 published. 1 camera unit offline."
 export function OverviewCaption({ rooms, buildings, published, unitsLastSeen }: OverviewCaptionProps) {
   const now = useClock();
+  if (buildings === 0) {
+    return (
+      <p className="mt-1 text-[13px] text-muted-foreground">
+        Add a building, then an area in it. Pair a camera unit, draw zones, publish.
+      </p>
+    );
+  }
   if (rooms === 0) {
     return (
       <p className="mt-1 text-[13px] text-muted-foreground">
-        Name a building and an area, pair a camera unit, draw zones, publish.
+        {buildings} {buildings === 1 ? "building" : "buildings"}, no areas yet.
       </p>
     );
   }

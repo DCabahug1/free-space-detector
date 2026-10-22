@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { deleteRoom, updateRoom } from "@/app/admin/actions";
-import type { PublicRoom } from "@/lib/types";
+import type { Building, PublicRoom } from "@/lib/types";
 import { durationText, isOffline } from "@/lib/occupancy";
 import {
   AlertDialog,
@@ -29,18 +29,22 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { PublishSwitch } from "../../publish-switch";
 
 interface RoomHeaderProps {
   room: PublicRoom;
+  // Every building, for moving the area to another one.
+  buildings: Building[];
   zoneCount: number;
   now: number;
 }
 
-export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
+export function RoomHeader({ room, buildings, zoneCount, now }: RoomHeaderProps) {
   const router = useRouter();
   const [renameOpen, setRenameOpen] = useState(false);
+  const [buildingId, setBuildingId] = useState(room.building_id);
   const [pending, startTransition] = useTransition();
 
   const unit = [...room.units].sort((a, b) =>
@@ -60,7 +64,7 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
     const form = new FormData(event.currentTarget);
     startTransition(async () => {
       const result = await updateRoom(room.id, {
-        building: String(form.get("building") ?? ""),
+        buildingId,
         name: String(form.get("name") ?? ""),
         description: String(form.get("description") ?? ""),
       });
@@ -102,7 +106,18 @@ export function RoomHeader({ room, zoneCount, now }: RoomHeaderProps) {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="edit-building">Building</Label>
-                    <Input id="edit-building" name="building" defaultValue={room.building.name} required />
+                    <Select value={buildingId} onValueChange={setBuildingId}>
+                      <SelectTrigger id="edit-building" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {buildings.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-name">Area</Label>

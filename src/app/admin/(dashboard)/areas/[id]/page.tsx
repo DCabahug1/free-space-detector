@@ -6,6 +6,7 @@ import { frameUrl } from "@/lib/camera-units";
 import { loadPublicSnapshot } from "@/lib/public-data";
 import { AdminHeader } from "@/components/admin-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Building } from "@/lib/types";
 import type { AdminUnit } from "../../admin-types";
 import { SetupPage } from "./setup-page";
 
@@ -44,13 +45,15 @@ async function RoomContent({ params }: RoomPageProps) {
   await connection();
   const { id } = await params;
   const supabase = await createClient();
-  const [{ rooms, counts }, { data: unitRows }] = await Promise.all([
+  const [{ rooms, counts }, { data: unitRows }, { data: buildingRows }] = await Promise.all([
     loadPublicSnapshot(supabase, { roomId: id }),
     supabase
       .from("camera_units")
       .select("id, name, pair_code, room_id, last_seen, paused, version, update_requested_at, rooms(id, name, buildings(id, name))")
       .order("created_at"),
+    supabase.from("buildings").select("id, name, slug, lat, lng").order("name"),
   ]);
+  const buildings = (buildingRows ?? []) as Building[];
   const room = rooms[0];
   if (!room) notFound();
 
@@ -78,7 +81,7 @@ async function RoomContent({ params }: RoomPageProps) {
     ? { url: frameUrl(unit.id), unitName: unit.name, lastSeen: unit.last_seen }
     : null;
 
-  return <SetupPage room={room} initialCounts={counts} liveFrame={liveFrame} units={units} />;
+  return <SetupPage room={room} buildings={buildings} initialCounts={counts} liveFrame={liveFrame} units={units} />;
 }
 
 function RoomSkeleton() {

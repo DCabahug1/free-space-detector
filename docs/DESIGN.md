@@ -151,15 +151,15 @@ Centered, max 360. Wordmark, "Staff sign in", Email, Password, Sign in (full wid
 ### `/admin` overview
 
 Top bar: wordmark, "Admin" label, Rooms link. Right: Public map, Sign out.
-Heading "Rooms", caption `{n} rooms in {m} buildings, {p} published. {k} camera unit offline.`, "Set up a room" primary button.
-Room list grouped under building labels. The pencil on a building header opens the building dialog: Name, then (with a Maps key) an Address field with a Find button that geocodes and pans the map, a 240px map (standard controls, no Street View) with a fixed crosshair at the center (drag to place, Save stores the center), a "Use my location" button, and a mono caption with the center as "34.2400, -118.5293" or "No location". "Remove location" clears it. Columns: Room (name + description), Camera unit ("Pi corner, 3 s ago", offline in state-full, "Not paired" in state-shared), Zones ("5 zones"), Status badge (Published / Draft). Rows link to setup. Hairlines only.
+Tabs: Buildings, Camera units. Heading "Buildings", caption `{n} areas in {m} buildings, {p} published. {k} camera unit offline.` ("{m} buildings, no areas yet." before the first area), "Add a building" primary button.
+Setup goes building, then area, then zones. "Add a building" opens the building dialog in create mode (title "New building", button "Create building"); a building can stay empty. Every building is a collapsible header, empty ones included, with the caption "{n} areas, {p} published" or "No areas", an "Add area" ghost button (dialog "New area in {building}": Area, Description, "Create area", then the area's setup page opens) and the pencil. An empty building shows one line, "No areas yet. Add one with the button above." The pencil opens the building dialog: Name, then (with a Maps key) an Address field with a Find button that geocodes and pans the map, a 240px map (standard controls, no Street View) with a fixed crosshair at the center (drag to place, Save stores the center), a "Use my location" button, and a mono caption with the center as "34.2400, -118.5293" or "No location". "Remove location" clears it. Footer left: "Delete building" (ghost, destructive text, confirm "Delete {name}?" / "It has no areas. This cannot be undone.") when the building is empty, otherwise "{n} areas. Delete them first to delete the building." Search matches area and building names; a building with no matching area stays while its own name matches and the filter is All. Columns: Room (name + description), Camera unit ("Pi corner, 3 s ago", offline in state-full, "Not paired" in state-shared), Zones ("5 zones"), Status badge (Published / Draft). Rows link to setup. Hairlines only.
 "Camera units" section: device cards in an auto-fill grid. Each: 16:9 live thumbnail with a "Live" tag (or muted "No frame, offline"), name, assigned room, status line. Last card is "Pair a camera unit": caption "Type the 6-digit code from its screen.", mono input placeholder "000 000", Pair button.
 
-States: first run ("No rooms yet." plus the one-line setup summary, and the pair card alone), loading.
+States: first run ("No buildings yet." with the caption "Add a building, then an area in it. Pair a camera unit, draw zones, publish.", and the pair card alone), loading.
 
 ### `/admin/areas/[id]` setup (the projector screen)
 
-Header as overview. Page header: building in muted weight then room name, rename pencil, caption with description and camera unit status. Right: Published / Draft switch, Delete (ghost).
+Header as overview, "Back to buildings" link. Page header: building in muted weight then area name, pencil opening "Building and area" (Building as a select of existing buildings, which moves the area; Area; Description), caption with description and camera unit status. Right: Published / Draft switch, Delete (ghost).
 
 Left: StepRail. 1 Building and room, 2 Pair the camera unit, 3 Draw zones, 4 Preview and publish.
 

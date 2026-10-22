@@ -5,8 +5,20 @@ import { useRouter } from "next/navigation";
 import { APIProvider, Map, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 import { Crosshair, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { updateBuilding } from "@/app/admin/actions";
+import { createBuilding, deleteBuilding, updateBuilding } from "@/app/admin/actions";
 import type { LatLng } from "@/lib/geo";
+import type { Building } from "@/lib/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,10 +32,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface BuildingDialogProps {
-  id: string;
-  name: string;
-  lat: number | null;
-  lng: number | null;
+  // Without a building the dialog creates one, from the "Add a building"
+  // button. With one it edits it, from the pencil on its header.
+  building?: Building;
+  // How many areas the building holds. Only an empty building can be deleted.
+  areaCount?: number;
   // Where the map opens for a building without a location: another
   // located building on this campus, if there is one.
   fallbackCenter?: LatLng | null;
@@ -32,26 +45,43 @@ interface BuildingDialogProps {
 const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 const WORLD: LatLng = { lat: 37.3352, lng: -121.8811 };
 
-// Pencil on a building header: rename it and set its map location, by
-// address or by dragging the map under the crosshair. Saving stores the
-// map's center. Without a Maps key only the name can change.
-export function BuildingDialog({ id, name, lat, lng, fallbackCenter }: BuildingDialogProps) {
+// Name and map location of a building, by address or by dragging the map
+// under the crosshair. Saving stores the map's center. Without a Maps key
+// only the name is asked for.
+export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: BuildingDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const saved: LatLng | null = lat != null && lng != null ? { lat, lng } : null;
+  const id = building?.id ?? "new";
+  const name = building?.name ?? "";
+  const saved: LatLng | null =
+    building && building.lat != null && building.lng != null ? { lat: building.lat, lng: building.lng } : null;
   // The point under the crosshair once placed, null until then or after Remove.
   const [center, setCenter] = useState<LatLng | null>(saved);
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const input = {
+      name: String(form.get("name") ?? ""),
+      lat: center?.lat ?? null,
+      lng: center?.lng ?? null,
+    };
     startTransition(async () => {
-      const result = await updateBuilding(id, {
-        name: String(form.get("name") ?? ""),
-        lat: center?.lat ?? null,
-        lng: center?.lng ?? null,
-      });
+      const result = building ? await updateBuilding(building.id, input) : await createBuilding(input);
+      if (result.error) {
+        toast(result.error);
+        return;
+      }
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
+  function onDelete() {
+    if (!building) return;
+    startTransition(async () => {
+      const result = await deleteBuilding(building.id);
       if (result.error) {
         toast(result.error);
         return;
@@ -70,23 +100,35 @@ export function BuildingDialog({ id, name, lat, lng, fallbackCenter }: BuildingD
       }}
     >
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="text-building-muted hover:bg-background dark:hover:bg-background"
-          aria-label={`Edit ${name}`}
-        >
-          <Pencil />
-        </Button>
+        {building ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-building-muted hover:bg-background dark:hover:bg-background"
+            aria-label={`Edit ${name}`}
+          >
+            <Pencil />
+          </Button>
+        ) : (
+          <Button>Add a building</Button>
+        )}
       </DialogTrigger>
       <DialogContent className={KEY ? "sm:max-w-lg" : undefined}>
         <form onSubmit={onSubmit} className="space-y-6">
           <DialogHeader>
-            <DialogTitle>Building</DialogTitle>
+            <DialogTitle>{building ? "Building" : "New building"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor={`building-${id}`}>Name</Label>
-            <Input id={`building-${id}`} name="name" defaultValue={name} required autoFocus={!KEY} maxLength={80} />
+            <Input
+              id={`building-${id}`}
+              name="name"
+              defaultValue={name}
+              placeholder="University Library"
+              required
+              autoFocus={!KEY || !building}
+              maxLength={80}
+            />
           </div>
           {KEY ? (
             <APIProvider apiKey={KEY}>
@@ -99,15 +141,46 @@ export function BuildingDialog({ id, name, lat, lng, fallbackCenter }: BuildingD
               />
             </APIProvider>
           ) : null}
-          <DialogFooter>
-            {KEY && center ? (
-              <Button type="button" variant="ghost" onClick={() => setCenter(null)}>
-                Remove location
+          <DialogFooter className="sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              {building ? (
+                areaCount === 0 ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" variant="ghost" className="text-destructive hover:text-destructive">
+                        Delete building
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {name}?</AlertDialogTitle>
+                        <AlertDialogDescription>It has no areas. This cannot be undone.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={onDelete}>
+                          Delete building
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <p className="text-[13px] text-muted-foreground">
+                    {areaCount} {areaCount === 1 ? "area" : "areas"}. Delete them first to delete the building.
+                  </p>
+                )
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              {KEY && center ? (
+                <Button type="button" variant="ghost" onClick={() => setCenter(null)}>
+                  Remove location
+                </Button>
+              ) : null}
+              <Button type="submit" disabled={pending}>
+                {pending ? (building ? "Saving" : "Creating") : building ? "Save" : "Create building"}
               </Button>
-            ) : null}
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving" : "Save"}
-            </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -189,7 +262,6 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
               }
             }}
             placeholder="Street, city"
-            autoFocus={saved == null}
             autoComplete="off"
           />
           <Button type="button" variant="outline" onClick={find} disabled={finding || !geocoding}>

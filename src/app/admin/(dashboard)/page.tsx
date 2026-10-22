@@ -10,7 +10,7 @@ import { AdminTabs } from "./admin-tabs";
 import { DeviceCards, PairDialog } from "./device-cards";
 import { OverviewCaption } from "./overview-caption";
 import { RoomTable } from "./room-table";
-import { SetupRoomDialog } from "./setup-room-dialog";
+import { BuildingDialog } from "./building-dialog";
 
 interface OverviewProps {
   // The QR code on a camera unit's monitor links here with ?code=123456.
@@ -122,7 +122,9 @@ async function Overview({ searchParams }: OverviewProps) {
 
   const buildings = (buildingRows ?? []) as Building[];
   const published = rooms.filter((r) => r.published).length;
-  const buildingCount = new Set(rooms.map((r) => r.building_id)).size;
+  // Where a new building's location map opens: another located building.
+  const located = buildings.find((b) => b.lat != null && b.lng != null);
+  const fallbackCenter = located && located.lat != null && located.lng != null ? { lat: located.lat, lng: located.lng } : null;
 
   const roomOptions = rooms.map((r) => ({ id: r.id, name: r.name, building: r.building.name }));
   const initialTab = tab === "camera-units" || initialCode ? "camera-units" : "rooms";
@@ -134,17 +136,19 @@ async function Overview({ searchParams }: OverviewProps) {
         <section className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold leading-tight">{rooms.length === 0 ? "No areas yet." : "Areas"}</h1>
+              <h1 className="text-2xl font-semibold leading-tight">
+                {buildings.length === 0 ? "No buildings yet." : "Buildings"}
+              </h1>
               <OverviewCaption
                 rooms={rooms.length}
-                buildings={buildingCount}
+                buildings={buildings.length}
                 published={published}
                 unitsLastSeen={units.map((u) => u.last_seen)}
               />
             </div>
-            <SetupRoomDialog buildings={buildings} />
+            <BuildingDialog fallbackCenter={fallbackCenter} />
           </div>
-          {rooms.length > 0 ? <RoomTable rooms={rooms} /> : null}
+          {buildings.length > 0 ? <RoomTable rooms={rooms} buildings={buildings} /> : null}
         </section>
       }
       units={

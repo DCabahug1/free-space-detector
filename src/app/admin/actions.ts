@@ -42,7 +42,7 @@ export async function signOut() {
 // ---------- buildings and rooms ----------
 
 const roomSchema = z.object({
-  building: z.string().trim().min(1, "Name the building.").max(80),
+  buildingId: z.string().uuid("Pick a building."),
   name: z.string().trim().min(1, "Name the area.").max(80),
   description: z.string().trim().max(140).optional().or(z.literal("")),
 });
@@ -50,24 +50,6 @@ const roomSchema = z.object({
 export type RoomInput = z.infer<typeof roomSchema>;
 
 type Db = Awaited<ReturnType<typeof createClient>>;
-
-// Finds the building by slug or creates it.
-async function ensureBuilding(supabase: Db, name: string) {
-  const slug = slugify(name);
-  const { data: existing } = await supabase
-    .from("buildings")
-    .select("id")
-    .eq("slug", slug)
-    .maybeSingle();
-  if (existing) return { id: existing.id as string };
-  const { data, error } = await supabase
-    .from("buildings")
-    .insert({ name, slug })
-    .select("id")
-    .single();
-  if (error) return { error: error.message };
-  return { id: data.id as string };
-}
 
 // A slug unique within the building: "floor-2", then "floor-2-2".
 async function uniqueRoomSlug(supabase: Db, buildingId: string, name: string, exceptId?: string) {
@@ -85,20 +67,18 @@ async function uniqueRoomSlug(supabase: Db, buildingId: string, name: string, ex
   return `${base}-${Date.now()}`;
 }
 
+// Adds an area to an existing building.
 export async function createRoom(input: RoomInput): Promise<ActionResult & { id?: string }> {
   const parsed = roomSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid area." };
   }
   const supabase = await createClient();
-  const building = await ensureBuilding(supabase, parsed.data.building);
-  if ("error" in building) return { error: building.error };
-
-  const slug = await uniqueRoomSlug(supabase, building.id, parsed.data.name);
+  const slug = await uniqueRoomSlug(supabase, parsed.data.buildingId, parsed.data.name);
   const { data, error } = await supabase
     .from("rooms")
     .insert({
-      building_id: building.id,
+      building_id: parsed.data.buildingId,
       name: parsed.data.name,
       slug,
       description: parsed.data.description || null,
@@ -111,20 +91,18 @@ export async function createRoom(input: RoomInput): Promise<ActionResult & { id?
   return { id: data.id as string };
 }
 
+// Renames an area, changes its description, or moves it to another building.
 export async function updateRoom(roomId: string, input: RoomInput): Promise<ActionResult> {
   const parsed = roomSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid area." };
   }
   const supabase = await createClient();
-  const building = await ensureBuilding(supabase, parsed.data.building);
-  if ("error" in building) return { error: building.error };
-
-  const slug = await uniqueRoomSlug(supabase, building.id, parsed.data.name, roomId);
+  const slug = await uniqueRoomSlug(supabase, parsed.data.buildingId, parsed.data.name, roomId);
   const { error } = await supabase
     .from("rooms")
     .update({
-      building_id: building.id,
+      building_id: parsed.data.buildingId,
       name: parsed.data.name,
       slug,
       description: parsed.data.description || null,
@@ -148,6 +126,35 @@ const buildingSchema = z
 
 export type BuildingInput = z.infer<typeof buildingSchema>;
 
+async function buildingSlugTaken(supabase: Db, slug: string, exceptId?: string) {
+  let q = supabase.from("buildings").select("id").eq("slug", slug);
+  if (exceptId) q = q.neq("id", exceptId);
+  const { data } = await q.maybeSingle();
+  return data != null;
+}
+
+// A building on its own, with no areas yet. Its location is optional.
+export async function createBuilding(input: BuildingInput): Promise<ActionResult & { id?: string }> {
+  const parsed = buildingSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid building." };
+  }
+  const supabase = await createClient();
+  const slug = slugify(parsed.data.name);
+  if (await buildingSlugTaken(supabase, slug)) return { error: "A building with that name already exists." };
+
+  const { data, error } = await supabase
+    .from("buildings")
+    .insert({ name: parsed.data.name, slug, lat: parsed.data.lat, lng: parsed.data.lng })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  return { id: data.id as string };
+}
+
 // Renames a building and its slug, and sets or clears its map location.
 // The area URLs under it change with the name.
 export async function updateBuilding(buildingId: string, input: BuildingInput): Promise<ActionResult> {
@@ -157,13 +164,9 @@ export async function updateBuilding(buildingId: string, input: BuildingInput): 
   }
   const supabase = await createClient();
   const slug = slugify(parsed.data.name);
-  const { data: clash } = await supabase
-    .from("buildings")
-    .select("id")
-    .eq("slug", slug)
-    .neq("id", buildingId)
-    .maybeSingle();
-  if (clash) return { error: "A building with that name already exists." };
+  if (await buildingSlugTaken(supabase, slug, buildingId)) {
+    return { error: "A building with that name already exists." };
+  }
 
   const { error } = await supabase
     .from("buildings")
@@ -176,21 +179,21 @@ export async function updateBuilding(buildingId: string, input: BuildingInput): 
   return {};
 }
 
-// Keeps the building and description, changes the name (and the slug).
-export async function renameRoom(roomId: string, name: string): Promise<ActionResult> {
+// Only an empty building can go. Areas are deleted from their setup page.
+export async function deleteBuilding(buildingId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { count } = await supabase
     .from("rooms")
-    .select("description, buildings(name)")
-    .eq("id", roomId)
-    .maybeSingle();
-  const building = Array.isArray(data?.buildings) ? data?.buildings[0] : data?.buildings;
-  if (!data || !building) return { error: "Area not found." };
-  return updateRoom(roomId, {
-    building: (building as { name: string }).name,
-    name,
-    description: data.description ?? "",
-  });
+    .select("id", { count: "exact", head: true })
+    .eq("building_id", buildingId);
+  if (count && count > 0) return { error: "Delete its areas first." };
+
+  const { error } = await supabase.from("buildings").delete().eq("id", buildingId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  return {};
 }
 
 export async function setRoomPublished(

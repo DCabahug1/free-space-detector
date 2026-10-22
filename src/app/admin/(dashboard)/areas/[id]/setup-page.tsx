@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { setRoomPublished } from "@/app/admin/actions";
-import type { PublicRoom, Zone, ZoneCount } from "@/lib/types";
+import type { Building, PublicRoom, Zone, ZoneCount } from "@/lib/types";
 import { roomPath } from "@/lib/types";
 import { durationText, isOffline } from "@/lib/occupancy";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
@@ -23,6 +23,8 @@ import { ZoneEditor } from "./zone-editor";
 
 interface SetupPageProps {
   room: PublicRoom;
+  // Every building, for the move option in the edit dialog.
+  buildings: Building[];
   initialCounts: ZoneCount[];
   liveFrame: LiveFrame | null;
   // Every registered camera unit, for the picker on step 2.
@@ -32,7 +34,7 @@ interface SetupPageProps {
 // The projector screen. Step rail on the left, the current step's content
 // on the right. Zones live in local state so saves and deletes show at
 // once; the server's copy replaces it after each refresh.
-export function SetupPage({ room, initialCounts, liveFrame, units }: SetupPageProps) {
+export function SetupPage({ room, buildings, initialCounts, liveFrame, units }: SetupPageProps) {
   const [zoneOverride, setZoneOverride] = useState<{ base: Zone[]; zones: Zone[] } | null>(null);
   // The override is dropped as soon as the server sends a different list.
   const zones = zoneOverride && zoneOverride.base === room.zones ? zoneOverride.zones : room.zones;
@@ -66,8 +68,8 @@ export function SetupPage({ room, initialCounts, liveFrame, units }: SetupPagePr
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <BackLink href="/admin" label="Back to areas" />
-        <RoomHeader room={room} zoneCount={zones.length} now={live.now} />
+        <BackLink href="/admin" label="Back to buildings" />
+        <RoomHeader room={room} buildings={buildings} zoneCount={zones.length} now={live.now} />
       </div>
       <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10">
         <StepRail steps={steps} current={step} onSelect={setStep} />
