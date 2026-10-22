@@ -203,7 +203,6 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
           mapId={MAP_ID}
           defaultCenter={start}
           defaultZoom={startZoom}
-          disableDefaultUI
           gestureHandling="greedy"
           clickableIcons={false}
           className="h-full w-full"

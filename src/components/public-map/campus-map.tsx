@@ -39,8 +39,9 @@ const PIN_BG: Record<BuildingState, string> = {
 };
 
 // One pin per building that has a location, in the building's state color
-// with its free total inside. No Google controls, one finger scrolls the
-// page. Renders nothing without a key, after a load failure, or with no
+// with its free total inside and a primary outline. The person is a primary
+// dot inside a soft halo. Google's standard controls, one finger
+// scrolls the page. Renders nothing without a key, after a load failure, or with no
 // located building, so the page never shows a broken map.
 export function CampusMap({ pins, position, onSelect }: CampusMapProps) {
   const [pref, setPref] = useMapPref();
@@ -75,14 +76,13 @@ export function CampusMap({ pins, position, onSelect }: CampusMapProps) {
         </Button>
       </div>
       {shown ? (
-        <div className="h-[200px] w-full overflow-hidden rounded-lg border border-building-border bg-muted md:h-[320px]">
+        <div className="h-[240px] w-full overflow-hidden rounded-lg border border-building-border bg-muted md:h-[320px]">
           <APIProvider apiKey={KEY} onError={() => setFailed(true)}>
             <Map
               key={dark ? "dark" : "light"}
               mapId={MAP_ID}
               colorScheme={dark ? "DARK" : "LIGHT"}
               defaultBounds={boundsOf(pins, position)}
-              disableDefaultUI
               gestureHandling="cooperative"
               clickableIcons={false}
               className="h-full w-full"
@@ -97,7 +97,7 @@ export function CampusMap({ pins, position, onSelect }: CampusMapProps) {
                 >
                   <div
                     className={cn(
-                      "flex size-8 items-center justify-center rounded-full border-2 border-background font-mono text-[12px] font-bold text-white",
+                      "flex size-8 items-center justify-center rounded-full border-2 border-primary font-mono text-[12px] font-bold text-white",
                       PIN_BG[p.state]
                     )}
                   >
@@ -106,8 +106,10 @@ export function CampusMap({ pins, position, onSelect }: CampusMapProps) {
                 </AdvancedMarker>
               ))}
               {position ? (
-                <AdvancedMarker position={position} title="You">
-                  <div className="size-3 rounded-full border-2 border-white bg-primary" />
+                <AdvancedMarker position={position} title="You" zIndex={-1}>
+                  <div className="flex size-11 items-center justify-center rounded-full bg-primary/25">
+                    <div className="size-5 rounded-full border-[3px] border-white bg-primary shadow-md" />
+                  </div>
                 </AdvancedMarker>
               ) : null}
             </Map>

@@ -33,7 +33,7 @@ function MapSkeleton() {
       </Band>
       <Wrap className="flex flex-col gap-6 pt-6 pb-12" aria-busy aria-label="Loading">
         {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-          <Skeleton className="mt-9 h-[200px] w-full rounded-lg md:h-[320px]" />
+          <Skeleton className="mt-9 h-[240px] w-full rounded-lg md:h-[320px]" />
         ) : null}
         <Skeleton className="h-9 w-full max-w-xs" />
         <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-8">
