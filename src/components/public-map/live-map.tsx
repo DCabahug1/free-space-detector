@@ -54,8 +54,9 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     );
   });
 
-  // Directory: pinned areas first, then by free seats. A pinned building
-  // comes first, then a building with a pinned area, then the rest.
+  // Directory order, for areas within a building and for the buildings
+  // themselves: pinned, then free seats (most first), then occupied, then
+  // offline. A pinned building comes before a building with a pinned area.
   const groups = (() => {
     const byBuilding = new Map<string, { building: PublicRoom["building"]; rooms: PublicRoom[] }>();
     for (const room of visible) {
@@ -65,11 +66,16 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     }
     const freeOf = (r: PublicRoom) => stats.get(r.id)?.free ?? 0;
     const pinOf = (r: PublicRoom) => (isPinned(r.id) ? 1 : 0);
+    const offlineOf = (r: PublicRoom) => (stats.get(r.id)?.offlineFor != null ? 1 : 0);
     return [...byBuilding.values()]
       .map((g) => ({
         ...g,
         rooms: [...g.rooms].sort(
-          (a, b) => pinOf(b) - pinOf(a) || freeOf(b) - freeOf(a) || a.name.localeCompare(b.name)
+          (a, b) =>
+            pinOf(b) - pinOf(a) ||
+            offlineOf(a) - offlineOf(b) ||
+            freeOf(b) - freeOf(a) ||
+            a.name.localeCompare(b.name)
         ),
         free: g.rooms.reduce((sum, r) => sum + freeOf(r), 0),
         // Every camera unit in the building is offline, so the total is unknown.
@@ -80,6 +86,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       .sort(
         (a, b) =>
           b.rank - a.rank ||
+          Number(a.offline) - Number(b.offline) ||
           b.free - a.free ||
           a.building.name.localeCompare(b.building.name)
       );
