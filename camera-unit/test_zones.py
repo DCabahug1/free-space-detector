@@ -48,6 +48,20 @@ class DwellTest(unittest.TestCase):
         self.assertEqual(self.counter.count([self.table], [], now=1000)["t"], 3)
 
 
+class LatestFrameTest(unittest.TestCase):
+    def test_newest_frame_wins_and_close_wakes(self):
+        from main import LatestFrame
+
+        slot = LatestFrame()
+        self.assertIsNone(slot.take(timeout=0.01))
+        slot.put("a")
+        slot.put("b")
+        self.assertEqual(slot.take(timeout=0.01), "b")
+        self.assertIsNone(slot.take(timeout=0.01))
+        slot.close()
+        self.assertIsNone(slot.take(timeout=1.0))
+
+
 class ConfirmerPendingTest(unittest.TestCase):
     def test_pending_reports_value_and_deadline(self):
         c = Confirmer(confirm_s=5)

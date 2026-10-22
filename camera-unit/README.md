@@ -191,7 +191,12 @@ size the admin app draws on.
   frames so someone walking past, or one missed detection, never flips a
   tile. The monitor shows the held counts too, so the Pi screen and the map
   agree. While a change is held, the row's state word becomes a countdown,
-  "-> 2/4 in 3 s", and the camera popup label gets the same suffix. On top of that a heartbeat post every `post_interval_s` (15 s)
+  "-> 2/4 in 3 s", and the camera popup label gets the same suffix.
+- Capture and detection run on separate threads. The camera loop grabs
+  frames at the camera's rate and draws the monitor's popup from each one
+  with the last known boxes, up to 15 fps, while YOLO runs on the newest
+  frame it can keep up with. Counts, the hold, posts and the 1 s frame
+  upload keep their cadence. On top of that a heartbeat post every `post_interval_s` (15 s)
   keeps `last_seen` and `updated_at` fresh. The public map subscribes to
   Realtime, so a tile flips about a second after the hold ends. `--confirm 0`
   turns the hold off for testing.

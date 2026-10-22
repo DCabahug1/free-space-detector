@@ -579,7 +579,8 @@ class Monitor:
 
     # ----- camera preview popup -----
 
-    PREVIEW_REFRESH_MS = 150
+    # The capture loop renders up to PREVIEW_FPS frames a second; poll a little faster.
+    PREVIEW_REFRESH_MS = 50
 
     def make_fullscreen(self, win: tk.Misc) -> None:
         """Cover the whole screen. labwc (the Pi's Wayland compositor, which runs

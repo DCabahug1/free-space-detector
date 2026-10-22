@@ -41,6 +41,8 @@ from zones import Confirmer, Zone, ZoneCounter, fetch_zones
 
 # Seconds between attempts to open a missing camera.
 CAMERA_RETRY_S = 3.0
+# The monitor popup redraws from the capture loop at most this often.
+PREVIEW_FPS = 15
 
 log = logging.getLogger("camera-unit")
 
@@ -432,18 +434,21 @@ class Unit:
         )
         if not self.open_camera(detector):
             return 0
+        # Capture runs here at the camera's own rate and feeds the newest
+        # frame to the detection thread, which keeps the counts, the confirm
+        # hold and the posts on their usual cadence. The popup on the monitor
+        # is drawn from every captured frame with the last known boxes, so it
+        # moves at camera rate instead of detection rate.
+        latest = LatestFrame()
+        self._seen = ([], [], {})
+        self._worker_error = None
+        self._once_done = False
+        worker = threading.Thread(target=self.detect_loop, args=(detector, latest), name="detect", daemon=True)
+        worker.start()
         try:
-            next_post = time.time()
             next_frame = time.time()
-            next_log = 0.0
-            frames_since_log = 0
-            # Post on change: a zone's count has to stay the same for
-            # confirm_s seconds (and confirm_frames frames) before it counts,
-            # so a person walking past or one missed detection never flips a
-            # tile. Otherwise a heartbeat post every post_interval_s keeps
-            # last_seen and updated_at fresh.
+            next_preview = 0.0
             while not self.status.stop.is_set():
-                zones = self.current_zones()
                 try:
                     frame = detector.capture()
                 except CameraUnavailable as e:
@@ -451,25 +456,15 @@ class Unit:
                     if not self.open_camera(detector):
                         return 0
                     continue
-                people = detector.detect(frame)
-                feet = [p.foot for p in people]
-                self.status.people = len(people)
-                self.status.frame_at = time.time()
-                latest = self.counter.count(zones, feet)
                 now = time.time()
-                stable, changed = self.confirmer.update(latest, now)
-                self.status.rows = self.zone_rows(zones, stable)
-                self.status.mode = "live"
-                if self.status.preview_open.is_set():
+                self.status.frame_at = now
+                latest.put(frame)
+                people, zones, stable = self._seen
+                if self.status.preview_open.is_set() and now >= next_preview:
                     from overlay import bgr_to_image
 
                     self.update_preview(bgr_to_image(frame), people, zones, stable)
-                frames_since_log += 1
-                if self.args.verbose and now >= next_log:
-                    log.info("frame: %d people, live %s, held %s  (%d fps)", len(feet), describe(zones, latest),
-                             describe(zones, stable), frames_since_log)
-                    next_log = now + 1.0
-                    frames_since_log = 0
+                    next_preview = now + 1.0 / PREVIEW_FPS
 
                 if self.args.show:
                     from detector import draw_people_cv
@@ -483,18 +478,96 @@ class Unit:
                 if now >= next_frame:
                     self.upload_frame(detector.jpeg(frame, people if self.args.overlay else None))
                     next_frame = now + self.cfg.frame_interval_s
-                if changed or now >= next_post:
-                    self.publish(zones, stable)
-                    next_post = now + self.post_interval
-                    if self.args.once:
-                        return 0
+                if self._worker_error is not None:
+                    return 1
+                if self._once_done:
+                    return 0
         finally:
+            latest.close()
+            worker.join(timeout=5.0)
             detector.stop()
             if self.args.show:
                 import cv2
 
                 cv2.destroyAllWindows()
         return 0
+
+    def detect_loop(self, detector, latest: "LatestFrame") -> None:
+        """Runs YOLO on the newest captured frame, then counts, holds, posts.
+        Everything that reads the counts (monitor rows, publish, the preview's
+        boxes) comes from here; the capture loop only draws what it is told."""
+        try:
+            next_post = time.time()
+            next_log = 0.0
+            frames_since_log = 0
+            # Post on change: a zone's count has to stay the same for
+            # confirm_s seconds (and confirm_frames frames) before it counts,
+            # so a person walking past or one missed detection never flips a
+            # tile. Otherwise a heartbeat post every post_interval_s keeps
+            # last_seen and updated_at fresh.
+            while not self.status.stop.is_set():
+                frame = latest.take(timeout=0.5)
+                if frame is None:
+                    continue
+                zones = self.current_zones()
+                people = detector.detect(frame)
+                feet = [p.foot for p in people]
+                self.status.people = len(people)
+                counts = self.counter.count(zones, feet)
+                now = time.time()
+                stable, changed = self.confirmer.update(counts, now)
+                self.status.rows = self.zone_rows(zones, stable)
+                self.status.mode = "live"
+                self._seen = (people, zones, stable)
+                frames_since_log += 1
+                if self.args.verbose and now >= next_log:
+                    log.info("detect: %d people, live %s, held %s  (%d fps)", len(feet), describe(zones, counts),
+                             describe(zones, stable), frames_since_log)
+                    next_log = now + 1.0
+                    frames_since_log = 0
+                if changed or now >= next_post:
+                    self.publish(zones, stable)
+                    next_post = now + self.post_interval
+                    if self.args.once:
+                        self._once_done = True
+                        return
+        except Exception as e:  # noqa: BLE001
+            log.exception("detection stopped: %s", e)
+            self._worker_error = e
+
+
+class LatestFrame:
+    """A one-slot mailbox between the capture loop and the detection thread.
+    put() replaces whatever is waiting, so detection always sees the newest
+    frame and never queues up behind slow inference."""
+
+    def __init__(self) -> None:
+        self._cond = threading.Condition()
+        self._frame = None
+        self._seq = 0
+        self._taken = 0
+        self._closed = False
+
+    def put(self, frame) -> None:
+        with self._cond:
+            self._frame = frame
+            self._seq += 1
+            self._cond.notify()
+
+    def take(self, timeout: float | None = None):
+        """The newest frame not yet taken, or None on timeout or close."""
+        with self._cond:
+            if self._seq == self._taken and not self._closed:
+                self._cond.wait(timeout)
+            if self._closed or self._seq == self._taken:
+                return None
+            self._taken = self._seq
+            return self._frame
+
+    def close(self) -> None:
+        with self._cond:
+            self._closed = True
+            self._cond.notify_all()
 
 
 # ---------------------------------------------------------------------------
