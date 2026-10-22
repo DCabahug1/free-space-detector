@@ -220,7 +220,7 @@ size the admin app draws on.
   or local edits on the Pi that conflict), the footer shows the git error and
   the unit keeps running the old code. Under systemd the restart is just a
   process replacement, so the service stays up.
-- Remote update: "Update code" in the admin app's camera unit menu sets
+- Remote update: "Update" in the admin app's camera unit menu sets
   `camera_units.update_requested_at`. The unit's next `/api/pair/status`
   poll (every `zone_refresh_s`, 20 s) hands the request over and clears it,
   and the unit runs the same updater as Check for updates. Each poll also

@@ -77,7 +77,7 @@ interface UnitListProps {
 // Camera units grouped under collapsible building headers, styled like the
 // public map. Units without an area sit in an Unassigned group at the end.
 // Search box plus an Online / Offline filter above. Each row: thumbnail,
-// name, area, status line, and a menu with Edit and Remove.
+// name, area, status line, and a menu with Details, Edit, Update and Remove.
 export function DeviceCards({ units, rooms }: UnitListProps) {
   const now = useClock();
   const [query, setQuery] = useState("");
@@ -185,6 +185,7 @@ function UnitRow({
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const offline = isOffline(unit.last_seen, now);
@@ -296,9 +297,10 @@ function UnitRow({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setDetailsOpen(true)}>Details</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setEditOpen(true)}>Edit</DropdownMenuItem>
           <DropdownMenuItem onSelect={onUpdate} disabled={pending || offline || unit.update_requested_at !== null}>
-            Update code
+            Update
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => setRemoveOpen(true)}>
             Remove
@@ -340,6 +342,41 @@ function UnitRow({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{unit.name}</DialogTitle>
+            <DialogDescription>Camera unit details.</DialogDescription>
+          </DialogHeader>
+          <dl className="divide-y border-y text-sm">
+            {(
+              [
+                ["Area", unit.room ? `${unit.room.building.name}, ${unit.room.name}` : "Not paired"],
+                ["Status", status],
+                ["Last seen", unit.last_seen ? new Date(unit.last_seen).toLocaleString() : "Never"],
+                ["Sharing", unit.paused ? "Paused" : "On"],
+                ["Pair code", unit.pair_code ?? "None"],
+                ["Version", unit.version ?? "Not reported yet"],
+                [
+                  "Update",
+                  unit.update_requested_at
+                    ? `Requested ${new Date(unit.update_requested_at).toLocaleString()}`
+                    : "None waiting",
+                ],
+                ["Unit id", unit.id],
+              ] as [string, string][]
+            ).map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-4 py-2">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className={cn("break-all", (label === "Pair code" || label === "Version" || label === "Unit id") && "font-mono text-[13px]")}>
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </DialogContent>
       </Dialog>
 
