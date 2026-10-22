@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { deleteTriggerClass } from "@/components/admin/delete-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -143,12 +144,12 @@ export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: Buil
               />
             </APIProvider>
           ) : null}
-          <DialogFooter className="sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
+          <DialogFooter className="flex-row items-center justify-between">
+            <div>
               {building ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button type="button" variant="ghost" className="text-destructive hover:text-destructive">
+                    <Button type="button" variant="outline" className={deleteTriggerClass}>
                       Delete building
                     </Button>
                   </AlertDialogTrigger>
@@ -171,16 +172,9 @@ export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: Buil
                 </AlertDialog>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              {KEY && center ? (
-                <Button type="button" variant="ghost" onClick={() => setCenter(null)}>
-                  Remove location
-                </Button>
-              ) : null}
-              <Button type="submit" disabled={pending}>
-                {pending ? (building ? "Saving" : "Creating") : building ? "Save" : "Create building"}
-              </Button>
-            </div>
+            <Button type="submit" disabled={pending}>
+              {pending ? (building ? "Saving" : "Creating") : building ? "Save" : "Create building"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -430,18 +424,23 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
           aria-hidden
         />
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={placeHere}>
-            Place pin here
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
-            Use my location
-          </Button>
-        </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={placeHere}>
+          Place pin here
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
+          Use my location
+        </Button>
+      </div>
+      <div className="flex h-8 items-center justify-between gap-3">
         <p className="text-[13px] tabular-nums text-muted-foreground">
           {center ? `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}` : "No pin yet"}
         </p>
+        {center ? (
+          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => onChange(null)}>
+            Remove location
+          </Button>
+        ) : null}
       </div>
     </div>
   );

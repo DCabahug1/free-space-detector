@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { deleteTriggerClass } from "@/components/admin/delete-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -151,7 +152,7 @@ export function RoomHeader({ room, buildings, zoneCount, now }: RoomHeaderProps)
         <PublishSwitch roomId={room.id} published={room.published} />
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm">
+            <Button variant="outline" size="sm" className={deleteTriggerClass}>
               Delete
             </Button>
           </AlertDialogTrigger>

@@ -9,6 +9,7 @@ import type { Polygon, Zone, ZoneType } from "@/lib/types";
 import { countText, stateColor, tileState } from "@/lib/occupancy";
 import { type LiveFrame, useLiveFrame } from "@/hooks/use-live-frame";
 import { GripVertical, Info } from "lucide-react";
+import { deleteTriggerClass } from "@/components/admin/delete-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -502,7 +503,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
             />
             <div className="flex items-center justify-between">
               <Button type="submit">Save</Button>
-              <Button type="button" variant="ghost" className="text-muted-foreground" onClick={() => removeZone(selected)}>
+              <Button type="button" variant="outline" className={deleteTriggerClass} onClick={() => removeZone(selected)}>
                 Delete zone
               </Button>
             </div>
