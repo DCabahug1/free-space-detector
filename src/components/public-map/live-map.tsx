@@ -97,10 +97,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
               Reconnecting. Counts from {durationText(live.latestUpdate, live.now) || "never"} ago
             </p>
           ) : (
-            <p className="flex items-center gap-2 text-[13px] text-band-muted">
-              <span className="inline-block size-2 rounded-full bg-band-accent ring-[3px] ring-band-accent/30" aria-hidden />
-              <span>Live seat availability across campus.</span>
-            </p>
+            <p className="text-[13px] text-band-muted">Live seat availability across campus.</p>
           )}
         </Wrap>
       </Band>
