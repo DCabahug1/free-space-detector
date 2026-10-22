@@ -298,9 +298,11 @@ function PreviewStep({
           <h2 className="text-[15px] font-semibold">Ready to publish</h2>
           <dl className="mt-5 divide-y border-y text-sm">
             {rows.map(([label, value, ok]) => (
-              <div key={label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-2">
-                <dt>{label}</dt>
-                <dd className={cn("text-right", ok ? "text-muted-foreground" : "text-state-shared")}>{value}</dd>
+              <div key={label} className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 py-2">
+                <dt className="whitespace-nowrap">{label}</dt>
+                <dd className={cn("min-w-0 break-words text-right", ok ? "text-muted-foreground" : "text-state-shared")}>
+                  {value}
+                </dd>
               </div>
             ))}
           </dl>
