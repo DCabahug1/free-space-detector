@@ -45,13 +45,13 @@ Zone types:
   - Supabase MCP is connected. Use it for migrations. Mirror every migration into `supabase/migrations/` in the repo.
 - Camera unit: Python in `camera-unit/`, Picamera2 + Ultralytics YOLOv8n, person class only.
 
-Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms are names, not coordinates.
+Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms are names, not coordinates. A building carries one lat/lng for the campus map on `/`, set in the admin building dialog (Google Maps via `@vis.gl/react-google-maps`; the map renders nothing without `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`).
 
 ---
 
 ## Schema
 
-- `buildings`: id, name, slug
+- `buildings`: id, name, slug, lat, lng (both nullable, set together)
 - `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen, paused, version (short git hash the unit reports), update_requested_at (set by the admin app, cleared when the unit picks it up)
 - `rooms` (an area in the UI): id, building_id, name, slug (unique per building), description nullable, published bool. `kind` is legacy, ignore it in new UI.
 - `zones`: id, room_id, name, type (seating | line | open), capacity int nullable, polygon jsonb (array of [x, y] in frame pixels)
@@ -110,4 +110,4 @@ Redesign order (follow `docs/DESIGN.md`):
 - Status is text and color, never a dot, square or icon beside it.
 - Small, frequent commits. Work on branches named with standard prefixes (`feat/`, `fix/`, `refactor/`, `chore/`, `docs/`), never `claude/`. Merge to `main` often.
 - Commit as the repo owner only (Duane Cabahug, duanecabahug6@gmail.com). No co-author trailers, no model identifiers in commits.
-- Env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never exposed to the client).
+- Env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never exposed to the client), `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` and optional `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` (campus map; without the key the map block is not rendered).

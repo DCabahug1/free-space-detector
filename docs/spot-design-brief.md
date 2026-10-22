@@ -20,9 +20,9 @@ It is a hackathon project demoed live in a classroom on a projector. Judges will
 
 - **camera unit**: the physical Raspberry Pi with camera and small touchscreen, mounted high in a room corner.
 - **zone**: a hand-drawn polygon over one spot. Has a type and optional capacity.
-- **room**: a named area one camera unit covers, made of zones. Rooms are names, not coordinates. There is no floor plan or geographic map.
+- **room**: a named area one camera unit covers, made of zones. Rooms are names, not coordinates. There is no floor plan. Buildings carry one map point for the campus map.
 - **admin app**: where staff pair camera units and draw zones. Login required.
-- **public map**: what students open. It is a list of room cards with zone tiles, not a geographic map.
+- **public map**: what students open. A campus map with one pin per building in its occupancy color, then a list of room cards with zone tiles.
 - **pair code**: a 6-digit code shown on the camera unit's screen during setup, typed or scanned in the admin app.
 
 Zone types and their states:
