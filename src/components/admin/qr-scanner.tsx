@@ -22,7 +22,10 @@ interface QrScannerProps {
 // works since the digits are picked out of whatever text it decodes to.
 // Needs a secure page (https or localhost) for the camera.
 export function QrScanner({ open, onOpenChange, onCode }: QrScannerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // The dialog mounts its content a moment after open flips, so the video
+  // element arrives through a callback ref and the camera starts when it
+  // does, not on the open flag alone.
+  const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The parent re-renders every second with the clock and hands down a new
   // onCode each time. Reading it through a ref keeps the camera stream
@@ -33,9 +36,7 @@ export function QrScanner({ open, onOpenChange, onCode }: QrScannerProps) {
   }, [onCode]);
 
   useEffect(() => {
-    if (!open) return;
-    const video = videoRef.current;
-    if (!video) return;
+    if (!open || !video) return;
     let stream: MediaStream | null = null;
     let frame = 0;
     let done = false;
@@ -92,7 +93,7 @@ export function QrScanner({ open, onOpenChange, onCode }: QrScannerProps) {
       stream?.getTracks().forEach((t) => t.stop());
       video.srcObject = null;
     };
-  }, [open]);
+  }, [open, video]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -102,7 +103,7 @@ export function QrScanner({ open, onOpenChange, onCode }: QrScannerProps) {
           <DialogDescription>Point the camera at the QR on the camera unit&apos;s screen.</DialogDescription>
         </DialogHeader>
         <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
-          <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover" playsInline muted autoPlay />
+          <video ref={setVideo} className="absolute inset-0 h-full w-full object-cover" playsInline muted autoPlay />
           {error ? (
             <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-[13px] text-muted-foreground">
               {error}
