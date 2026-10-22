@@ -30,7 +30,6 @@ interface BuildingDialogProps {
 }
 
 const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID";
 const WORLD: LatLng = { lat: 37.3352, lng: -121.8811 };
 
 // Pencil on a building header: rename it and set its map location, by
@@ -200,11 +199,11 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
       </div>
       <div className="relative h-[240px] w-full overflow-hidden rounded-lg border border-building-border bg-muted">
         <Map
-          mapId={MAP_ID}
           defaultCenter={start}
           defaultZoom={startZoom}
           gestureHandling="greedy"
           clickableIcons={false}
+          streetViewControl={false}
           className="h-full w-full"
           onDragstart={() => setPlaced(true)}
           onCameraChanged={(e) => {

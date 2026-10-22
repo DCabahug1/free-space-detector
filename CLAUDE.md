@@ -110,4 +110,4 @@ Redesign order (follow `docs/DESIGN.md`):
 - Status is text and color, never a dot, square or icon beside it.
 - Small, frequent commits. Work on branches named with standard prefixes (`feat/`, `fix/`, `refactor/`, `chore/`, `docs/`), never `claude/`. Merge to `main` often.
 - Commit as the repo owner only (Duane Cabahug, duanecabahug6@gmail.com). No co-author trailers, no model identifiers in commits.
-- Env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never exposed to the client), `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` and optional `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` (campus map; without the key the map block is not rendered).
+- Env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never exposed to the client), `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (campus map; without the key the map block is not rendered).

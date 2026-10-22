@@ -56,33 +56,34 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   // A pin tap on the map opens that building in the All buildings list.
   const [focus, setFocus] = useState<{ id: string; tick: number } | null>(null);
 
-  // Nearest kept from an earlier visit: ask for the position again. The
-  // browser remembers the answer, so there is no second prompt.
+  // The position is asked for on load so the map can center on the
+  // person; the browser remembers the answer. Nearest kept from an earlier
+  // visit falls back to free seats quietly when location is off.
   const nearest = sort === "nearest";
   const { status: geoStatus, request: requestGeo } = geo;
   useEffect(() => {
-    if (nearest && geoStatus === "idle") requestGeo();
-  }, [nearest, geoStatus, requestGeo]);
+    requestGeo();
+  }, [requestGeo]);
   useEffect(() => {
-    if (!nearest) return;
-    if (geoStatus === "denied") {
-      toast("Location is off for this site.");
-      setSort("free");
-    } else if (geoStatus === "unavailable") {
-      toast("Location is not available.");
-      setSort("free");
-    }
+    if (nearest && (geoStatus === "denied" || geoStatus === "unavailable")) setSort("free");
   }, [nearest, geoStatus, setSort]);
-  const position = nearest ? geo.position : null;
+  const position = geo.position;
 
   function toggleNearest() {
     if (nearest) {
       setSort("free");
-      geo.stop();
-    } else {
-      setSort("nearest");
-      geo.request();
+      return;
     }
+    if (geoStatus === "denied") {
+      toast("Location is off for this site.");
+      return;
+    }
+    if (geoStatus === "unavailable") {
+      toast("Location is not available.");
+      return;
+    }
+    setSort("nearest");
+    if (geoStatus === "idle") requestGeo();
   }
 
   // Per room: free seats and whether its camera unit is offline.
@@ -110,12 +111,14 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   // Areas within a building: pinned, then free seats (most first), then
   // occupied, then offline. Buildings: by distance while Nearest is on,
   // otherwise offline last and free seats first. Pins have their own list.
-  const groups = (() => {
+  const buildGroups = (list: PublicRoom[]) => {
     const byBuilding = new Map<string, { building: Building; rooms: PublicRoom[] }>();
-    for (const room of visible) {
-      const g = byBuilding.get(room.building_id) ?? { building: room.building, rooms: [] };
-      g.rooms.push(room);
-      byBuilding.set(room.building_id, g);
+    for (const room of list) {
+      const g = byBuilding.get(room.building_id);
+      byBuilding.set(room.building_id, {
+        building: room.building,
+        rooms: g ? [...g.rooms, room] : [room],
+      });
     }
     const freeOf = (r: PublicRoom) => stats.get(r.id)?.free ?? 0;
     const pinOf = (r: PublicRoom) => (isPinned(r.id) ? 1 : 0);
@@ -141,17 +144,22 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
         pinned: isBuildingPinned(b.id),
       };
     });
-  })();
+  };
+  const groups = buildGroups(visible);
+  const byNearest = nearest && position != null;
   const sortGroups = (list: Group[]) =>
     [...list].sort((a, b) =>
-      position
+      byNearest
         ? (a.distance ?? Infinity) - (b.distance ?? Infinity) || a.building.name.localeCompare(b.building.name)
         : Number(a.offline) - Number(b.offline) || b.free - a.free || a.building.name.localeCompare(b.building.name)
     );
   const allGroups = sortGroups(groups);
   const pinnedGroups = sortGroups(groups.filter((g) => g.pinned));
 
-  const pins: MapPin[] = allGroups.flatMap((g) =>
+  // Every located building goes to the map. A search or Free now hides
+  // the pins it leaves out; the map itself stays.
+  const visibleBuildings = new Set(visible.map((r) => r.building_id));
+  const pins: MapPin[] = buildGroups(rooms).flatMap((g) =>
     g.building.lat != null && g.building.lng != null
       ? [
           {
@@ -162,6 +170,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
             state: g.state,
             free: g.free,
             offline: g.offline,
+            shown: visibleBuildings.has(g.building.id),
           },
         ]
       : []
@@ -225,6 +234,11 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           <CampusMap
             pins={pins}
             position={position}
+            onRequestPosition={() => {
+              if (geoStatus === "denied") toast("Location is off for this site.");
+              else if (geoStatus === "unavailable") toast("Location is not available.");
+              else requestGeo();
+            }}
             onSelect={(id) => setFocus((f) => ({ id, tick: (f?.tick ?? 0) + 1 }))}
           />
 
@@ -247,10 +261,10 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
               <Button
                 variant={nearest ? "default" : "outline"}
                 aria-pressed={nearest}
-                disabled={nearest && geo.status === "locating"}
+                disabled={nearest && geoStatus === "locating"}
                 onClick={toggleNearest}
               >
-                {nearest && geo.status === "locating" ? "Finding you" : "Nearest"}
+                {nearest && geoStatus === "locating" ? "Finding you" : "Nearest"}
               </Button>
             </div>
           </div>
