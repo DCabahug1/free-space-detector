@@ -103,6 +103,9 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
         }
       }
     }
+    // Right away as well: a zone drawn a moment ago, or a page opened from
+    // a stale snapshot, gets current counts without waiting a full interval.
+    void poll();
     const pollTimer = setInterval(poll, POLL_MS);
     return () => {
       clearInterval(pollTimer);

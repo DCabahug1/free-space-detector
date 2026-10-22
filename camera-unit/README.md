@@ -107,7 +107,7 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | `confirm_s` | `CONFIRM_S` | 5 |
 | `confirm_frames` | `CONFIRM_FRAMES` | 2 |
 | `frame_interval_s` | `FRAME_INTERVAL_S` | 1 |
-| `zone_refresh_s` | `ZONE_REFRESH_S` | 20 |
+| `zone_refresh_s` | `ZONE_REFRESH_S` | 10 |
 | `pair_poll_s` | `PAIR_POLL_S` | 3 |
 | `dwell_s` | `DWELL_S` | 0 |
 | `frame_width` / `frame_height` | `FRAME_WIDTH` / `FRAME_HEIGHT` | 1280 / 720 |

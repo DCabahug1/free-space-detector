@@ -1,22 +1,23 @@
 "use client";
 
-import type { PublicRoom, ZoneCount } from "@/lib/types";
+import type { PublicRoom } from "@/lib/types";
 import { clockTime, durationText, freeSeats, relativeTime, roomSummary } from "@/lib/occupancy";
 import { usePins } from "@/lib/pins";
-import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
+import type { LiveSnapshot } from "@/hooks/use-live-snapshot";
 import { cn } from "@/lib/utils";
 import { ZoneTile } from "./zone-tile";
 
 interface RoomViewProps {
   room: PublicRoom;
-  initialCounts: ZoneCount[];
+  // The setup page's own live snapshot, so the preview shows exactly what
+  // the zone editor showed a moment ago.
+  live: LiveSnapshot;
 }
 
 // The setup page's preview: the area as the public map shows it, in a
 // narrow column with no buttons. The area page itself is gone; its old URL
 // redirects to the map.
-export function RoomView({ room, initialCounts }: RoomViewProps) {
-  const live = useLiveSnapshot([room], initialCounts);
+export function RoomView({ room, live }: RoomViewProps) {
   const { isZonePinned } = usePins();
   const heartbeat = live.heartbeat(room);
   // A unit that paused sharing reads as offline here. Only the admin says paused.

@@ -32,7 +32,7 @@ DEFAULTS = {
     "confirm_s": 5,
     "confirm_frames": 2,
     "frame_interval_s": 1,
-    "zone_refresh_s": 20,
+    "zone_refresh_s": 10,
     "pair_poll_s": 3,
     "dwell_s": 0,
     "frame_width": 1280,

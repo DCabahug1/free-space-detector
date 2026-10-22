@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { setRoomPublished } from "@/app/admin/actions";
 import type { Building, PublicRoom, Zone, ZoneCount } from "@/lib/types";
 import { durationText, isOffline } from "@/lib/occupancy";
-import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
+import { useLiveSnapshot, type LiveSnapshot } from "@/hooks/use-live-snapshot";
 import { useLiveFrame, type LiveFrame } from "@/hooks/use-live-frame";
 import { StepRail, type Step } from "@/components/admin/step-rail";
 import { RoomView } from "@/components/public-map/room-view";
@@ -107,7 +107,7 @@ export function SetupPage({ room, buildings, initialCounts, liveFrame, units }: 
           ) : (
             <div className="space-y-5">
               <StepHeader n={4} title="Preview and publish" caption="What students see on the map." />
-              <PreviewStep room={liveRoom} initialCounts={initialCounts} unitOnline={unitOnline} />
+              <PreviewStep room={liveRoom} live={live} unitOnline={unitOnline} />
             </div>
           )}
         </div>
@@ -250,11 +250,11 @@ function PairStep({
 
 function PreviewStep({
   room,
-  initialCounts,
+  live,
   unitOnline,
 }: {
   room: PublicRoom;
-  initialCounts: ZoneCount[];
+  live: LiveSnapshot;
   unitOnline: boolean;
 }) {
   const router = useRouter();
@@ -291,7 +291,7 @@ function PreviewStep({
   return (
     <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-12">
       <div className="rounded-lg border bg-background p-4">
-        <RoomView room={room} initialCounts={initialCounts} />
+        <RoomView room={room} live={live} />
       </div>
       <div className="space-y-6">
         <div>
