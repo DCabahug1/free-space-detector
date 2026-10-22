@@ -5,7 +5,7 @@ import { clockTime, durationText, freeSeats, relativeTime, roomSummary } from "@
 import { usePins } from "@/lib/pins";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
 import { cn } from "@/lib/utils";
-import { ZoneTile, sortPinnedFirst } from "./zone-tile";
+import { ZoneTile } from "./zone-tile";
 
 interface RoomViewProps {
   room: PublicRoom;
@@ -71,7 +71,7 @@ export function RoomView({ room, initialCounts }: RoomViewProps) {
         <div
           className="grid grid-cols-2 gap-1.5"
         >
-          {sortPinnedFirst(room.zones, isZonePinned).map((zone) => (
+          {room.zones.map((zone) => (
             <ZoneTile
               key={zone.id}
               zone={zone}

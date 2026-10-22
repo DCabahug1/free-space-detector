@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createZone, deleteZone, updateZone, type ZoneInput } from "@/app/admin/actions";
+import { createZone, deleteZone, reorderZones, updateZone, type ZoneInput } from "@/app/admin/actions";
+import { useDragReorder } from "@/hooks/use-drag-reorder";
 import type { Polygon, Zone, ZoneType } from "@/lib/types";
 import { countText, stateColor, tileState } from "@/lib/occupancy";
 import { type LiveFrame, useLiveFrame } from "@/hooks/use-live-frame";
-import { Info } from "lucide-react";
+import { GripVertical, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,6 +164,23 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
 
   // Commits the server's view of the zones together with the local override,
   // so nothing flickers back to the old row while the refresh is in flight.
+  // Dragged order: shown at once, then saved. The map follows the same order.
+  const zoneIds = zones.map((z) => z.id);
+  const reorder = useDragReorder(zoneIds, (ids) => {
+    const byId = new Map(zones.map((z) => [z.id, z]));
+    const next = ids.map((id, i) => ({ ...byId.get(id)!, sort_order: i }));
+    onZonesChange(next);
+    startTransition(async () => {
+      const result = await reorderZones(roomId, ids);
+      if (result.error) {
+        toast(result.error);
+        onZonesChange(zones);
+        return;
+      }
+      router.refresh();
+    });
+  });
+
   function reconcile(next: Zone[]) {
     startTransition(() => {
       onZonesChange(next);
@@ -175,7 +193,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
     if (!pendingPolygon) return;
     const input = toInput(fields, pendingPolygon);
     const tempId = `tmp-${Date.now()}`;
-    const optimistic: Zone = { id: tempId, room_id: roomId, ...input };
+    const optimistic: Zone = { id: tempId, room_id: roomId, sort_order: zones.length, ...input };
     const before = zones;
     onZonesChange([...zones, optimistic]);
     setPendingPolygon(null);
@@ -374,11 +392,47 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
           <p className="text-sm text-muted-foreground">No zones yet. Draw the first one.</p>
         ) : (
           <ul className="flex flex-col">
-            {zones.map((zone) => {
+            {zones.map((zone, i) => {
               const active = zone.id === selectedId && !pendingPolygon;
               const raw = counts[zone.id];
+              const canDrag = zones.length > 1 && !zone.id.startsWith("tmp-");
               return (
-                <li key={zone.id}>
+                <li
+                  key={zone.id}
+                  {...(canDrag ? reorder.itemProps(zone.id) : {})}
+                  className={cn(
+                    "relative grid grid-cols-[auto_minmax(0,1fr)] items-center",
+                    reorder.dragging === zone.id && "opacity-50",
+                    reorder.over === zone.id && "before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary"
+                  )}
+                >
+                  {canDrag ? (
+                    <span className="flex items-center text-muted-foreground">
+                      <GripVertical className="size-4 cursor-grab" aria-hidden />
+                      <span className="flex flex-col">
+                        <button
+                          type="button"
+                          className="h-3.5 w-4 text-[9px] leading-none hover:text-foreground disabled:opacity-30"
+                          aria-label={`Move ${zone.name} up`}
+                          disabled={i === 0}
+                          onClick={() => reorder.move(zone.id, -1)}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          className="h-3.5 w-4 text-[9px] leading-none hover:text-foreground disabled:opacity-30"
+                          aria-label={`Move ${zone.name} down`}
+                          disabled={i === zones.length - 1}
+                          onClick={() => reorder.move(zone.id, 1)}
+                        >
+                          ▼
+                        </button>
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="w-4" />
+                  )}
                   <button
                     type="button"
                     onClick={() => select(active ? null : zone.id)}

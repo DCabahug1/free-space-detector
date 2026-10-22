@@ -75,6 +75,10 @@ export async function createRoom(input: RoomInput): Promise<ActionResult & { id?
   }
   const supabase = await createClient();
   const slug = await uniqueRoomSlug(supabase, parsed.data.buildingId, parsed.data.name);
+  const { count } = await supabase
+    .from("rooms")
+    .select("id", { count: "exact", head: true })
+    .eq("building_id", parsed.data.buildingId);
   const { data, error } = await supabase
     .from("rooms")
     .insert({
@@ -82,6 +86,7 @@ export async function createRoom(input: RoomInput): Promise<ActionResult & { id?
       name: parsed.data.name,
       slug,
       description: parsed.data.description || null,
+      sort_order: count ?? 0,
     })
     .select("id")
     .single();
@@ -179,6 +184,36 @@ export async function updateBuilding(buildingId: string, input: BuildingInput): 
   return {};
 }
 
+const idList = z.array(z.string().uuid()).min(1).max(200);
+
+// Stores the dragged order of a building's areas: position = index.
+export async function reorderRooms(buildingId: string, roomIds: string[]): Promise<ActionResult> {
+  const parsed = idList.safeParse(roomIds);
+  if (!parsed.success) return { error: "Invalid order." };
+  const supabase = await createClient();
+  for (const [i, id] of parsed.data.entries()) {
+    const { error } = await supabase.from("rooms").update({ sort_order: i }).eq("id", id).eq("building_id", buildingId);
+    if (error) return { error: error.message };
+  }
+  revalidatePath("/admin");
+  revalidatePath("/");
+  return {};
+}
+
+// Stores the dragged order of an area's zones: position = index.
+export async function reorderZones(roomId: string, zoneIds: string[]): Promise<ActionResult> {
+  const parsed = idList.safeParse(zoneIds);
+  if (!parsed.success) return { error: "Invalid order." };
+  const supabase = await createClient();
+  for (const [i, id] of parsed.data.entries()) {
+    const { error } = await supabase.from("zones").update({ sort_order: i }).eq("id", id).eq("room_id", roomId);
+    if (error) return { error: error.message };
+  }
+  revalidatePath(`/admin/areas/${roomId}`);
+  revalidatePath("/");
+  return {};
+}
+
 // Deletes a building with its areas. Zones and counts cascade with the
 // areas; camera units paired there stay registered, unpaired.
 export async function deleteBuilding(buildingId: string): Promise<ActionResult> {
@@ -258,9 +293,10 @@ export async function createZone(
   }
 
   const supabase = await createClient();
+  const { count } = await supabase.from("zones").select("id", { count: "exact", head: true }).eq("room_id", roomId);
   const { data: row, error: dbError } = await supabase
     .from("zones")
-    .insert({ room_id: roomId, ...data })
+    .insert({ room_id: roomId, ...data, sort_order: count ?? 0 })
     .select("id")
     .single();
   if (dbError) return { error: dbError.message };

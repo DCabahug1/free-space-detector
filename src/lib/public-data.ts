@@ -18,7 +18,8 @@ export async function loadPublicSnapshot(
 ): Promise<PublicSnapshot> {
   let roomQuery = supabase
     .from("rooms")
-    .select("id, building_id, name, slug, description, published, buildings(id, name, slug, lat, lng)")
+    .select("id, building_id, name, slug, description, published, sort_order, buildings(id, name, slug, lat, lng)")
+    .order("sort_order")
     .order("name");
   if (filter?.roomId) roomQuery = roomQuery.eq("id", filter.roomId);
   if (filter?.roomSlug) roomQuery = roomQuery.eq("slug", filter.roomSlug);
@@ -40,8 +41,9 @@ export async function loadPublicSnapshot(
   const [{ data: zones }, { data: units }] = await Promise.all([
     supabase
       .from("zones")
-      .select("id, room_id, name, type, capacity, polygon")
+      .select("id, room_id, name, type, capacity, polygon, sort_order")
       .in("room_id", roomIds)
+      .order("sort_order")
       .order("created_at"),
     supabase
       .from("camera_units")
@@ -63,6 +65,7 @@ export async function loadPublicSnapshot(
     slug: r.slug,
     description: r.description,
     published: r.published,
+    sort_order: r.sort_order,
     building: r.building,
     zones: zoneList.filter((z) => z.room_id === r.id),
     units: unitList

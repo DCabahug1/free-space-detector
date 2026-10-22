@@ -21,6 +21,8 @@ export interface Room {
   slug: string;
   description: string | null;
   published: boolean;
+  // Position within the building, set by drag in the admin app.
+  sort_order: number;
 }
 
 export interface Zone {
@@ -30,6 +32,8 @@ export interface Zone {
   type: ZoneType;
   capacity: number | null;
   polygon: Polygon;
+  // Position within the area, set by drag in the admin app.
+  sort_order: number;
 }
 
 export interface ZoneCount {

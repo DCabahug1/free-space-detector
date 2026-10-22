@@ -8,7 +8,7 @@ import { freeSeats, roomSummary } from "@/lib/occupancy";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PinButton } from "./pin-button";
-import { ZoneTile, sortPinnedFirst } from "./zone-tile";
+import { ZoneTile } from "./zone-tile";
 import { Highlight } from "@/components/highlight";
 
 interface RoomRowProps {
@@ -31,8 +31,8 @@ interface RoomRowProps {
 
 // One directory row: name and summary caption, then the pin, free count,
 // and a chevron that opens the area's spots as tiles beneath the row.
-// Closed by default. Pinned spots come first in the tiles. The name opens
-// the row too. Hairlines come from the parent (divide-y).
+// Closed by default. Spots keep the admin's order. The name opens the row
+// too. Hairlines come from the parent (divide-y).
 export function RoomRow({
   room,
   counts,
@@ -106,7 +106,7 @@ export function RoomRow({
       </div>
       {open && hasZones ? (
         <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
-          {sortPinnedFirst(room.zones, isZonePinned).map((zone) => (
+          {room.zones.map((zone) => (
             <ZoneTile
               key={zone.id}
               zone={zone}

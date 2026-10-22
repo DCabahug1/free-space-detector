@@ -96,7 +96,3 @@ export function ZoneTile({ zone, count, offlineFor, size = "sm", pinned = false,
   );
 }
 
-// Pinned zones first, the rest in their drawn order.
-export function sortPinnedFirst(zones: Zone[], isZonePinned: (id: string) => boolean): Zone[] {
-  return [...zones].sort((a, b) => Number(isZonePinned(b.id)) - Number(isZonePinned(a.id)));
-}

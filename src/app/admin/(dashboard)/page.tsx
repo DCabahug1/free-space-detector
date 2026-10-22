@@ -33,6 +33,7 @@ type RoomRow = {
   slug: string;
   description: string | null;
   published: boolean;
+  sort_order: number;
   buildings: Building | Building[] | null;
   zones: { count: number }[];
   camera_units: { id: string; name: string; last_seen: string | null; paused: boolean }[];
@@ -65,8 +66,9 @@ async function Overview({ searchParams }: OverviewProps) {
     supabase
       .from("rooms")
       .select(
-        "id, building_id, name, slug, description, published, buildings(id, name, slug, lat, lng), zones(count), camera_units(id, name, last_seen, paused)"
+        "id, building_id, name, slug, description, published, sort_order, buildings(id, name, slug, lat, lng), zones(count), camera_units(id, name, last_seen, paused)"
       )
+      .order("sort_order")
       .order("name"),
     supabase
       .from("camera_units")
@@ -97,6 +99,7 @@ async function Overview({ searchParams }: OverviewProps) {
         slug: r.slug,
         description: r.description,
         published: r.published,
+        sort_order: r.sort_order,
         building,
         zoneCount: r.zones?.[0]?.count ?? 0,
         units: r.camera_units ?? [],

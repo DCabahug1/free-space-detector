@@ -109,9 +109,9 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     );
   });
 
-  // Areas within a building: pinned, then free seats (most first), then
-  // occupied, then offline. Buildings: by distance while Nearest is on,
-  // otherwise offline last and free seats first. Pins have their own list.
+  // Areas within a building keep the admin's order. Buildings: by distance
+  // while Nearest is on, otherwise offline last and free seats first. Pins
+  // have their own list.
   const buildGroups = (list: PublicRoom[]) => {
     const byBuilding = new Map<string, { building: Building; rooms: PublicRoom[] }>();
     for (const room of list) {
@@ -122,7 +122,6 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       });
     }
     const freeOf = (r: PublicRoom) => stats.get(r.id)?.free ?? 0;
-    const pinOf = (r: PublicRoom) => (isPinned(r.id) ? 1 : 0);
     const offlineOf = (r: PublicRoom) => (stats.get(r.id)?.offlineFor != null ? 1 : 0);
     return [...byBuilding.values()].map((g): Group => {
       const offline = g.rooms.every((r) => offlineOf(r) === 1);
@@ -130,13 +129,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       const b = g.building;
       return {
         building: b,
-        rooms: [...g.rooms].sort(
-          (a, c) =>
-            pinOf(c) - pinOf(a) ||
-            offlineOf(a) - offlineOf(c) ||
-            freeOf(c) - freeOf(a) ||
-            a.name.localeCompare(c.name)
-        ),
+        rooms: [...g.rooms].sort((a, c) => a.sort_order - c.sort_order || a.name.localeCompare(c.name)),
         free: g.rooms.reduce((sum, r) => sum + freeOf(r), 0),
         offline,
         state: buildingState(liveZones, live.countNumbers, offline),
@@ -394,12 +387,18 @@ function BuildingGroup({
       ref={ref}
       className="scroll-mt-4 overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground"
     >
-      {/* After a pin tap the header background pulses once. The key replays
-          the animation when the same pin is tapped again. */}
+      {/* The whole header toggles the group, like an area row. The pin and
+          the chevron stop the click so they keep their own jobs. After a
+          pin tap the header background pulses once; the key replays the
+          animation when the same pin is tapped again. */}
       <div
         key={focus ?? 0}
+        onClick={() => {
+          if (!forceOpen) setOpened((o) => !o);
+        }}
         className={cn(
           "grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground",
+          !forceOpen && "cursor-pointer",
           focus != null && "animate-[header-pulse_900ms_ease-out]"
         )}
       >
@@ -433,7 +432,10 @@ function BuildingGroup({
           aria-label={open ? `Hide areas in ${name}` : `Show areas in ${name}`}
           aria-expanded={open}
           disabled={forceOpen}
-          onClick={() => setOpened((o) => !o)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpened((o) => !o);
+          }}
         >
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
         </Button>
