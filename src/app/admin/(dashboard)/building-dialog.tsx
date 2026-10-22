@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { APIProvider, Map, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 import { Crosshair, Pencil } from "lucide-react";
@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface BuildingDialogProps {
   // Without a building the dialog creates one, from the "Add a building"
@@ -196,11 +197,86 @@ interface LocationPickerProps {
   onChange: (center: LatLng | null) => void;
 }
 
+interface Suggestion {
+  id: string;
+  main: string;
+  secondary: string;
+  prediction: google.maps.places.PlacePrediction;
+}
+
 function LocationPicker({ id, saved, center, fallbackCenter, onChange }: LocationPickerProps) {
   const map = useMap();
   const geocoding = useMapsLibrary("geocoding");
+  const places = useMapsLibrary("places");
   const [address, setAddress] = useState("");
   const [finding, setFinding] = useState(false);
+  // Place suggestions under the Address field as the admin types. One
+  // session token per search so Google bills the keystrokes as one lookup.
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [listOpen, setListOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const sessionToken = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  const listId = useId();
+
+  useEffect(() => {
+    const input = address.trim();
+    if (!places || input.length < 3) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        sessionToken.current ??= new places.AutocompleteSessionToken();
+        const bounds = map?.getBounds();
+        const { suggestions: found } = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+          input,
+          sessionToken: sessionToken.current,
+          ...(bounds ? { locationBias: bounds } : {}),
+        });
+        if (cancelled) return;
+        setSuggestions(
+          found.flatMap((s) =>
+            s.placePrediction
+              ? [
+                  {
+                    id: s.placePrediction.placeId,
+                    main: s.placePrediction.mainText?.text ?? s.placePrediction.text.text,
+                    secondary: s.placePrediction.secondaryText?.text ?? "",
+                    prediction: s.placePrediction,
+                  },
+                ]
+              : []
+          )
+        );
+        setListOpen(true);
+        setActive(-1);
+      } catch {
+        // Places API not enabled for the key, or offline: Find still works.
+        if (!cancelled) setSuggestions([]);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [address, places, map]);
+
+  async function pick(s: Suggestion) {
+    setListOpen(false);
+    setAddress(`${s.main}${s.secondary ? `, ${s.secondary}` : ""}`);
+    setSuggestions([]);
+    sessionToken.current = null;
+    try {
+      const place = s.prediction.toPlace();
+      await place.fetchFields({ fields: ["location"] });
+      const loc = place.location;
+      if (!loc) {
+        toast("No match for that address.");
+        return;
+      }
+      moveTo({ lat: loc.lat(), lng: loc.lng() });
+    } catch {
+      toast("No match for that address.");
+    }
+  }
   // Dragging, Find and Use my location all place the point. Until then
   // the map can move without setting a location.
   const [placed, setPlaced] = useState(saved != null);
@@ -251,19 +327,74 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
       <div className="space-y-2">
         <Label htmlFor={`building-address-${id}`}>Address</Label>
         <div className="flex gap-2">
-          <Input
-            id={`building-address-${id}`}
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void find();
-              }
-            }}
-            placeholder="Street, city"
-            autoComplete="off"
-          />
+          <div className="relative min-w-0 flex-1">
+            <Input
+              id={`building-address-${id}`}
+              value={address}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                if (e.target.value.trim().length < 3) {
+                  setSuggestions([]);
+                  setListOpen(false);
+                }
+              }}
+              onFocus={() => suggestions.length > 0 && setListOpen(true)}
+              onBlur={() => setListOpen(false)}
+              onKeyDown={(e) => {
+                const open = listOpen && suggestions.length > 0;
+                if (e.key === "ArrowDown" && open) {
+                  e.preventDefault();
+                  setActive((i) => (i + 1) % suggestions.length);
+                } else if (e.key === "ArrowUp" && open) {
+                  e.preventDefault();
+                  setActive((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+                } else if (e.key === "Escape" && open) {
+                  e.preventDefault();
+                  setListOpen(false);
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (open && active >= 0) void pick(suggestions[active]);
+                  else void find();
+                }
+              }}
+              placeholder="Street, city"
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={listOpen && suggestions.length > 0}
+              aria-controls={listId}
+              aria-autocomplete="list"
+            />
+            {listOpen && suggestions.length > 0 ? (
+              <ul
+                id={listId}
+                role="listbox"
+                aria-label="Address suggestions"
+                className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+              >
+                {suggestions.map((s, i) => (
+                  <li
+                    key={s.id}
+                    role="option"
+                    aria-selected={i === active}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      void pick(s);
+                    }}
+                    onMouseEnter={() => setActive(i)}
+                    className={cn(
+                      "cursor-pointer rounded-sm px-2 py-1.5 text-sm",
+                      i === active && "bg-accent text-accent-foreground"
+                    )}
+                  >
+                    <span className="block truncate">{s.main}</span>
+                    {s.secondary ? (
+                      <span className="block truncate text-[13px] text-muted-foreground">{s.secondary}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <Button type="button" variant="outline" onClick={find} disabled={finding || !geocoding}>
             {finding ? "Finding" : "Find"}
           </Button>
@@ -292,7 +423,7 @@ function LocationPicker({ id, saved, center, fallbackCenter, onChange }: Locatio
         <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
           Use my location
         </Button>
-        <p className="font-mono text-[13px] tabular-nums text-muted-foreground">
+        <p className="text-[13px] tabular-nums text-muted-foreground">
           {center ? `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}` : "No location"}
         </p>
       </div>
