@@ -32,12 +32,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown api_key" }, { status: 401 });
   }
 
-  if (parsed.data.version) {
+  // Skip the write when the stored hash already matches. A null stored
+  // value never passes neq, so it is matched on its own.
+  const version = parsed.data.version?.replace(/[^0-9a-f]/gi, "");
+  if (version) {
     await supabase
       .from("camera_units")
-      .update({ version: parsed.data.version })
+      .update({ version })
       .eq("id", unit.id)
-      .neq("version", parsed.data.version);
+      .or(`version.is.null,version.neq.${version}`);
   }
 
   // An admin asked for a code update. Handing it over clears the request,
