@@ -51,7 +51,12 @@ def register(server_url: str) -> dict:
     return _post_json(f"{server_url}/api/pair/register", {})
 
 
-def pair_status(server_url: str, api_key: str, sharing: bool = True) -> dict:
+def pair_status(server_url: str, api_key: str, sharing: bool = True, version: str = "") -> dict:
     """Returns paired (bool) plus room_id, room_name and building_name once an
-    admin assigned an area. sharing=False tells the server the unit paused."""
-    return _post_json(f"{server_url}/api/pair/status", {"api_key": api_key, "sharing": sharing})
+    admin assigned an area, and update_requested when an admin asked for a
+    code update. sharing=False tells the server the unit paused. version is
+    the running code's short git hash, shown in the admin app."""
+    body = {"api_key": api_key, "sharing": sharing}
+    if version:
+        body["version"] = version
+    return _post_json(f"{server_url}/api/pair/status", body)

@@ -177,6 +177,12 @@ size the admin app draws on.
    loginctl enable-linger $USER
    journalctl --user -u camera-unit -f
    ```
+7. Desktop shortcut to start it again after Quit: copy
+   `camera-unit.desktop` to `~/Desktop` and mark it executable. It runs
+   `systemctl --user start camera-unit.service`.
+   ```bash
+   cp camera-unit.desktop ~/Desktop/ && chmod +x ~/Desktop/camera-unit.desktop
+   ```
 
 ## Behavior notes
 
@@ -199,7 +205,10 @@ size the admin app draws on.
   that photo with the fake counts, handy for testing the monitor on a laptop.
 
 - The Settings button (on the live and pairing screens) opens Check for
-  updates, Refresh zones, Pause sharing, Reboot and Power off. Pause sharing
+  updates, Refresh zones, Pause sharing, Reboot, Power off and Quit. Quit
+  asks first, then stops the user service (`systemctl --user stop`), so
+  `Restart=always` does not bring it back; outside systemd it just exits.
+  The desktop shortcut or a reboot starts it again. Pause sharing
   stops posting counts and frames until Resume sharing; the area reads
   offline on the map after a minute. Reboot and Power off ask first,
   then run `systemctl reboot` or `systemctl poweroff` (`sudo -n` as the
@@ -211,6 +220,12 @@ size the admin app draws on.
   or local edits on the Pi that conflict), the footer shows the git error and
   the unit keeps running the old code. Under systemd the restart is just a
   process replacement, so the service stays up.
+- Remote update: "Update code" in the admin app's camera unit menu sets
+  `camera_units.update_requested_at`. The unit's next `/api/pair/status`
+  poll (every `zone_refresh_s`, 20 s) hands the request over and clears it,
+  and the unit runs the same updater as Check for updates. Each poll also
+  reports the running short git hash, which the admin app shows beside the
+  status line.
 - Zones are fetched with the anon key, which RLS allows for published rooms.
   An unpublished room returns no zones. Re-fetched every 20 seconds, so zones drawn in the admin app go live fast, and the
   server is asked which room the unit belongs to on the same schedule, so an

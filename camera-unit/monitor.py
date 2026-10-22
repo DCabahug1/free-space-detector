@@ -103,6 +103,10 @@ class Monitor:
             return
         try:
             self.render()
+            if self.status.update_requested.is_set():
+                self.status.update_requested.clear()
+                if not self._updating:
+                    self.start_update()
         except tk.TclError:
             return
         self.root.after(self.refresh_ms, self.tick)
@@ -395,7 +399,8 @@ class Monitor:
     # ----- settings screen -----
 
     def open_settings(self) -> None:
-        """Fullscreen overlay: Check for updates, Refresh zones, Reboot, Power off."""
+        """Fullscreen overlay: Check for updates, Refresh zones, Pause sharing,
+        Reboot, Power off, Quit."""
         if self._settings is not None:
             return
         pad = self.px(24)
@@ -447,6 +452,9 @@ class Monitor:
             ("Power off", lambda: self.confirm("Power off the camera unit?",
                                                "Unplug it after the screen goes dark.", "Power off",
                                                self.do_poweroff)),
+            ("Quit", lambda: self.confirm("Quit the camera unit?",
+                                          "It stops counting until the Camera unit desktop shortcut or a reboot starts it again.",
+                                          "Quit", self.do_quit)),
         ]
         made = []
         for i, (text, command) in enumerate(cells):
@@ -529,6 +537,14 @@ class Monitor:
 
     def do_poweroff(self) -> None:
         self.power("Powering off", power.poweroff)
+
+    def do_quit(self) -> None:
+        """Ends the program. Under systemd that means stopping the service, or
+        Restart=always would bring it straight back."""
+        if power.under_systemd():
+            self.power("Quitting", power.stop_service)
+        else:
+            self.quit()
 
     def power(self, verb: str, run) -> None:
         for b in self._settings_buttons:

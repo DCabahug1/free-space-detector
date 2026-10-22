@@ -416,6 +416,20 @@ export async function renameCameraUnit(
   return {};
 }
 
+// Asks a camera unit to pull the latest code. It sees the request on its
+// next status poll (every 20 s), pulls, and restarts itself if anything
+// came in.
+export async function requestCameraUnitUpdate(unitId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("camera_units")
+    .update({ update_requested_at: new Date().toISOString() })
+    .eq("id", unitId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin");
+  return {};
+}
+
 // Removes a camera unit's record. The physical unit re-registers itself with
 // a fresh pair code the next time its script starts.
 export async function deleteCameraUnit(unitId: string): Promise<ActionResult> {

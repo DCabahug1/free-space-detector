@@ -43,3 +43,20 @@ def reboot() -> str | None:
 
 def poweroff() -> str | None:
     return _run([["systemctl", "poweroff"], ["sudo", "-n", "poweroff"]])
+
+
+SERVICE = "camera-unit.service"
+
+
+def under_systemd() -> bool:
+    """True when systemd started this process (it sets INVOCATION_ID)."""
+    import os
+
+    return bool(os.environ.get("INVOCATION_ID"))
+
+
+def stop_service() -> str | None:
+    """Stops the user service, which ends this process. Restart=always does
+    not bring it back after an explicit stop; the desktop shortcut or a
+    reboot does."""
+    return _run([["systemctl", "--user", "stop", SERVICE]])

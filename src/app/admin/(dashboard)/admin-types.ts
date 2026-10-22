@@ -16,5 +16,9 @@ export interface AdminRoom extends Room {
 export interface AdminUnit extends UnitHeartbeat {
   pair_code: string | null;
   room_id: string | null;
+  // Short git hash the unit last reported, null before its first poll.
+  version: string | null;
+  // Set while an admin's update request waits for the unit's next poll.
+  update_requested_at: string | null;
   room: { id: string; name: string; building: { id: string; name: string } } | null;
 }

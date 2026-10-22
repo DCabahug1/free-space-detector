@@ -16,6 +16,8 @@ type UnitRow = {
   room_id: string | null;
   last_seen: string | null;
   paused: boolean;
+  version: string | null;
+  update_requested_at: string | null;
   rooms: { id: string; name: string; buildings: { id: string; name: string } | { id: string; name: string }[] | null } | null;
 };
 
@@ -46,7 +48,7 @@ async function RoomContent({ params }: RoomPageProps) {
     loadPublicSnapshot(supabase, { roomId: id }),
     supabase
       .from("camera_units")
-      .select("id, name, pair_code, room_id, last_seen, paused, rooms(id, name, buildings(id, name))")
+      .select("id, name, pair_code, room_id, last_seen, paused, version, update_requested_at, rooms(id, name, buildings(id, name))")
       .order("created_at"),
   ]);
   const room = rooms[0];
@@ -62,6 +64,8 @@ async function RoomContent({ params }: RoomPageProps) {
       room_id: u.room_id,
       last_seen: u.last_seen,
       paused: u.paused,
+      version: u.version,
+      update_requested_at: u.update_requested_at,
       room: u.rooms && building ? { id: u.rooms.id, name: u.rooms.name, building } : null,
     };
   });

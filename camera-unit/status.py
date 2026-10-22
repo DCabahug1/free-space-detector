@@ -84,6 +84,9 @@ class Status:
     # Set by the monitor's "Refresh zones" button. The worker re-fetches the
     # room and its zones right away instead of waiting for zone_refresh_s.
     refresh_zones: threading.Event = field(default_factory=threading.Event)
+    # Set by the worker when the admin app asked for a code update. The
+    # monitor runs the updater, the same as its Check for updates button.
+    update_requested: threading.Event = field(default_factory=threading.Event)
     # Set by the monitor's "Update" button once new code has been pulled.
     # main.py re-executes itself after the monitor closes.
     restart: threading.Event = field(default_factory=threading.Event)

@@ -9,6 +9,7 @@ import {
   deleteCameraUnit,
   pairCameraUnit,
   renameCameraUnit,
+  requestCameraUnitUpdate,
 } from "@/app/admin/actions";
 import { useClock } from "@/hooks/use-clock";
 import { useLiveFrame } from "@/hooks/use-live-frame";
@@ -218,6 +219,18 @@ function UnitRow({
     });
   }
 
+  function onUpdate() {
+    startTransition(async () => {
+      const result = await requestCameraUnitUpdate(unit.id);
+      if (result.error) {
+        toast(result.error);
+        return;
+      }
+      toast(`${unit.name} pulls the latest code within about 20 s.`);
+      router.refresh();
+    });
+  }
+
   function onRemove() {
     startTransition(async () => {
       const result = await deleteCameraUnit(unit.id);
@@ -272,6 +285,8 @@ function UnitRow({
           )}
         >
           {status}
+          {unit.version ? <span className="font-mono">, {unit.version}</span> : null}
+          {unit.update_requested_at ? <span className="text-state-shared">, update requested</span> : null}
         </div>
       </div>
       <DropdownMenu>
@@ -282,6 +297,9 @@ function UnitRow({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setEditOpen(true)}>Edit</DropdownMenuItem>
+          <DropdownMenuItem onSelect={onUpdate} disabled={pending || offline || unit.update_requested_at !== null}>
+            Update code
+          </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => setRemoveOpen(true)}>
             Remove
           </DropdownMenuItem>

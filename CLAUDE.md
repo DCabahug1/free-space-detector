@@ -52,7 +52,7 @@ Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms a
 ## Schema
 
 - `buildings`: id, name, slug
-- `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen
+- `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen, paused, version (short git hash the unit reports), update_requested_at (set by the admin app, cleared when the unit picks it up)
 - `rooms` (an area in the UI): id, building_id, name, slug (unique per building), description nullable, published bool. `kind` is legacy, ignore it in new UI.
 - `zones`: id, room_id, name, type (seating | line | open), capacity int nullable, polygon jsonb (array of [x, y] in frame pixels)
 - `zone_counts`: zone_id PK, count int, updated_at. Upsert one row per zone.

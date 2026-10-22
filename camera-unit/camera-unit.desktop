@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Camera unit
+Comment=Start the Spot camera unit
+Exec=systemctl --user start camera-unit.service
+Icon=camera-video
+Terminal=false
+Categories=Utility;

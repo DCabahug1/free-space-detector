@@ -7,7 +7,12 @@ import { findUnitByApiKey } from "@/lib/camera-units";
 // Also used after pairing to learn the current room (admins can reassign).
 
 // sharing is optional: the camera unit sends false while Pause sharing is on.
-const bodySchema = z.object({ api_key: z.string().min(1), sharing: z.boolean().optional() });
+// version is the running code's short git hash, kept for the admin app.
+const bodySchema = z.object({
+  api_key: z.string().min(1),
+  sharing: z.boolean().optional(),
+  version: z.string().max(64).optional(),
+});
 
 export async function POST(req: Request) {
   let json: unknown;
@@ -27,6 +32,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown api_key" }, { status: 401 });
   }
 
+  if (parsed.data.version) {
+    await supabase
+      .from("camera_units")
+      .update({ version: parsed.data.version })
+      .eq("id", unit.id)
+      .neq("version", parsed.data.version);
+  }
+
+  // An admin asked for a code update. Handing it over clears the request,
+  // so the unit runs the updater once. The admin asks again if it failed.
+  const { data: requested } = await supabase
+    .from("camera_units")
+    .update({ update_requested_at: null })
+    .eq("id", unit.id)
+    .not("update_requested_at", "is", null)
+    .select("id");
+  const update_requested = (requested?.length ?? 0) > 0;
+
   // Not a heartbeat on purpose: only count posts and frames bump last_seen.
   // The sharing flag lands in camera_units.paused so the map can say Paused.
   if (parsed.data.sharing !== undefined) {
@@ -38,7 +61,7 @@ export async function POST(req: Request) {
   }
 
   if (!unit.room_id) {
-    return NextResponse.json({ ok: true, paired: false, unit_id: unit.id, name: unit.name });
+    return NextResponse.json({ ok: true, paired: false, unit_id: unit.id, name: unit.name, update_requested });
   }
 
   const { data: room } = await supabase
@@ -56,5 +79,6 @@ export async function POST(req: Request) {
     room_id: unit.room_id,
     room_name: room?.name ?? null,
     building_name: (building as { name: string } | null | undefined)?.name ?? null,
+    update_requested,
   });
 }

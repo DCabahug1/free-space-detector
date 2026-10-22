@@ -230,10 +230,17 @@ class Unit:
             return
         self.last_status_check = time.time()
         try:
-            data = pair_status(self.cfg.server_url, self.api_key, sharing=self.status.sharing.is_set())
+            data = pair_status(self.cfg.server_url, self.api_key, sharing=self.status.sharing.is_set(),
+                               version=self.status.version)
         except Exception as e:  # noqa: BLE001
             log.warning("room re-check failed: %s", e)
             return
+        if data.get("update_requested"):
+            log.info("update requested from the admin app")
+            if self.args.monitor:
+                self.status.update_requested.set()
+            else:
+                self.apply_update()
         if data.get("paired"):
             self.cache.set_room(data["room_id"])
             self.status.room_name = data.get("room_name") or ""
@@ -241,6 +248,16 @@ class Unit:
         else:
             log.warning("unit was unassigned from its room, waiting for pairing")
             self.wait_until_paired()
+
+    def apply_update(self) -> None:
+        """Without a monitor: pull new code here and stop the loop so main()
+        restarts the process when something came in."""
+        from updater import update
+
+        result = update(progress=log.info)
+        if result.ok and result.updated:
+            self.status.restart.set()
+            self.status.stop.set()
 
     def current_zones(self) -> list[Zone]:
         """Zones for this loop iteration. A tap on the monitor's Refresh zones
@@ -534,10 +551,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.monitor:
         try:
-            return unit.run()
+            code = unit.run()
         except KeyboardInterrupt:
             log.info("stopped")
             return 0
+        if status.restart.is_set():
+            log.info("restarting after update")
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        return code
 
     try:
         from monitor import Monitor
