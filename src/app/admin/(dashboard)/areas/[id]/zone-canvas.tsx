@@ -11,6 +11,10 @@ export const FRAME_H = 720;
 
 // Clicking within this many frame pixels of the first vertex closes the shape.
 export const CLOSE_RADIUS = 24;
+// A point placed this close to a frame edge lands on the edge, so a zone can
+// run to the very bottom of the picture, where the foot points of people cut
+// off by the frame sit.
+export const EDGE_SNAP = 20;
 
 // "Table 2 2/4", or just the name until the camera unit has posted a count.
 export function zoneLabel(zone: Zone, raw: number | undefined): string {
@@ -46,7 +50,7 @@ export function ZoneCanvas({
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * FRAME_W;
     const y = ((event.clientY - rect.top) / rect.height) * FRAME_H;
-    return [clamp(x, 0, FRAME_W), clamp(y, 0, FRAME_H)];
+    return [snapEdge(clamp(x, 0, FRAME_W), FRAME_W), snapEdge(clamp(y, 0, FRAME_H), FRAME_H)];
   }
 
   return (
@@ -219,6 +223,12 @@ export function centroid(polygon: Polygon): [number, number] {
 
 export function distance(a: [number, number], b: [number, number]) {
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
+
+function snapEdge(n: number, max: number) {
+  if (n <= EDGE_SNAP) return 0;
+  if (n >= max - EDGE_SNAP) return max;
+  return n;
 }
 
 function clamp(n: number, min: number, max: number) {
