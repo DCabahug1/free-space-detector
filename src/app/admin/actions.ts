@@ -378,9 +378,15 @@ export async function assignCameraUnit(
 ): Promise<ActionResult & { unit?: { id: string; name: string }; transfer?: UnitTransfer }> {
   const supabase = await createClient();
   if (roomId === null) {
+    const { data: before } = await supabase
+      .from("camera_units")
+      .select("room_id")
+      .eq("id", unitId)
+      .maybeSingle();
     const { error } = await supabase.from("camera_units").update({ room_id: null }).eq("id", unitId);
     if (error) return { error: error.message };
     revalidatePath("/admin");
+    if (before?.room_id) revalidatePath(`/admin/areas/${before.room_id}`);
     revalidatePath("/");
     return {};
   }

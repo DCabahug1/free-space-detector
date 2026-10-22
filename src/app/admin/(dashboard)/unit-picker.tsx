@@ -60,10 +60,25 @@ interface UnitPickerProps {
 
 // Every registered camera unit, whether paired or not, with a Use button.
 // A unit paired to another area asks for the transfer confirmation first.
+// A unit paired here gets an Unpair button, also confirmed.
 export function UnitPicker({ units, room, now, onAssigned }: UnitPickerProps) {
   const [transfer, setTransfer] = useState<UnitTransfer | null>(null);
+  const [unpairing, setUnpairing] = useState<AdminUnit | null>(null);
   const [pending, startTransition] = useTransition();
   const to = `${room.building.name}, ${room.name}`;
+
+  function unpair(unit: AdminUnit) {
+    startTransition(async () => {
+      const result = await assignCameraUnit(unit.id, null);
+      if (result.error) {
+        toast(result.error);
+        return;
+      }
+      setUnpairing(null);
+      toast(`Unpaired ${unit.name}.`);
+      onAssigned();
+    });
+  }
 
   function assign(unitId: string, allowTransfer: boolean) {
     startTransition(async () => {
@@ -129,7 +144,11 @@ export function UnitPicker({ units, room, now, onAssigned }: UnitPickerProps) {
                   {status}
                 </div>
               </div>
-              {here ? null : (
+              {here ? (
+                <Button variant="outline" size="sm" disabled={pending} onClick={() => setUnpairing(unit)}>
+                  Unpair
+                </Button>
+              ) : (
                 <Button
                   variant="outline"
                   size="sm"
@@ -150,6 +169,27 @@ export function UnitPicker({ units, room, now, onAssigned }: UnitPickerProps) {
         onConfirm={() => transfer && assign(transfer.id, true)}
         onCancel={() => setTransfer(null)}
       />
+      <AlertDialog open={unpairing !== null} onOpenChange={(open) => (open ? null : setUnpairing(null))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unpair {unpairing?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Counts for {to} stop until another camera unit is paired. The unit keeps running and
+              can be paired again from this list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => unpairing && unpair(unpairing)}
+              disabled={pending}
+            >
+              Unpair camera unit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
