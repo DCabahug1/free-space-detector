@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ellipsis } from "lucide-react";
+import { Ellipsis, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import {
   assignCameraUnit,
@@ -55,6 +55,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { AdminUnit } from "./admin-types";
 import { TransferDialog } from "./unit-picker";
+import { QrScanner } from "@/components/admin/qr-scanner";
 import type { UnitTransfer } from "@/app/admin/actions";
 
 export interface RoomOption {
@@ -411,13 +412,15 @@ interface PairFormProps {
   onPaired?: (unit: { id: string; name: string }) => void;
 }
 
-// Code input, room select (unless fixed), Pair button. A code from a unit
-// paired to another area opens the transfer prompt before it moves.
+// Code input with a Scan button that reads the QR through the phone camera,
+// room select (unless fixed), Pair button. A code from a unit paired to
+// another area opens the transfer prompt before it moves.
 export function PairForm({ rooms, initialCode = "", fixedRoomId, fixedRoomLabel, onPaired }: PairFormProps) {
   const router = useRouter();
   const [code, setCode] = useState(initialCode);
   const [roomId, setRoomId] = useState<string>(fixedRoomId ?? rooms[0]?.id ?? "");
   const [transfer, setTransfer] = useState<UnitTransfer | null>(null);
+  const [scanning, setScanning] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const target = rooms.find((r) => r.id === roomId);
@@ -449,16 +452,30 @@ export function PairForm({ rooms, initialCode = "", fixedRoomId, fixedRoomLabel,
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
-      <Input
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        inputMode="numeric"
-        autoComplete="off"
-        placeholder="000 000"
-        aria-label="Pair code"
-        className="font-mono tracking-[0.12em]"
-        required
-        autoFocus
+      <div className="flex gap-2">
+        <Input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="000 000"
+          aria-label="Pair code"
+          className="font-mono tracking-[0.12em]"
+          required
+          autoFocus
+        />
+        <Button type="button" variant="outline" size="icon" aria-label="Scan the QR code" onClick={() => setScanning(true)}>
+          <QrCode />
+        </Button>
+      </div>
+      <QrScanner
+        open={scanning}
+        onOpenChange={setScanning}
+        onCode={(scanned) => {
+          setCode(scanned);
+          setScanning(false);
+          toast(`Code ${scanned.slice(0, 3)} ${scanned.slice(3)} scanned.`);
+        }}
       />
       {fixedRoomId ? null : (
         <div className="space-y-2">

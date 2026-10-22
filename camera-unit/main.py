@@ -178,7 +178,6 @@ class Unit:
 
     def wait_until_paired(self) -> bool:
         """Blocks until the server reports a room. Returns False if stopped."""
-        pair_url = f"{self.cfg.server_url}/admin?code={self.state.pair_code}"
         announced = False
         while not self.status.stop.is_set():
             try:
@@ -189,7 +188,6 @@ class Unit:
                     log.warning("server does not know this api_key, registering again")
                     self.state.clear()
                     self.register()
-                    pair_url = f"{self.cfg.server_url}/admin?code={self.state.pair_code}"
                     continue
                 log.error("pair status failed: %s", e)
                 data = None
@@ -213,11 +211,10 @@ class Unit:
                 return True
             else:
                 if not announced:
-                    log.info("not paired yet. pair code %s, or open %s", self.state.pair_code, pair_url)
+                    log.info("not paired yet. pair code %s", self.state.pair_code)
                     announced = True
                 self.status.mode = "pairing"
                 self.status.pair_code = self.state.pair_code
-                self.status.pair_url = pair_url
                 self.status.unit_name = data.get("name", "")
                 self.status.message = "Waiting for the admin app. Wi-Fi ok."
 

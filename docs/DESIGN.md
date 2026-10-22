@@ -175,7 +175,7 @@ Optimistic everywhere on this page: publish switch, zone save, zone delete flip 
 ### Camera unit screens (Tkinter, 800x480, scales to 1280x800)
 
 - Starting: "Spot" 40px centered, "Starting. Connecting to Wi-Fi" 20px muted.
-- Pairing: title "Pair this camera unit" 28px. Left: QR 220px on a paper square. Right: code mono 72px accent, tracking 0.1em, "482 913". Line: "Scan, or type the code in the admin app under Camera units." Footer: status left ("Waiting for the admin app. Wi-Fi ok."), Settings button right. On tall screens QR and code stack.
+- Pairing: title "Pair this camera unit" 28px. Left: QR 220px on a paper square, encoding only the 6 digits. Right: code mono 72px accent, tracking 0.1em, "482 913". Line: "Scan, or type the code in the admin app under Camera units." Footer: status left ("Waiting for the admin app. Wi-Fi ok."), Settings button right. On tall screens QR and code stack.
 - Live: header "{building}, {room}" 26px (building muted weight), unit name right. One row per zone: name 22px, count mono 38px state colored, state word 22px state colored. Rows 52px, shrink to fit. Bottom: status left ("Posted 2 s ago. Wi-Fi ok."), buttons View camera, Refresh zones, Settings (52px, min width 140).
 - Live, no zones: "No zones yet" / "Draw them in the admin app. This screen updates on its own."
 - Camera preview popup: fullscreen black, frame with person boxes (4px green), foot dots, zone polygons and labels as in the admin canvas. Top right: Refresh zones, Close. Bottom strip: "Tap the picture to close" and "{n} people, 1 s ago".

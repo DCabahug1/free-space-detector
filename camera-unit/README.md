@@ -78,7 +78,7 @@ python main.py --webcam                 # post for real
 A camera unit with no api_key (empty `api_key` in `config.json`, or
 `--pair`) registers itself on first boot, saves the issued key in
 `state.json`, and shows a QR code plus a 6-digit pair code on the monitor.
-An admin scans the QR (it opens the admin app with the code filled in) or
+An admin scans the QR with the Scan button in the admin app's pair form (the QR holds only the 6 digits) or
 types the code on the admin overview (or on the room setup page, step 2) and picks a room. The unit polls every 3
 seconds until a room is assigned, then starts counting.
 

@@ -242,7 +242,8 @@ class Monitor:
         body.pack(fill="both", expand=True, padx=pad)
 
         qr_px = self.px(QR_PX)
-        qr = make_qr_photo(s.pair_url, target_px=qr_px - self.px(24))
+        # The QR holds just the 6 digits. The admin app's Scan button reads it.
+        qr = make_qr_photo(s.pair_code, target_px=qr_px - self.px(24))
         paper = tk.Frame(body, bg=PAPER, width=qr_px, height=qr_px)
         paper.pack_propagate(False)
         if qr is not None:
@@ -696,10 +697,10 @@ def qr_box_size(modules: int, target_px: int, border: int = 2) -> int:
     return max(2, target_px // (modules + 2 * border))
 
 
-def make_qr_photo(url: str, target_px: int = 200):
+def make_qr_photo(text: str, target_px: int = 200):
     """Returns a tkinter PhotoImage of the QR code no larger than target_px on a
     side, or None if qrcode or PIL is missing."""
-    if not url:
+    if not text:
         return None
     try:
         import qrcode
@@ -709,7 +710,7 @@ def make_qr_photo(url: str, target_px: int = 200):
         return None
     border = 1
     qr = qrcode.QRCode(border=border)
-    qr.add_data(url)
+    qr.add_data(text)
     qr.make(fit=True)
     qr.box_size = qr_box_size(qr.modules_count, target_px, border)
     img = qr.make_image(fill_color="#1f1c18", back_color=PAPER).get_image()

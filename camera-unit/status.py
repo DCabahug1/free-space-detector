@@ -57,7 +57,6 @@ class Status:
 
     mode: str = "starting"  # starting | pairing | live
     pair_code: str = ""
-    pair_url: str = ""
     unit_name: str = ""
     server_url: str = ""
     version: str = ""  # short git hash of the running code
