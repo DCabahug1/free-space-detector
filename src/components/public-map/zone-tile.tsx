@@ -10,6 +10,7 @@ import {
   tileState,
   type TileState,
 } from "@/lib/occupancy";
+import { PinButton } from "./pin-button";
 
 const FLASH_MS = 300;
 
@@ -27,13 +28,16 @@ interface ZoneTileProps {
   // "4 min" while the camera unit is offline, otherwise null.
   offlineFor?: string | null;
   size?: keyof typeof COUNT_SIZE;
+  // With onTogglePin the tile gets a pin in its top right corner.
+  pinned?: boolean;
+  onTogglePin?: () => void;
   className?: string;
 }
 
 // Page background with a 1 px border, zone name, mono count in the state color ("?" while offline), state word,
 // and a 6 px bar along the bottom edge. The bar and the numeral are the
 // only things that change. On a state change the bar flashes for 300 ms.
-export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: ZoneTileProps) {
+export function ZoneTile({ zone, count, offlineFor, size = "sm", pinned = false, onTogglePin, className }: ZoneTileProps) {
   const raw = count ?? 0;
   const offline = offlineFor != null;
   const state: TileState = offline ? "unknown" : tileState(zone.type, raw, zone.capacity);
@@ -60,9 +64,18 @@ export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: Zo
       style={{ "--bar": color } as React.CSSProperties}
       aria-label={`${zone.name}: ${word}`}
     >
-      <span className={cn("break-words font-medium text-muted-foreground", size === "xs" ? "text-[9px]" : "text-xs")}>
+      <span
+        className={cn(
+          "break-words font-medium text-muted-foreground",
+          size === "xs" ? "text-[9px]" : "text-xs",
+          onTogglePin && "pr-7"
+        )}
+      >
         {zone.name}
       </span>
+      {onTogglePin ? (
+        <PinButton pinned={pinned} name={zone.name} onClick={onTogglePin} className="absolute top-1 right-1" />
+      ) : null}
       <span
         className={cn("font-mono font-bold tabular-nums", COUNT_SIZE[size])}
         style={{ color }}
@@ -81,4 +94,9 @@ export function ZoneTile({ zone, count, offlineFor, size = "sm", className }: Zo
       />
     </div>
   );
+}
+
+// Pinned zones first, the rest in their drawn order.
+export function sortPinnedFirst(zones: Zone[], isZonePinned: (id: string) => boolean): Zone[] {
+  return [...zones].sort((a, b) => Number(isZonePinned(b.id)) - Number(isZonePinned(a.id)));
 }

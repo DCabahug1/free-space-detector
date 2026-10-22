@@ -11,7 +11,7 @@ import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
 import { Band, Wrap, bandOutlineClass } from "@/components/band";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ZoneTile } from "./zone-tile";
+import { ZoneTile, sortPinnedFirst } from "./zone-tile";
 
 interface RoomViewProps {
   room: PublicRoom;
@@ -23,8 +23,9 @@ interface RoomViewProps {
 // The public area page body. Also rendered by the setup page's preview step.
 export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
   const live = useLiveSnapshot([room], initialCounts);
-  const { isPinned, toggle } = usePins();
+  const { isPinned, toggle, isZonePinned, toggleZone } = usePins();
   const pinned = isPinned(room.id);
+  const zoneIds = room.zones.map((z) => z.id);
   const heartbeat = live.heartbeat(room);
   // A unit that paused sharing reads as offline here. Only the admin says paused.
   const offline = room.zones.length > 0 && (live.roomPaused(room) || live.roomOffline(room));
@@ -95,13 +96,16 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
             embedded ? "grid-cols-2 gap-1.5" : "grid-cols-[repeat(auto-fill,minmax(165px,1fr))] gap-2.5"
           )}
         >
-          {room.zones.map((zone) => (
+          {sortPinnedFirst(room.zones, isZonePinned).map((zone) => (
             <ZoneTile
               key={zone.id}
               zone={zone}
               count={live.countNumbers[zone.id]}
               offlineFor={offlineFor}
               size={embedded ? "xs" : "md"}
+              pinned={isZonePinned(zone.id)}
+              // The admin preview is a picture of the page, not a place to pin from.
+              onTogglePin={embedded ? undefined : () => toggleZone(zone.id, room.id, room.building_id)}
             />
           ))}
         </div>
@@ -145,7 +149,7 @@ export function RoomView({ room, initialCounts, embedded }: RoomViewProps) {
             <Button
               variant="outline"
               className={bandOutlineClass}
-              onClick={() => toggle(room.id, room.building_id)}
+              onClick={() => toggle(room.id, room.building_id, zoneIds)}
               aria-pressed={pinned}
             >
               <Pin className={cn(pinned && "text-band-accent")} fill={pinned ? "currentColor" : "none"} aria-hidden />

@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Pin } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicRoom } from "@/lib/types";
 import { roomPath } from "@/lib/types";
 import { freeSeats, roomSummary } from "@/lib/occupancy";
 import { Button } from "@/components/ui/button";
-import { ZoneTile } from "./zone-tile";
+import { PinButton } from "./pin-button";
+import { ZoneTile, sortPinnedFirst } from "./zone-tile";
 import { Highlight } from "@/components/highlight";
 
 interface RoomRowProps {
@@ -18,6 +19,8 @@ interface RoomRowProps {
   offlineFor: string | null;
   pinned: boolean;
   onTogglePin: () => void;
+  isZonePinned: (zoneId: string) => boolean;
+  onToggleZonePin: (zoneId: string) => void;
   // Search text to highlight in the name.
   query?: string;
   className?: string;
@@ -25,9 +28,19 @@ interface RoomRowProps {
 
 // One directory row: name and summary caption, then the pin, free count,
 // and a chevron that opens the area's spots as tiles beneath the row.
-// Closed by default.
+// Closed by default. Pinned spots come first in the tiles.
 // The name links to the area page. Hairlines come from the parent (divide-y).
-export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query = "", className }: RoomRowProps) {
+export function RoomRow({
+  room,
+  counts,
+  offlineFor,
+  pinned,
+  onTogglePin,
+  isZonePinned,
+  onToggleZonePin,
+  query = "",
+  className,
+}: RoomRowProps) {
   const [open, setOpen] = useState(false);
   const offline = offlineFor != null;
   const free = freeSeats(room.zones, counts);
@@ -72,46 +85,18 @@ export function RoomRow({ room, counts, offlineFor, pinned, onTogglePin, query =
       </div>
       {open && hasZones ? (
         <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
-          {room.zones.map((zone) => (
-            <ZoneTile key={zone.id} zone={zone} count={counts[zone.id]} offlineFor={offlineFor} />
+          {sortPinnedFirst(room.zones, isZonePinned).map((zone) => (
+            <ZoneTile
+              key={zone.id}
+              zone={zone}
+              count={counts[zone.id]}
+              offlineFor={offlineFor}
+              pinned={isZonePinned(zone.id)}
+              onTogglePin={() => onToggleZonePin(zone.id)}
+            />
           ))}
         </div>
       ) : null}
     </div>
-  );
-}
-
-// Pin toggle: outline when off, filled in primary when on.
-export function PinButton({
-  pinned,
-  name,
-  onClick,
-  className,
-  pinnedClassName = "text-primary",
-}: {
-  pinned: boolean;
-  name: string;
-  onClick: () => void;
-  // The ghost hover is the accent color, so on an accent surface pass a
-  // hover class that contrasts with it.
-  className?: string;
-  // Glyph color while pinned.
-  pinnedClassName?: string;
-}) {
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      className={cn("text-muted-foreground", className, pinned && pinnedClassName)}
-      aria-label={pinned ? `Unpin ${name}` : `Pin ${name}`}
-      aria-pressed={pinned}
-      onClick={onClick}
-    >
-      <Pin
-        className="size-4"
-        fill={pinned ? "currentColor" : "none"}
-        aria-hidden
-      />
-    </Button>
   );
 }

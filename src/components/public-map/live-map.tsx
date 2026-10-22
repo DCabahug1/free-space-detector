@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { PinButton, RoomRow } from "./room-row";
+import { PinButton } from "./pin-button";
+import { RoomRow } from "./room-row";
 import { Highlight } from "@/components/highlight";
 
 interface LiveMapProps {
@@ -30,7 +31,8 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [filter, setFilter] = useState<Filter>("all");
   const live = useLiveSnapshot(rooms, initialCounts);
-  const { isPinned, toggle, isBuildingPinned, toggleBuilding } = usePins();
+  const { isPinned, toggle, isBuildingPinned, toggleBuilding, isZonePinned, toggleZone } = usePins();
+  const zoneIdsOf = (list: PublicRoom[]) => list.flatMap((r) => r.zones.map((z) => z.id));
 
   // Per room: free seats and whether its camera unit is offline.
   // A unit that paused sharing reads as offline here. Only the admin says paused.
@@ -156,7 +158,9 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                   free={g.free}
                   offline={g.offline}
                   pinned={g.pinned}
-                  onTogglePin={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id))}
+                  onTogglePin={() =>
+                    toggleBuilding(g.building.id, g.rooms.map((r) => r.id), zoneIdsOf(g.rooms))
+                  }
                   forceOpen={q.length > 0}
                   query={query}
                 >
@@ -167,7 +171,9 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                       counts={live.countNumbers}
                       offlineFor={stats.get(room.id)?.offlineFor ?? null}
                       pinned={isPinned(room.id)}
-                      onTogglePin={() => toggle(room.id, room.building_id)}
+                      onTogglePin={() => toggle(room.id, room.building_id, zoneIdsOf([room]))}
+                      isZonePinned={isZonePinned}
+                      onToggleZonePin={(zoneId) => toggleZone(zoneId, room.id, room.building_id)}
                       query={query}
                     />
                   ))}

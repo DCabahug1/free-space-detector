@@ -96,6 +96,7 @@ Three custom components:
 - Count text: seating `{count}/{capacity}`, open `{count}`.
 - State words: Empty, Shared, Full, Some people, Busy. Unknown tile when the camera unit is offline: count in state-unknown, word "Unknown, 4 min", bar state-unknown. A camera unit that paused sharing counts as offline here; only the admin says "sharing paused". Never falsely reassuring.
 - When state changes, flash the bar for 300 ms. No other motion anywhere.
+- On the public pages a pin toggle sits in the top right corner (filled when on). Pinned zones sort first in their grid. Pinning a zone pins its area and building; unpinning an area or building unpins its zones. The setup page preview has no pin.
 
 **RoomRow** (map directory)
 - Grid: name, summary caption, free count (mono 20px state colored, "free" caption), a chevron, and a 4px segmented strip with one segment per zone in its state color.
@@ -191,7 +192,7 @@ Optimistic everywhere on this page: publish switch, zone save, zone delete flip 
 - `buildings`: id, name, slug.
 - `rooms`: add building_id (not null), slug (unique per building), description (nullable). Drop the seating | line kind concept from new UI.
 - Public routes: `/` and `/areas/[building]/[area]`.
-- Favorites: pinned room ids in localStorage. No login.
+- Favorites: pinned zone, room and building ids in localStorage. No login.
 - Offline: no heartbeat for 60 s. Drives the Unknown tile state and the "offline" status lines.
 - Capacity suggestion: last seating zone's capacity in the room. Name suggestion: next number of the same prefix.
 - Realtime: subscribe to zone_counts and camera_units.last_seen.

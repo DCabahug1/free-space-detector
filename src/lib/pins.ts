@@ -2,8 +2,9 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// Pinned area ids and pinned building ids live in localStorage. No login
-// on the public map.
+// Pinned zone, area and building ids live in localStorage. No login on the
+// public map.
+const ZONE_KEY = "spot.pins.zones";
 const AREA_KEY = "spot.pins";
 const BUILDING_KEY = "spot.pins.buildings";
 const EVENT = "spot:pins";
@@ -62,34 +63,50 @@ function remove(key: string, ids: string[]) {
   if (ids.some((id) => current.includes(id))) write(key, current.filter((id) => !ids.includes(id)));
 }
 
+// A pinned zone keeps its area pinned, and a pinned area keeps its building
+// pinned. Unpinning goes the other way: a building takes its areas and
+// their zones with it, an area takes its zones. So the rule always holds.
 export function usePins() {
+  const zonePins = useSyncExternalStore(subscribe, () => read(ZONE_KEY), () => EMPTY);
   const pins = useSyncExternalStore(subscribe, () => read(AREA_KEY), () => EMPTY);
   const buildingPins = useSyncExternalStore(subscribe, () => read(BUILDING_KEY), () => EMPTY);
 
-  // A pinned area keeps its building pinned. Unpinning a building unpins
-  // its areas, so the rule always holds.
-  const toggle = useCallback((roomId: string, buildingId: string) => {
+  const toggleZone = useCallback((zoneId: string, roomId: string, buildingId: string) => {
+    if (read(ZONE_KEY).includes(zoneId)) {
+      remove(ZONE_KEY, [zoneId]);
+    } else {
+      add(ZONE_KEY, [zoneId]);
+      add(AREA_KEY, [roomId]);
+      add(BUILDING_KEY, [buildingId]);
+    }
+  }, []);
+  const toggle = useCallback((roomId: string, buildingId: string, zoneIds: string[]) => {
     if (read(AREA_KEY).includes(roomId)) {
       remove(AREA_KEY, [roomId]);
+      remove(ZONE_KEY, zoneIds);
     } else {
       add(AREA_KEY, [roomId]);
       add(BUILDING_KEY, [buildingId]);
     }
   }, []);
-  const toggleBuilding = useCallback((buildingId: string, roomIds: string[]) => {
+  const toggleBuilding = useCallback((buildingId: string, roomIds: string[], zoneIds: string[]) => {
     if (read(BUILDING_KEY).includes(buildingId)) {
       remove(BUILDING_KEY, [buildingId]);
       remove(AREA_KEY, roomIds);
+      remove(ZONE_KEY, zoneIds);
     } else {
       add(BUILDING_KEY, [buildingId]);
     }
   }, []);
 
   return {
+    zonePins,
     pins,
     buildingPins,
+    toggleZone,
     toggle,
     toggleBuilding,
+    isZonePinned: (id: string) => zonePins.includes(id),
     isPinned: (id: string) => pins.includes(id),
     isBuildingPinned: (id: string) => buildingPins.includes(id),
   };
