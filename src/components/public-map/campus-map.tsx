@@ -16,6 +16,7 @@ import type { LatLng } from "@/lib/geo";
 import type { BuildingState } from "@/lib/occupancy";
 import { useMapPref } from "@/lib/prefs";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export interface MapPin {
   id: string;
@@ -119,13 +120,17 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect }: Campu
               <FitPins pins={pins} />
               <CenterOnPerson position={position} tick={centerTick} />
               <MapControl position={ControlPosition.RIGHT_BOTTOM}>
+                {/* Same box, shadow and icon colors as Google's own controls in each scheme. */}
                 <button
                   type="button"
                   onClick={locate}
                   aria-label="Center the map on me"
-                  className="mx-2.5 mb-2.5 flex size-10 items-center justify-center rounded-sm bg-white text-[#666] shadow-[0_1px_4px_-1px_rgba(0,0,0,0.3)] hover:text-black"
+                  className={cn(
+                    "m-2.5 flex size-10 items-center justify-center rounded-[2px] shadow-[0_1px_4px_-1px_rgba(0,0,0,0.3)]",
+                    dark ? "bg-[#444] text-[#b3b3b3] hover:text-white" : "bg-white text-[#666] hover:text-[#333]"
+                  )}
                 >
-                  <LocateFixed className="size-5" aria-hidden />
+                  <LocateFixed className="size-[18px]" aria-hidden />
                 </button>
               </MapControl>
               <SpotMarkers pins={pins} position={position} colors={colors} onSelect={onSelect} />
