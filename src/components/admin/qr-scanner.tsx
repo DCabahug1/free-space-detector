@@ -24,6 +24,13 @@ interface QrScannerProps {
 export function QrScanner({ open, onOpenChange, onCode }: QrScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
+  // The parent re-renders every second with the clock and hands down a new
+  // onCode each time. Reading it through a ref keeps the camera stream
+  // alive; only opening and closing start or stop it.
+  const onCodeRef = useRef(onCode);
+  useEffect(() => {
+    onCodeRef.current = onCode;
+  }, [onCode]);
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +77,7 @@ export function QrScanner({ open, onOpenChange, onCode }: QrScannerProps) {
           const digits = hit?.data.match(/\d{6}/)?.[0];
           if (digits) {
             done = true;
-            onCode(digits);
+            onCodeRef.current(digits);
             return;
           }
         }
@@ -85,7 +92,7 @@ export function QrScanner({ open, onOpenChange, onCode }: QrScannerProps) {
       stream?.getTracks().forEach((t) => t.stop());
       video.srcObject = null;
     };
-  }, [open, onCode]);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
