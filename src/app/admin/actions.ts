@@ -138,16 +138,25 @@ export async function updateRoom(roomId: string, input: RoomInput): Promise<Acti
   return {};
 }
 
-const buildingSchema = z.string().trim().min(1, "Name the building.").max(80);
+const buildingSchema = z
+  .object({
+    name: z.string().trim().min(1, "Name the building.").max(80),
+    lat: z.number().min(-90).max(90).nullable(),
+    lng: z.number().min(-180).max(180).nullable(),
+  })
+  .refine((b) => (b.lat == null) === (b.lng == null), { message: "Invalid location." });
 
-// Renames a building and its slug. The area URLs under it change with it.
-export async function updateBuilding(buildingId: string, name: string): Promise<ActionResult> {
-  const parsed = buildingSchema.safeParse(name);
+export type BuildingInput = z.infer<typeof buildingSchema>;
+
+// Renames a building and its slug, and sets or clears its map location.
+// The area URLs under it change with the name.
+export async function updateBuilding(buildingId: string, input: BuildingInput): Promise<ActionResult> {
+  const parsed = buildingSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid building." };
   }
   const supabase = await createClient();
-  const slug = slugify(parsed.data);
+  const slug = slugify(parsed.data.name);
   const { data: clash } = await supabase
     .from("buildings")
     .select("id")
@@ -158,7 +167,7 @@ export async function updateBuilding(buildingId: string, name: string): Promise<
 
   const { error } = await supabase
     .from("buildings")
-    .update({ name: parsed.data, slug })
+    .update({ name: parsed.data.name, slug, lat: parsed.data.lat, lng: parsed.data.lng })
     .eq("id", buildingId);
   if (error) return { error: error.message };
 

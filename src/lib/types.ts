@@ -9,6 +9,9 @@ export interface Building {
   id: string;
   name: string;
   slug: string;
+  // Set by staff in the admin building dialog. Both null until then.
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface Room {

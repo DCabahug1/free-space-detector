@@ -65,14 +65,14 @@ async function Overview({ searchParams }: OverviewProps) {
     supabase
       .from("rooms")
       .select(
-        "id, building_id, name, slug, description, published, buildings(id, name, slug), zones(count), camera_units(id, name, last_seen, paused)"
+        "id, building_id, name, slug, description, published, buildings(id, name, slug, lat, lng), zones(count), camera_units(id, name, last_seen, paused)"
       )
       .order("name"),
     supabase
       .from("camera_units")
       .select("id, name, pair_code, room_id, last_seen, paused, version, update_requested_at, rooms(id, name, buildings(id, name))")
       .order("created_at"),
-    supabase.from("buildings").select("id, name, slug").order("name"),
+    supabase.from("buildings").select("id, name, slug, lat, lng").order("name"),
   ]);
 
   if (error) {

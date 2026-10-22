@@ -18,7 +18,7 @@ export async function loadPublicSnapshot(
 ): Promise<PublicSnapshot> {
   let roomQuery = supabase
     .from("rooms")
-    .select("id, building_id, name, slug, description, published, buildings(id, name, slug)")
+    .select("id, building_id, name, slug, description, published, buildings(id, name, slug, lat, lng)")
     .order("name");
   if (filter?.roomId) roomQuery = roomQuery.eq("id", filter.roomId);
   if (filter?.roomSlug) roomQuery = roomQuery.eq("slug", filter.roomSlug);
