@@ -34,12 +34,16 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
     );
   });
 
-  const groups = new Map<string, { id: string; name: string; rooms: AdminRoom[] }>();
+  const groups = new Map<string, { id: string; name: string; lat: number | null; lng: number | null; rooms: AdminRoom[] }>();
   for (const room of visible) {
-    const g = groups.get(room.building_id) ?? { id: room.building_id, name: room.building.name, rooms: [] };
+    const b = room.building;
+    const g = groups.get(room.building_id) ?? { id: b.id, name: b.name, lat: b.lat, lng: b.lng, rooms: [] };
     g.rooms.push(room);
     groups.set(room.building_id, g);
   }
+  // Where the location map opens for a building without one.
+  const located = rooms.map((r) => r.building).find((b) => b.lat != null && b.lng != null);
+  const fallbackCenter = located && located.lat != null && located.lng != null ? { lat: located.lat, lng: located.lng } : null;
   const sorted = [...groups.values()]
     .map((g) => ({ ...g, rooms: [...g.rooms].sort((a, b) => a.name.localeCompare(b.name)) }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -77,7 +81,7 @@ export function RoomTable({ rooms }: { rooms: AdminRoom[] }) {
             key={g.id}
             title={g.name}
             query={query}
-            action={<BuildingDialog id={g.id} name={g.name} />}
+            action={<BuildingDialog id={g.id} name={g.name} lat={g.lat} lng={g.lng} fallbackCenter={fallbackCenter} />}
             caption={`${g.rooms.length} ${g.rooms.length === 1 ? "area" : "areas"}, ${published} published`}
           >
             {g.rooms.map((room) => (
