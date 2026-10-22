@@ -52,7 +52,7 @@ Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms a
 ## Schema
 
 - `buildings`: id, name, slug, lat, lng (both nullable, set together)
-- `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen, paused, version (short git hash the unit reports), update_requested_at (set by the admin app, cleared when the unit picks it up)
+- `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen, paused, version (short git hash the unit reports), update_requested_at (set by the admin app, cleared when the unit picks it up), mock (demo units that never post; a pg_cron job every 30 s refreshes their heartbeat and nudges their zone counts, see `supabase/migrations/20261026000000_mock_camera_units.sql`)
 - `rooms` (an area in the UI): id, building_id, name, slug (unique per building), description nullable, published bool. `kind` is legacy, ignore it in new UI.
 - `zones`: id, room_id, name, type (seating | line | open), capacity int nullable, polygon jsonb (array of [x, y] in frame pixels)
 - `zone_counts`: zone_id PK, count int, updated_at. Upsert one row per zone.
@@ -63,6 +63,10 @@ RLS:
 - Only the ingest route (service role) writes `zone_counts` and `camera_units.last_seen`.
 
 ---
+
+## Demo data
+
+`supabase/seed/csun_campus.sql` replaces every building except Autodesk Technology Engagement Center (the real test building) with eight CSUN buildings, their areas and zones, and one mock camera unit per area. Coordinates are approximate; refine them in the building dialog. Re-run it to reset the mock campus.
 
 ## Camera unit behavior
 
