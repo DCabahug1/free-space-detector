@@ -72,6 +72,8 @@ class Monitor:
         self._building: tk.Label | None = None
         self._room: tk.Label | None = None
         self._unit: tk.Label | None = None
+        self._title_fonts: tuple[tkfont.Font, tkfont.Font] | None = None
+        self._title_key: tuple[str, str, str] | None = None
         self._buttons: list[tk.Button] = []
         self._update_button: tk.Button | None = None
         self._settings: tk.Frame | None = None
@@ -127,6 +129,7 @@ class Monitor:
         self._row_widgets = []
         self._footer = None
         self._building = self._room = self._unit = None
+        self._title_key = None
         self._buttons = []
         self._update_button = None
 
@@ -278,8 +281,12 @@ class Monitor:
         self._unit.pack(side="right")
         self._building = tk.Label(header, text="", font=self.font(26), fg=BAND_MUTED, bg=BAND, anchor="w")
         self._building.pack(side="left")
-        self._room = tk.Label(header, text="", font=self.font(26, "bold"), fg=BAND_FG, bg=BAND, anchor="w")
-        self._room.pack(side="left")
+        self._room = tk.Label(header, text="", font=self.font(26, "bold"), fg=BAND_FG, bg=BAND, anchor="w",
+                              justify="left")
+        self._room.pack(side="left", fill="x", expand=True)
+        self._title_fonts = (tkfont.Font(root=self.root, font=self.font(26)),
+                             tkfont.Font(root=self.root, font=self.font(16)))
+        self._title_key = None
 
         bottom = tk.Frame(self.frame, bg=BG)
         bottom.pack(side="bottom", fill="x", padx=pad, pady=(self.px(8), self.px(16)))
@@ -326,8 +333,17 @@ class Monitor:
         s = self.status
         if self._building is not None and self._room is not None:
             building = f"{s.building_name}, " if s.building_name else ""
-            self._building.configure(text=building)
-            self._room.configure(text=s.room_name or s.unit_name)
+            room = s.room_name or s.unit_name
+            key = (building, room, s.unit_name)
+            if key != self._title_key:
+                self._title_key = key
+                # Width left for the area name beside the building and the
+                # unit name. A long name wraps there instead of running
+                # under the unit name on the right.
+                sans, small = self._title_fonts
+                used = sans.measure(building) + small.measure(s.unit_name) + self.px(24) * 2 + self.px(16)
+                self._building.configure(text=building)
+                self._room.configure(text=room, wraplength=max(self.px(160), self.screen_w - used))
         if self._unit is not None:
             self._unit.configure(text=s.unit_name)
         for (name, count, state), row in zip(self._row_widgets, s.rows):
@@ -434,6 +450,7 @@ class Monitor:
             ("Area", f"{s.building_name}, {s.room_name}" if s.room_name else "Not paired"),
             ("Server", s.server_url),
             ("Version", s.version or "unknown"),
+            ("Last updated", s.version_time or "unknown"),
         ):
             row = tk.Frame(facts, bg=BG)
             row.pack(fill="x", pady=self.px(2))

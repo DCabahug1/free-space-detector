@@ -58,6 +58,7 @@ class Status:
     unit_name: str = ""
     server_url: str = ""
     version: str = ""  # short git hash of the running code
+    version_time: str = ""  # when that code was committed, for the Settings screen
     building_name: str = ""
     room_name: str = ""
     rows: list[ZoneRow] = field(default_factory=list)

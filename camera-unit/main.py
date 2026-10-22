@@ -464,16 +464,35 @@ class Unit:
 # ---------------------------------------------------------------------------
 
 
-def current_version() -> str:
-    """Short git hash of the checkout, or "" when git is unavailable."""
+def _git(*args: str) -> str:
+    """Stdout of a git command in the checkout, or "" when git is unavailable."""
     import subprocess
 
     try:
-        out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=Path(__file__).resolve().parent,
+        out = subprocess.run(["git", *args], cwd=Path(__file__).resolve().parent,
                              capture_output=True, text=True, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
         return ""
     return out.stdout.strip() if out.returncode == 0 else ""
+
+
+def current_version() -> str:
+    """Short git hash of the checkout, or "" when git is unavailable."""
+    return _git("rev-parse", "--short", "HEAD")
+
+
+def current_version_time() -> str:
+    """When the running code was committed, local time, like "Oct 21, 7:45 PM"."""
+    from datetime import datetime
+
+    stamp = _git("log", "-1", "--format=%cI")
+    if not stamp:
+        return ""
+    try:
+        when = datetime.fromisoformat(stamp).astimezone()
+    except ValueError:
+        return ""
+    return f"{when:%b} {when.day}, {when:%I:%M %p}".replace(", 0", ", ")
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -510,6 +529,7 @@ def main(argv: list[str] | None = None) -> int:
     status = Status()
     status.server_url = cfg.server_url
     status.version = current_version()
+    status.version_time = current_version_time()
     unit = Unit(cfg, args, status)
 
     if not args.monitor:
