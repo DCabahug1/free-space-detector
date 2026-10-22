@@ -372,6 +372,7 @@ class Monitor:
 
     def finish_update(self, result) -> None:
         self._updating = False
+        log.info("update: %s", result.message)
         self.say(result.message)
         if result.ok and result.updated:
             self.status.restart.set()
