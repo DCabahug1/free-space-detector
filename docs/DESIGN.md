@@ -37,7 +37,7 @@ Light
 | band-2 (= chart-5) | 0.3002 0.0515 239.94 | #123145 |
 | band-muted | 0.82 0.035 243 | #b1c7d9 |
 | band-accent | 0.82 0.10 215 | #70d5ed |
-| destructive | 0.1908 0.0020 106.59 | #141413 |
+| destructive | 0.55 0.19 27 | #b0372a |
 | building, building-foreground, building-muted, building-border | = accent, accent-foreground, secondary-foreground, border | |
 | state-empty | 0.53 0.10 150 | #3f7d4e |
 | state-shared | 0.60 0.13 65 | #b5711a |
