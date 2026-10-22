@@ -134,6 +134,30 @@ export function totalSeats(zones: Zone[]): number {
   }, 0);
 }
 
+export type BuildingState = "empty" | "shared" | "full" | "unknown";
+
+// One state for a whole building, for its map pin and the free total in
+// its directory header. Offline (every camera unit) is unknown. With
+// seating: half or more of the seats free is empty, any seat free is
+// shared, none is full. Open zones only: all empty, any busy, otherwise
+// shared.
+export function buildingState(
+  zones: Zone[],
+  counts: Record<string, number | undefined>,
+  offline: boolean
+): BuildingState {
+  if (offline) return "unknown";
+  const total = totalSeats(zones);
+  if (total > 0) {
+    const free = freeSeats(zones, counts);
+    if (free * 2 >= total) return "empty";
+    return free > 0 ? "shared" : "full";
+  }
+  const states = zones.map((z) => tileState(z.type, counts[z.id] ?? 0, z.capacity));
+  if (states.length === 0 || states.every((s) => s === "empty")) return "empty";
+  return states.some((s) => s === "busy") ? "full" : "shared";
+}
+
 // One line for a room: "2 of 4 tables open", or for rooms with no seating
 // "3 people" / "Empty".
 export function roomSummary(
