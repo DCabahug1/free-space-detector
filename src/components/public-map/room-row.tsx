@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicRoom } from "@/lib/types";
-import { freeSeats, roomSummary } from "@/lib/occupancy";
+import { freeTables, roomSummary } from "@/lib/occupancy";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PinButton } from "./pin-button";
@@ -48,7 +48,7 @@ export function RoomRow({
 }: RoomRowProps) {
   const [open, setOpen] = useState(false);
   const offline = offlineFor != null;
-  const free = freeSeats(room.zones, counts);
+  const free = freeTables(room.zones, counts);
   const freeColor = offline
     ? "var(--state-unknown)"
     : free > 0

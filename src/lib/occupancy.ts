@@ -113,32 +113,25 @@ export function clockTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-// Seats nobody is using. A seating zone without a capacity counts as one
-// seat. Open zones have no seats.
-export function freeSeats(
+// Tables nobody is at: seating zones with a count of 0. A table with one
+// person at it is taken, however many seats it has. Open zones are not
+// tables, so they never count as free.
+export function freeTables(
   zones: Zone[],
   counts: Record<string, number | undefined>
 ): number {
-  return zones.reduce((sum, z) => {
-    if (z.type !== "seating") return sum;
-    const count = counts[z.id] ?? 0;
-    if (z.capacity == null) return sum + (count === 0 ? 1 : 0);
-    return sum + Math.max(0, z.capacity - count);
-  }, 0);
+  return zones.filter((z) => z.type === "seating" && (counts[z.id] ?? 0) === 0).length;
 }
 
-export function totalSeats(zones: Zone[]): number {
-  return zones.reduce((sum, z) => {
-    if (z.type !== "seating") return sum;
-    return sum + (z.capacity ?? 1);
-  }, 0);
+export function totalTables(zones: Zone[]): number {
+  return zones.filter((z) => z.type === "seating").length;
 }
 
 export type BuildingState = "empty" | "shared" | "full" | "unknown";
 
 // One state for a whole building, for its map pin and the free total in
 // its directory header. Offline (every camera unit) is unknown. With
-// seating: half or more of the seats free is empty, any seat free is
+// seating: half or more of the tables free is empty, any table free is
 // shared, none is full. Open zones only: all empty, any busy, otherwise
 // shared.
 export function buildingState(
@@ -147,9 +140,9 @@ export function buildingState(
   offline: boolean
 ): BuildingState {
   if (offline) return "unknown";
-  const total = totalSeats(zones);
+  const total = totalTables(zones);
   if (total > 0) {
-    const free = freeSeats(zones, counts);
+    const free = freeTables(zones, counts);
     if (free * 2 >= total) return "empty";
     return free > 0 ? "shared" : "full";
   }
@@ -164,15 +157,14 @@ export function roomSummary(
   zones: Zone[],
   counts: Record<string, number | undefined>
 ): string {
-  const seating = zones.filter((z) => z.type === "seating");
-  if (seating.length > 0) {
-    const open = seating.filter((z) => (counts[z.id] ?? 0) === 0).length;
-    const noun = seating.length === 1 ? "table" : "tables";
-    return `${open} of ${seating.length} ${noun} open`;
+  const total = totalTables(zones);
+  if (total > 0) {
+    const noun = total === 1 ? "table" : "tables";
+    return `${freeTables(zones, counts)} of ${total} ${noun} open`;
   }
-  const total = zones.reduce((sum, z) => sum + (counts[z.id] ?? 0), 0);
-  if (total === 0) return "Empty";
-  return total === 1 ? "1 person" : `${total} people`;
+  const people = zones.reduce((sum, z) => sum + (counts[z.id] ?? 0), 0);
+  if (people === 0) return "Empty";
+  return people === 1 ? "1 person" : `${people} people`;
 }
 
 export const ZONE_TYPE_LABEL: Record<ZoneType, string> = {

@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Building, PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
-import { buildingState, durationText, freeSeats, relativeTime, stateColor, type BuildingState } from "@/lib/occupancy";
+import { buildingState, durationText, freeTables, relativeTime, stateColor, type BuildingState } from "@/lib/occupancy";
 import { distanceMeters, distanceText } from "@/lib/geo";
 import { usePins } from "@/lib/pins";
 import { useSortPref } from "@/lib/prefs";
@@ -61,7 +61,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
 
   // The position is asked for on load so the map can center on the
   // person; the browser remembers the answer. Nearest kept from an earlier
-  // visit falls back to free seats quietly when location is off.
+  // visit falls back to free tables quietly when location is off.
   const nearest = sort === "nearest";
   const { status: geoStatus, request: requestGeo } = geo;
   useEffect(() => {
@@ -89,13 +89,13 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     if (geoStatus === "idle") requestGeo();
   }
 
-  // Per room: free seats and whether its camera unit is offline.
+  // Per room: free tables and whether its camera unit is offline.
   // A unit that paused sharing reads as offline here. Only the admin says paused.
   const stats = new Map<string, { free: number; offlineFor: string | null }>();
   for (const room of rooms) {
     const offline = live.roomPaused(room) || live.roomOffline(room);
     stats.set(room.id, {
-      free: offline ? 0 : freeSeats(room.zones, live.countNumbers),
+      free: offline ? 0 : freeTables(room.zones, live.countNumbers),
       offlineFor: offline ? durationText(live.heartbeat(room), live.now) || "never" : null,
     });
   }
@@ -112,7 +112,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   });
 
   // Areas within a building keep the admin's order. Buildings: by distance
-  // while Nearest is on, otherwise offline last and free seats first. Pins
+  // while Nearest is on, otherwise offline last and free tables first. Pins
   // have their own list.
   const buildGroups = (list: PublicRoom[]) => {
     const byBuilding = new Map<string, { building: Building; rooms: PublicRoom[] }>();
@@ -280,7 +280,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           {visible.length === 0 ? (
             <div className="flex flex-col gap-3 pt-8">
               <p className="text-[15px] text-muted-foreground">
-                {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free seats right now."}
+                {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free tables right now."}
               </p>
               {q ? (
                 <Button variant="outline" className="self-start" onClick={() => setQuery("")}>

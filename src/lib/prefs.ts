@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 // Small per-browser choices on the public map, kept in localStorage the
-// same way pins are: the sort (free seats or nearest) and whether the
+// same way pins are: the sort (free tables or nearest) and whether the
 // campus map is shown. Server and hydration render the default.
 
 const EVENT = "spot:prefs";
