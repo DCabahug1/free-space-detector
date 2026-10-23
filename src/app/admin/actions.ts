@@ -258,12 +258,12 @@ export async function deleteRoom(roomId: string): Promise<ActionResult> {
 
 const pointSchema = z.tuple([z.number().finite(), z.number().finite()]);
 
-// "line" is deprecated: existing line zones can still be edited, new ones
-// cannot be created (see createZone).
+// Every zone is seating with a capacity. "open" and "line" are deprecated
+// and no longer saved.
 const zoneInputSchema = z.object({
   name: z.string().trim().min(1, "Name the zone.").max(80),
-  type: z.enum(["seating", "line", "open"]),
-  capacity: z.number().int().min(1).max(500).nullable(),
+  type: z.literal("seating"),
+  capacity: z.number().int().min(1, "Set the seats.").max(500).nullable(),
   polygon: z.array(pointSchema).min(3, "A zone needs at least 3 points."),
 });
 
@@ -275,8 +275,7 @@ function normalizeZone(input: ZoneInput) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid zone." };
   }
   const data = parsed.data;
-  // Only seating zones carry a capacity.
-  if (data.type !== "seating") data.capacity = null;
+  if (data.capacity == null) return { error: "Set the seats." };
   // Store integer frame pixels.
   data.polygon = data.polygon.map(([x, y]) => [Math.round(x), Math.round(y)]);
   return { data };
@@ -288,9 +287,6 @@ export async function createZone(
 ): Promise<ActionResult & { id?: string }> {
   const { data, error } = normalizeZone(input);
   if (error || !data) return { error };
-  if (data.type === "line") {
-    return { error: "Line zones are not offered. Use an open area." };
-  }
 
   const supabase = await createClient();
   const { count } = await supabase.from("zones").select("id", { count: "exact", head: true }).eq("room_id", roomId);

@@ -19,15 +19,15 @@ Students check it before walking somewhere (empty library tables, lounge vibe). 
 ## Terms (use exactly these, no synonyms)
 
 - **camera unit**: Raspberry Pi 5 + Camera Module 3 in its case, with a small attached monitor. The physical thing mounted in a room.
-- **zone**: a hand-drawn polygon over one spot (table, couch, lounge corner). Has a type and optional capacity.
+- **zone**: a hand-drawn polygon over one spot (table, couch, bench). Always seating, always has a capacity (seats).
 - **building**: a named group of areas ("University Library", "Food Court", "Sierra Hall"). Has a slug and an optional lat/lng. Created on its own in the admin app, before its areas; may be empty.
 - **area**: a named space one camera unit covers, made of zones. Belongs to one building. Free-text name ("Floor 2", "Outdoor eating"), optional one-line description, slug unique within the building. Displayed as `{building}, {area}`. UI copy and URLs say area; the `rooms` table and the code identifiers (`Room`, `room_id`, `roomPath`) keep the old name.
 - **admin app**: where staff pair camera units and draw zones. Auth-gated.
 - **public map**: what students open. Anonymous, no login.
 
 Zone types:
-- `seating`: has capacity, shows Empty / Shared / Full
-- `open`: Empty / Some people / Busy
+- `seating`: has capacity, shows Empty / Shared / Full. The only type offered.
+- `open`: deprecated. Had no capacity, so it is not offered and the admin app no longer saves it. The mock open zones were removed (`supabase/migrations/20261028000000_zones_require_capacity.sql`).
 - `line`: deprecated. Not offered, not rendered as a type in new UI. Existing rows may stay in the table. The blue token stays reserved.
 - A zone whose camera unit is offline (no heartbeat for 60 s) renders as Unknown with the `state-unknown` token and "?" in place of the count.
 - A camera unit that paused sharing (Settings on the Pi, `camera_units.paused`) reads as offline on the public pages. Only the admin says "sharing paused" (in `state-shared`).
@@ -54,7 +54,7 @@ Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms a
 - `buildings`: id, name, slug, lat, lng (both nullable, set together)
 - `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen, paused, version (short git hash the unit reports), update_requested_at (set by the admin app, cleared when the unit picks it up), mock (units that never post; a pg_cron job every 30 s refreshes their heartbeat and nudges their zone counts, see `supabase/migrations/20261026000000_mock_camera_units.sql`)
 - `rooms` (an area in the UI): id, building_id, name, slug (unique per building), description nullable, published bool. `kind` is legacy, ignore it in new UI.
-- `zones`: id, room_id, name, type (seating | line | open), capacity int nullable, polygon jsonb (array of [x, y] in frame pixels)
+- `zones`: id, room_id, name, type (seating; line and open are deprecated), capacity int not null, polygon jsonb (array of [x, y] in frame pixels)
 - `zone_counts`: zone_id PK, count int, updated_at. Upsert one row per zone.
 
 RLS:

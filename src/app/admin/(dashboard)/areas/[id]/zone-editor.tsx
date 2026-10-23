@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createZone, deleteZone, reorderZones, updateZone, type ZoneInput } from "@/app/admin/actions";
 import { useDragReorder } from "@/hooks/use-drag-reorder";
-import type { Polygon, Zone, ZoneType } from "@/lib/types";
+import type { Polygon, Zone } from "@/lib/types";
 import { countText, stateColor, tileState } from "@/lib/occupancy";
 import { type LiveFrame, useLiveFrame } from "@/hooks/use-live-frame";
 import { GripVertical, Info } from "lucide-react";
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { CLOSE_RADIUS, ZoneCanvas, distance } from "./zone-canvas";
 
@@ -27,16 +26,15 @@ interface ZoneEditorProps {
   now: number;
 }
 
+// Every zone is seating with a capacity, so there is no type to pick.
 interface ZoneFields {
   name: string;
-  type: ZoneType;
   capacity: string;
 }
 
 function fieldsFromZone(zone: Zone): ZoneFields {
   return {
     name: zone.name,
-    type: zone.type === "line" ? "open" : zone.type,
     capacity: zone.capacity != null ? String(zone.capacity) : "",
   };
 }
@@ -45,8 +43,8 @@ function toInput(fields: ZoneFields, polygon: Polygon): ZoneInput {
   const cap = fields.capacity.trim() === "" ? null : Number(fields.capacity);
   return {
     name: fields.name.trim(),
-    type: fields.type,
-    capacity: fields.type === "seating" && cap != null && !Number.isNaN(cap) ? cap : null,
+    type: "seating",
+    capacity: cap != null && !Number.isNaN(cap) ? cap : null,
     polygon,
   };
 }
@@ -81,7 +79,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
   // Either the selected saved zone or the polygon waiting for a name.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingPolygon, setPendingPolygon] = useState<Polygon | null>(null);
-  const [fields, setFields] = useState<ZoneFields>({ name: "", type: "seating", capacity: "" });
+  const [fields, setFields] = useState<ZoneFields>({ name: "", capacity: "" });
 
   const selected = zones.find((z) => z.id === selectedId) ?? null;
   const lastSeating = [...zones].reverse().find((z) => z.type === "seating" && z.capacity != null);
@@ -136,10 +134,8 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
     setDraft([]);
     setSelectedId(null);
     setPendingPolygon(polygon);
-    const last = zones[zones.length - 1];
     setFields({
       name: suggestName(zones),
-      type: last ? (last.type === "line" ? "open" : last.type) : "seating",
       capacity: lastSeating?.capacity != null ? String(lastSeating.capacity) : "4",
     });
   }
@@ -277,7 +273,7 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
 
   const points = draft.length;
   const editing = selected && !pendingPolygon;
-  // Save stays off until the name, type or capacity differs from the stored zone.
+  // Save stays off until the name or capacity differs from the stored zone.
   const editChanged =
     selected != null &&
     JSON.stringify(toInput(fields, [])) !== JSON.stringify(toInput(fieldsFromZone(selected), []));
@@ -551,31 +547,21 @@ function ZoneFieldInputs({ idPrefix, fields, onChange, helper, nameHelper, autoF
         {nameHelper ? <p className="text-xs text-muted-foreground">{nameHelper}</p> : null}
       </div>
       <div className="space-y-1.5">
-        <Label>Type</Label>
-        <Tabs value={fields.type} onValueChange={(v) => onChange({ ...fields, type: v as ZoneType })}>
-          <TabsList>
-            <TabsTrigger value="seating">Seating</TabsTrigger>
-            <TabsTrigger value="open">Open area</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <Label htmlFor={`${idPrefix}-capacity`}>Seats</Label>
+        <Input
+          id={`${idPrefix}-capacity`}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={500}
+          value={fields.capacity}
+          onChange={(e) => onChange({ ...fields, capacity: e.target.value })}
+          placeholder="4"
+          required
+          className="max-w-[120px] font-mono"
+        />
+        <p className="text-xs text-muted-foreground">{helper}</p>
       </div>
-      {fields.type === "seating" ? (
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-capacity`}>Seats</Label>
-          <Input
-            id={`${idPrefix}-capacity`}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={500}
-            value={fields.capacity}
-            onChange={(e) => onChange({ ...fields, capacity: e.target.value })}
-            placeholder="4"
-            className="max-w-[120px] font-mono"
-          />
-          <p className="text-xs text-muted-foreground">{helper}</p>
-        </div>
-      ) : null}
     </div>
   );
 }
