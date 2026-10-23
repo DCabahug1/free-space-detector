@@ -4,14 +4,14 @@ const COLS = 14;
 const ROWS = 5;
 const CELLS = COLS * ROWS;
 
-// A fixed scatter so free seats are spread over the grid rather than filled
+// A fixed scatter so free spots are spread over the grid rather than filled
 // in reading order. Same order on the server and the client.
 const ORDER = Array.from({ length: CELLS }, (_, i) => i).sort(
   (a, b) => ((a * 37) % CELLS) - ((b * 37) % CELLS)
 );
 
-// The hero's picture of campus: one square per seat slot, lit in the band
-// accent for the share of seats free right now, dim for the share taken.
+// The hero's picture of campus: one square per slot, lit in the band
+// accent for the share of spots free right now, dim for the share taken.
 // Squares fade between the two as counts change. Decorative; the number
 // beside it says the same thing in text.
 export function SeatMosaic({ free, total, className }: { free: number; total: number; className?: string }) {

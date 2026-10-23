@@ -117,14 +117,16 @@ export function clockTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-// The public map speaks in two colors: green while a seat is free, red when
-// there is none. Shared reads green there (a seat is still open); the admin
-// canvas and the camera unit monitor keep the three-color stateColor.
-export function availabilityColor(state: TileState): string {
+// The public map's colors: green for an empty spot, amber for one people
+// are sharing, red when full. Busy reads red like the other full state.
+export function availabilityColor(state: TileState | BuildingState): string {
   switch (state) {
     case "full":
     case "busy":
       return "var(--state-full)";
+    case "shared":
+    case "some":
+      return "var(--state-shared)";
     case "unknown":
       return "var(--state-unknown)";
     default:
@@ -138,39 +140,48 @@ export function seatsFree(zone: Zone, count: number): number {
   return Math.max(0, zone.capacity - count);
 }
 
-// Open seats across zones. A table with one person at a six seat table
-// still has five seats free.
-export function freeSeats(zones: Zone[], counts: Record<string, number | undefined>): number {
-  return zones.reduce((sum, z) => sum + seatsFree(z, counts[z.id] ?? 0), 0);
+function isSpot(zone: Zone): boolean {
+  return zone.type === "seating" && zone.capacity != null;
 }
 
-export function totalSeats(zones: Zone[]): number {
-  return zones.reduce((sum, z) => sum + (z.type === "seating" && z.capacity != null ? z.capacity : 0), 0);
+// Free spots across zones: tables nobody is at. A 2/3 table and a 0/3
+// table make 1 free spot, not 4 free seats.
+export function freeSpots(zones: Zone[], counts: Record<string, number | undefined>): number {
+  return zones.filter((z) => isSpot(z) && (counts[z.id] ?? 0) <= 0).length;
 }
 
-export type BuildingState = "empty" | "full" | "unknown";
+export function totalSpots(zones: Zone[]): number {
+  return zones.filter(isSpot).length;
+}
 
-// One state for a whole building, for its map pin and its free total.
-// Offline (every camera unit) is unknown, any free seat is empty (green),
-// none is full (red).
+export type BuildingState = "empty" | "shared" | "full" | "unknown";
+
+// One state for a building or an area, for its map pin and its free total.
+// Offline (every camera unit) is unknown. Half or more of the spots free is
+// empty (green), any spot free or any seat open at a shared table is shared
+// (amber), none is full (red).
 export function buildingState(
   zones: Zone[],
   counts: Record<string, number | undefined>,
   offline: boolean
 ): BuildingState {
   if (offline) return "unknown";
-  if (totalSeats(zones) === 0) return "empty";
-  return freeSeats(zones, counts) > 0 ? "empty" : "full";
+  const total = totalSpots(zones);
+  if (total === 0) return "empty";
+  const free = freeSpots(zones, counts);
+  if (free * 2 >= total) return "empty";
+  if (free > 0) return "shared";
+  return zones.some((z) => seatsFree(z, counts[z.id] ?? 0) > 0) ? "shared" : "full";
 }
 
-// One line for an area: "14 of 24 seats free".
+// One line for an area: "3 of 6 spots free".
 export function roomSummary(
   zones: Zone[],
   counts: Record<string, number | undefined>
 ): string {
-  const total = totalSeats(zones);
-  if (total === 0) return "No seats";
-  return `${freeSeats(zones, counts)} of ${total} ${total === 1 ? "seat" : "seats"} free`;
+  const total = totalSpots(zones);
+  if (total === 0) return "No spots";
+  return `${freeSpots(zones, counts)} of ${total} ${total === 1 ? "spot" : "spots"} free`;
 }
 
 export const ZONE_TYPE_LABEL: Record<ZoneType, string> = {

@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Building, PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
-import { availabilityColor, buildingState, durationText, freeSeats, relativeTime, totalSeats, type BuildingState } from "@/lib/occupancy";
+import { availabilityColor, buildingState, durationText, freeSpots, relativeTime, totalSpots, type BuildingState } from "@/lib/occupancy";
 import { distanceMeters, distanceText } from "@/lib/geo";
 import { usePins } from "@/lib/pins";
 import { useSortPref } from "@/lib/prefs";
@@ -91,13 +91,13 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     if (geoStatus === "idle") requestGeo();
   }
 
-  // Per room: free seats and whether its camera unit is offline.
+  // Per room: free spots and whether its camera unit is offline.
   // A unit that paused sharing reads as offline here. Only the admin says paused.
   const stats = new Map<string, { free: number; offlineFor: string | null }>();
   for (const room of rooms) {
     const offline = live.roomPaused(room) || live.roomOffline(room);
     stats.set(room.id, {
-      free: offline ? 0 : freeSeats(room.zones, live.countNumbers),
+      free: offline ? 0 : freeSpots(room.zones, live.countNumbers),
       offlineFor: offline ? durationText(live.heartbeat(room), live.now) || "never" : null,
     });
   }
@@ -114,7 +114,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   });
 
   // Areas within a building keep the admin's order. Buildings: by distance
-  // while Nearest is on, otherwise offline last and free seats first. Pins
+  // while Nearest is on, otherwise offline last and free spots first. Pins
   // have their own list.
   const buildGroups = (list: PublicRoom[]) => {
     const byBuilding = new Map<string, { building: Building; rooms: PublicRoom[] }>();
@@ -159,7 +159,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   // Campus totals for the hero, from areas whose camera unit is reporting.
   const reporting = rooms.filter((r) => stats.get(r.id)?.offlineFor == null);
   const campusFree = reporting.reduce((sum, r) => sum + (stats.get(r.id)?.free ?? 0), 0);
-  const campusSeats = reporting.reduce((sum, r) => sum + totalSeats(r.zones), 0);
+  const campusSpots = reporting.reduce((sum, r) => sum + totalSpots(r.zones), 0);
   const campusBuildings = new Set(rooms.map((r) => r.building_id)).size;
 
   // Every located building goes to the map. A search or Free now hides
@@ -239,7 +239,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                     {campusFree}
                   </span>
                   <span className="text-[15px] text-band-foreground">
-                    {campusFree === 1 ? "seat" : "seats"} free across {campusBuildings}{" "}
+                    {campusFree === 1 ? "spot" : "spots"} free across {campusBuildings}{" "}
                     {campusBuildings === 1 ? "building" : "buildings"}
                   </span>
                 </p>
@@ -255,7 +255,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
               )}
             </div>
           </div>
-          <SeatMosaic free={loading ? 0 : campusFree} total={loading ? 0 : campusSeats} className="hidden md:grid" />
+          <SeatMosaic free={loading ? 0 : campusFree} total={loading ? 0 : campusSpots} className="hidden md:grid" />
         </Wrap>
       </Band>
 
@@ -308,7 +308,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           {visible.length === 0 ? (
             <div className="flex flex-col gap-3 pt-8">
               <p className="text-[15px] text-muted-foreground">
-                {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free seats right now."}
+                {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free spots right now."}
               </p>
               {q ? (
                 <Button variant="outline" className="self-start" onClick={() => setQuery("")}>

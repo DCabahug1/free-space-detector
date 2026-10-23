@@ -27,8 +27,8 @@ function caption(zone: Zone, raw: number, state: TileState, offlineFor: string |
 }
 
 // Page background with a 1 px border: zone name, the count in a pill (green
-// while a seat is free, red when full, "?" while offline) and the seats
-// free. On a state change the pill pulses once for 300 ms.
+// while empty, amber while shared, red when full, "?" while offline) and the
+// seats free. On a state change the pill pulses once for 300 ms.
 export function ZoneTile({ zone, count, offlineFor = null, size = "sm", className }: ZoneTileProps) {
   const raw = count ?? 0;
   const offline = offlineFor != null;

@@ -26,7 +26,7 @@ Students check it before walking somewhere (empty library tables, lounge vibe). 
 - **public map**: what students open. Anonymous, no login.
 
 Zone types:
-- `seating`: has capacity, shows Empty / Shared / Full. The only type offered. The public map uses two colors only: green while any seat is free, red when full (`availabilityColor`); counts sit in rounded-md pills and free totals are seats, not tables. Only buildings can be pinned. The admin canvas and the camera unit monitor keep the three colors.
+- `seating`: has capacity, shows Empty / Shared / Full. The only type offered. The public map uses the three colors too (`availabilityColor`): a zone is green when empty, amber when shared, red when full. Counts sit in rounded-md pills and free totals are spots (empty zones), not seats: a 2/3 table and a 0/3 table are 1 free spot. A building or area is green with half or more of its spots free, amber with any spot free or any seat open at a shared table, red otherwise (`buildingState`). Only buildings can be pinned. The admin canvas and the camera unit monitor keep the three colors.
 - `open`: deprecated. Had no capacity, so it is not offered and the admin app no longer saves it. The mock open zones were removed (`supabase/migrations/20261028000000_zones_require_capacity.sql`).
 - `line`: deprecated. Not offered, not rendered as a type in new UI. Existing rows may stay in the table. The blue token stays reserved.
 - A zone whose camera unit is offline (no heartbeat for 60 s) renders as Unknown with the `state-unknown` token and "?" in place of the count.

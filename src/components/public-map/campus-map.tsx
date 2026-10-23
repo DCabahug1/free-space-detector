@@ -73,6 +73,7 @@ const BLANK_ICON = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<sv
 
 const STATE_TOKEN: Record<BuildingState, string> = {
   empty: "--state-empty",
+  shared: "--state-shared",
   full: "--state-full",
   unknown: "--state-unknown",
 };
@@ -470,12 +471,18 @@ function placeLabels(pins: MapPin[], points: Point[], firstId: string | null): S
 
 // The merged dot: in the middle of the buildings, with the campus free
 // total. Unknown when every building is offline, green while any reporting
-// building has a free seat, red when none does.
+// building is green, amber while any is amber, red when all are full.
 function campusPin(pins: MapPin[]) {
   const reporting = pins.filter((p) => !p.offline);
   const states = new Set(reporting.map((p) => p.state));
   const state: BuildingState =
-    reporting.length === 0 ? "unknown" : states.has("empty") ? "empty" : "full";
+    reporting.length === 0
+      ? "unknown"
+      : states.has("empty")
+        ? "empty"
+        : states.has("shared")
+          ? "shared"
+          : "full";
   return {
     name: CAMPUS_NAME,
     lat: pins.reduce((sum, p) => sum + p.lat, 0) / pins.length,
@@ -503,6 +510,7 @@ function useTokenColors(mounted: boolean, dark: boolean): TokenColors | null {
         foreground: dark ? "#ffffff" : read("--foreground"),
         state: {
           empty: read(STATE_TOKEN.empty),
+          shared: read(STATE_TOKEN.shared),
           full: read(STATE_TOKEN.full),
           unknown: read(STATE_TOKEN.unknown),
         } as Record<BuildingState, string>,
