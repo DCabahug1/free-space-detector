@@ -2,8 +2,8 @@
 
 Repo working name. The product is called **Spot**: use that in UI copy and titles, never "free-space-detector".
 
-Hackathon project, due **Oct 23 2026, 11:59 PM**. Sole developer. Teammates present it live in a classroom.
-**Priority: a demo that works on the first try beats completeness.** When in doubt, pick the simpler, more reliable option.
+Hackathon project, due **Oct 23 2026, 11:59 PM**. Built by a small team; any contributor can pick up any part.
+**Priority: working on the first try beats completeness.** When in doubt, pick the simpler, more reliable option.
 
 ---
 
@@ -42,7 +42,7 @@ Zone types:
 - Fonts: DM Sans for everything, JetBrains Mono only for counts and pair codes, both via `next/font/google` in `layout.tsx`.
 - Supabase: Postgres, Realtime (public map subscribes to `zone_counts`), Auth for admins only, RLS.
   - Project ref `vituloqfqfrjdlblkuis`, region us-east-2, URL `https://vituloqfqfrjdlblkuis.supabase.co`.
-  - Supabase MCP is connected. Use it for migrations. Mirror every migration into `supabase/migrations/` in the repo.
+  - Apply migrations through the Supabase MCP when it is connected, otherwise the Supabase CLI or the dashboard SQL editor. Mirror every migration into `supabase/migrations/` in the repo, so the folder stays the record of what is applied.
 - Camera unit: Python in `camera-unit/`, Picamera2 + Ultralytics YOLOv8n, person class only.
 
 Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms are names, not coordinates. A building carries one lat/lng for the campus map on `/`, set in the admin building dialog (Google Maps via `@vis.gl/react-google-maps`; the map renders nothing without `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`).
@@ -52,7 +52,7 @@ Not in scope: no separate backend server, no Edge Functions, no PostGIS. Rooms a
 ## Schema
 
 - `buildings`: id, name, slug, lat, lng (both nullable, set together)
-- `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen, paused, version (short git hash the unit reports), update_requested_at (set by the admin app, cleared when the unit picks it up), mock (demo units that never post; a pg_cron job every 30 s refreshes their heartbeat and nudges their zone counts, see `supabase/migrations/20261026000000_mock_camera_units.sql`)
+- `camera_units`: id, name, pair_code, api_key, room_id nullable, last_seen, paused, version (short git hash the unit reports), update_requested_at (set by the admin app, cleared when the unit picks it up), mock (units that never post; a pg_cron job every 30 s refreshes their heartbeat and nudges their zone counts, see `supabase/migrations/20261026000000_mock_camera_units.sql`)
 - `rooms` (an area in the UI): id, building_id, name, slug (unique per building), description nullable, published bool. `kind` is legacy, ignore it in new UI.
 - `zones`: id, room_id, name, type (seating | line | open), capacity int nullable, polygon jsonb (array of [x, y] in frame pixels)
 - `zone_counts`: zone_id PK, count int, updated_at. Upsert one row per zone.
@@ -64,10 +64,6 @@ RLS:
 
 ---
 
-## Demo data
-
-`supabase/seed/csun_campus.sql` replaces every building except Autodesk Technology Engagement Center (the real test building) with eight CSUN buildings, their areas and zones, and one mock camera unit per area. Coordinates are approximate; refine them in the building dialog. Re-run it to reset the mock campus.
-
 ## Camera unit behavior
 
 - Boot: load zones for its room from Supabase, re-fetch every few minutes.
@@ -76,7 +72,7 @@ RLS:
 - A changed count must hold for 5 s (`confirm_s`) before the monitor shows it and it is posted, so a person walking past never flips a tile. After the hold there is no further grace period: a person leaves a zone, the spot is free. `dwell_s` exists as an opt-in knob for seating zones but defaults to 0.
 - No video leaves the camera unit, only counts.
 - Small monitor on the camera unit (touchscreen): shows a QR code + 6-digit pair code during pairing, then a live per-zone count readout once paired. A "View camera" button opens a popup with the feed, person boxes, and zones colored by state (green vacant, orange occupied, red full) labeled "Table 1 (1/4)". The admin zone canvas draws the same labels and colors.
-- Pairing: admin scans the QR (it encodes only the 6-digit code, read by the Scan button in the admin app's pair form) or types the code in the admin app, camera unit polls until claimed, stores the issued api_key locally. If short on time, hardcode the api_key for the demo.
+- Pairing: admin scans the QR (it encodes only the 6-digit code, read by the Scan button in the admin app's pair form) or types the code in the admin app, camera unit polls until claimed, stores the issued api_key locally.
 
 ---
 
@@ -98,20 +94,12 @@ Redesign order (follow `docs/DESIGN.md`):
 
 ---
 
-## Demo script the presenters will run
-
-1. Admin setup page on the projector, live frame from the camera unit mounted high in a classroom corner.
-2. Draw 4 to 6 zones over the real classroom tables live. Preview step shows the area as the public map renders it. Publish.
-3. Public map with the building opened. Judges sit at a table, the tile's count and bar flip to Shared, then Full. They stand, it flips to Empty.
-4. One open zone across the doorway. Five people stand in it, the tile flips to busy.
-
----
-
 ## Style and workflow
 
 - No em dashes anywhere: code, comments, UI text, docs. Use a comma, a colon, or a new sentence.
 - UI copy states facts and times only ("Updated 8 s ago", "Camera unit offline, 4 min"). No taglines, no explanations.
 - Status is text and color, never a dot, square or icon beside it.
 - Small, frequent commits. Work on branches named with standard prefixes (`feat/`, `fix/`, `refactor/`, `chore/`, `docs/`), never `claude/`. Merge to `main` often.
-- Commit as the repo owner only (Duane Cabahug, duanecabahug6@gmail.com). No co-author trailers, no model identifiers in commits.
+- Commit under your own git identity. No co-author trailers, no model identifiers in commits.
+- Pull `main` before branching. Others push to it too, so rebase or merge `main` into your branch before merging back.
 - Env vars (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never exposed to the client), `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (campus map; without the key the map block is not rendered).
