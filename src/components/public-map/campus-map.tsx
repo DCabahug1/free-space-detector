@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   APIProvider,
   ControlPosition,
@@ -406,24 +406,31 @@ function campusPin(pins: MapPin[]) {
 }
 
 // The classic marker takes color strings, so the state and primary tokens
-// are read off the document, again when the theme flips.
+// are read off the document, again when the theme flips. next-themes sets
+// the .dark class in its own effect, after this one, so the read waits a
+// frame. Building names are white in dark, ink in light.
 function useTokenColors(mounted: boolean, dark: boolean): TokenColors | null {
-  return useMemo(() => {
-    if (!mounted) return null;
-    const style = getComputedStyle(document.documentElement);
-    const read = (name: string) => style.getPropertyValue(name).trim();
-    return {
-      theme: dark ? "dark" : "light",
-      primary: read("--primary"),
-      foreground: read("--foreground"),
-      state: {
-        empty: read(STATE_TOKEN.empty),
-        shared: read(STATE_TOKEN.shared),
-        full: read(STATE_TOKEN.full),
-        unknown: read(STATE_TOKEN.unknown),
-      } as Record<BuildingState, string>,
-    };
+  const [colors, setColors] = useState<TokenColors | null>(null);
+  useEffect(() => {
+    if (!mounted) return;
+    const frame = requestAnimationFrame(() => {
+      const style = getComputedStyle(document.documentElement);
+      const read = (name: string) => style.getPropertyValue(name).trim();
+      setColors({
+        theme: dark ? "dark" : "light",
+        primary: read("--primary"),
+        foreground: dark ? "#ffffff" : read("--foreground"),
+        state: {
+          empty: read(STATE_TOKEN.empty),
+          shared: read(STATE_TOKEN.shared),
+          full: read(STATE_TOKEN.full),
+          unknown: read(STATE_TOKEN.unknown),
+        } as Record<BuildingState, string>,
+      });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [mounted, dark]);
+  return colors;
 }
 
 // Bounds around every located building, never narrower than about 400 m
