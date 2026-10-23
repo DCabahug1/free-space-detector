@@ -351,7 +351,7 @@ interface BuildingGroupProps {
 }
 
 // One building in the directory: header on the accent background with the
-// name and area count, then the pin, free total and chevron in fixed
+// pin, name and area count, then the free total and chevron in fixed
 // columns so they line up from card to card. Closed by
 // default, the same way an area row's spots are.
 function BuildingGroup({
@@ -397,22 +397,22 @@ function BuildingGroup({
           if (!forceOpen) setOpened((o) => !o);
         }}
         className={cn(
-          "grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground",
+          "grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground",
           !forceOpen && "cursor-pointer",
           focus != null && "animate-[header-pulse_900ms_ease-out]"
         )}
       >
-        <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.01em]">
-          <Highlight text={name} query={query} />
-        </h2>
-        <p className="col-start-1 row-start-2 text-[13px] text-building-muted">{caption}</p>
         <PinButton
           pinned={pinned}
           name={name}
           onClick={onTogglePin}
-          className="row-span-2 text-building-muted hover:bg-background dark:hover:bg-background"
+          className="row-span-2 -ml-2 text-building-muted hover:bg-background dark:hover:bg-background"
           pinnedClassName="text-building-foreground"
         />
+        <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.01em]">
+          <Highlight text={name} query={query} />
+        </h2>
+        <p className="col-start-2 row-start-2 text-[13px] text-building-muted">{caption}</p>
         <div className="row-span-2 flex w-[104px] items-baseline justify-end gap-1">
           {loading ? (
             <Skeleton className="h-5 w-14 bg-building-border" />

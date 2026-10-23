@@ -29,7 +29,7 @@ interface RoomRowProps {
   className?: string;
 }
 
-// One directory row: name and summary caption, then the pin, free count,
+// One directory row: the pin, name and summary caption, then the free count
 // and a chevron that opens the area's spots as tiles beneath the row.
 // Closed by default. Spots keep the admin's order. The name opens the row
 // too. Hairlines come from the parent (divide-y).
@@ -58,7 +58,8 @@ export function RoomRow({
 
   return (
     <div className={cn("px-4 py-3", className)}>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3">
+        <PinButton pinned={pinned} name={room.name} onClick={onTogglePin} className="row-span-2 -ml-2" />
         <button
           type="button"
           className="row-span-2 min-w-0 text-left"
@@ -79,7 +80,6 @@ export function RoomRow({
             </div>
           )}
         </button>
-        <PinButton pinned={pinned} name={room.name} onClick={onTogglePin} className="row-span-2" />
         <div className="row-span-2 flex w-[104px] items-baseline justify-end gap-1">
           {loading ? (
             <Skeleton className="h-5 w-14" />

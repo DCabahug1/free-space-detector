@@ -1,5 +1,5 @@
 // Distances between a person and a building, for the Nearest sort and the
-// "240 m" caption. Great-circle distance is plenty at campus scale.
+// "0.2 mi" caption. Great-circle distance is plenty at campus scale.
 
 export interface LatLng {
   lat: number;
@@ -18,8 +18,12 @@ export function distanceMeters(a: LatLng, b: LatLng): number {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(h));
 }
 
-// "240 m" under a kilometre, "1.2 km" from there.
+const METERS_PER_MILE = 1609.344;
+const FEET_PER_METER = 3.28084;
+
+// "450 ft" under a tenth of a mile, "0.2 mi" from there.
 export function distanceText(m: number): string {
-  if (m < 1000) return `${Math.round(m / 10) * 10} m`;
-  return `${(m / 1000).toFixed(1)} km`;
+  const miles = m / METERS_PER_MILE;
+  if (miles < 0.1) return `${Math.round((m * FEET_PER_METER) / 50) * 50} ft`;
+  return `${miles.toFixed(1)} mi`;
 }
