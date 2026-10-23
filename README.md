@@ -1,6 +1,6 @@
 # Spot
 
-Repo working name: free-space-detector. Live at https://free-space-detector.vercel.app.
+Repo working name: free-space-detector. Live at https://csun-spot.vercel.app.
 
 Camera units count people inside hand-drawn zones. The counts, never the video, go to a Next.js app on Vercel and a Supabase database. Students open a public map and see which tables are free right now.
 

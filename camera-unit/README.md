@@ -33,7 +33,7 @@ cd camera-unit
 python3 main.py --fake --interval 5
 ```
 
-The default server is the live deployment, https://free-space-detector.vercel.app.
+The default server is the live deployment, https://csun-spot.vercel.app.
 To hit a local `pnpm dev` instead, set `SERVER_URL`:
 
 ```bash
@@ -100,7 +100,7 @@ empty env var counts as set, so `CAMERA_API_KEY=""` forces pairing.
 | --- | --- | --- |
 | `supabase_url` | `SUPABASE_URL` | demo project |
 | `supabase_anon_key` | `SUPABASE_ANON_KEY` | demo anon key |
-| `server_url` | `SERVER_URL` | `https://free-space-detector.vercel.app` |
+| `server_url` | `SERVER_URL` | `https://csun-spot.vercel.app` |
 | `api_key` | `CAMERA_API_KEY` | demo camera unit key |
 | `room_id` | `ROOM_ID` | Demo Classroom (fallback only) |
 | `post_interval_s` | `POST_INTERVAL_S` | 15 |
