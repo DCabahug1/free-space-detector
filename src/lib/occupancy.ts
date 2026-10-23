@@ -101,10 +101,14 @@ export function durationText(since: string | null | undefined, now: number) {
   return `${Math.round(h / 24)} d`;
 }
 
-// "8 s ago", "4 min ago", or "never".
+// "just now" for the first minute, then "4 min ago", "2 h ago", or "never".
+// Captions move once a minute, not every second.
 export function relativeTime(iso: string | null | undefined, now: number) {
   if (!iso) return "never";
   if (now === 0) return "";
+  const s = (now - new Date(iso).getTime()) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
   return `${durationText(iso, now)} ago`;
 }
 
@@ -113,58 +117,60 @@ export function clockTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-// Tables nobody is at: seating zones with a count of 0. A table with one
-// person at it is taken, however many seats it has. Open zones are not
-// tables, so they never count as free.
-export function freeTables(
-  zones: Zone[],
-  counts: Record<string, number | undefined>
-): number {
-  return zones.filter((z) => z.type === "seating" && (counts[z.id] ?? 0) === 0).length;
+// The public map speaks in two colors: green while a seat is free, red when
+// there is none. Shared reads green there (a seat is still open); the admin
+// canvas and the camera unit monitor keep the three-color stateColor.
+export function availabilityColor(state: TileState): string {
+  switch (state) {
+    case "full":
+    case "busy":
+      return "var(--state-full)";
+    case "unknown":
+      return "var(--state-unknown)";
+    default:
+      return "var(--state-empty)";
+  }
 }
 
-export function totalTables(zones: Zone[]): number {
-  return zones.filter((z) => z.type === "seating").length;
+// Open seats in one zone: capacity minus the people at it, never below 0.
+export function seatsFree(zone: Zone, count: number): number {
+  if (zone.type !== "seating" || zone.capacity == null) return 0;
+  return Math.max(0, zone.capacity - count);
 }
 
-export type BuildingState = "empty" | "shared" | "full" | "unknown";
+// Open seats across zones. A table with one person at a six seat table
+// still has five seats free.
+export function freeSeats(zones: Zone[], counts: Record<string, number | undefined>): number {
+  return zones.reduce((sum, z) => sum + seatsFree(z, counts[z.id] ?? 0), 0);
+}
 
-// One state for a whole building, for its map pin and the free total in
-// its directory header. Offline (every camera unit) is unknown. With
-// seating: half or more of the tables free is empty, any table free is
-// shared, none is full. Open zones only: all empty, any busy, otherwise
-// shared.
+export function totalSeats(zones: Zone[]): number {
+  return zones.reduce((sum, z) => sum + (z.type === "seating" && z.capacity != null ? z.capacity : 0), 0);
+}
+
+export type BuildingState = "empty" | "full" | "unknown";
+
+// One state for a whole building, for its map pin and its free total.
+// Offline (every camera unit) is unknown, any free seat is empty (green),
+// none is full (red).
 export function buildingState(
   zones: Zone[],
   counts: Record<string, number | undefined>,
   offline: boolean
 ): BuildingState {
   if (offline) return "unknown";
-  const total = totalTables(zones);
-  if (total > 0) {
-    const free = freeTables(zones, counts);
-    if (free * 2 >= total) return "empty";
-    return free > 0 ? "shared" : "full";
-  }
-  const states = zones.map((z) => tileState(z.type, counts[z.id] ?? 0, z.capacity));
-  if (states.length === 0 || states.every((s) => s === "empty")) return "empty";
-  return states.some((s) => s === "busy") ? "full" : "shared";
+  if (totalSeats(zones) === 0) return "empty";
+  return freeSeats(zones, counts) > 0 ? "empty" : "full";
 }
 
-// One line for a room: "2 of 4 tables open", or for rooms with no seating
-// "3 people" / "Empty".
+// One line for an area: "14 of 24 seats free".
 export function roomSummary(
   zones: Zone[],
   counts: Record<string, number | undefined>
 ): string {
-  const total = totalTables(zones);
-  if (total > 0) {
-    const noun = total === 1 ? "table" : "tables";
-    return `${freeTables(zones, counts)} of ${total} ${noun} open`;
-  }
-  const people = zones.reduce((sum, z) => sum + (counts[z.id] ?? 0), 0);
-  if (people === 0) return "Empty";
-  return people === 1 ? "1 person" : `${people} people`;
+  const total = totalSeats(zones);
+  if (total === 0) return "No seats";
+  return `${freeSeats(zones, counts)} of ${total} ${total === 1 ? "seat" : "seats"} free`;
 }
 
 export const ZONE_TYPE_LABEL: Record<ZoneType, string> = {

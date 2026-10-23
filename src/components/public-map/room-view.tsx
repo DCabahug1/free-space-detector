@@ -1,8 +1,7 @@
 "use client";
 
 import type { PublicRoom } from "@/lib/types";
-import { clockTime, durationText, freeTables, relativeTime, roomSummary } from "@/lib/occupancy";
-import { usePins } from "@/lib/pins";
+import { clockTime, durationText, freeSeats, relativeTime, roomSummary } from "@/lib/occupancy";
 import type { LiveSnapshot } from "@/hooks/use-live-snapshot";
 import { cn } from "@/lib/utils";
 import { ZoneTile } from "./zone-tile";
@@ -18,12 +17,11 @@ interface RoomViewProps {
 // narrow column with no buttons. The area page itself is gone; its old URL
 // redirects to the map.
 export function RoomView({ room, live }: RoomViewProps) {
-  const { isZonePinned } = usePins();
   const heartbeat = live.heartbeat(room);
   // A unit that paused sharing reads as offline here. Only the admin says paused.
   const offline = room.zones.length > 0 && (live.roomPaused(room) || live.roomOffline(room));
   const offlineFor = offline ? durationText(heartbeat, live.now) || "never" : null;
-  const free = freeTables(room.zones, live.countNumbers);
+  const free = freeSeats(room.zones, live.countNumbers);
 
   const body =
     room.zones.length === 0 ? (
@@ -79,9 +77,6 @@ export function RoomView({ room, live }: RoomViewProps) {
               count={live.countNumbers[zone.id]}
               offlineFor={offlineFor}
               size="xs"
-              pinned={isZonePinned(zone.id)}
-              // A picture of the map, not a place to pin from.
-              onTogglePin={undefined}
             />
           ))}
         </div>

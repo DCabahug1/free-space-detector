@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Building, PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
-import { buildingState, durationText, freeTables, relativeTime, stateColor, type BuildingState } from "@/lib/occupancy";
+import { availabilityColor, buildingState, durationText, freeSeats, relativeTime, totalSeats, type BuildingState } from "@/lib/occupancy";
 import { distanceMeters, distanceText } from "@/lib/geo";
 import { usePins } from "@/lib/pins";
 import { useSortPref } from "@/lib/prefs";
@@ -20,6 +20,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PinButton } from "./pin-button";
 import { RoomRow } from "./room-row";
+import { CountPill } from "./count-pill";
+import { Collapse } from "./collapse";
+import { SeatMosaic } from "./seat-mosaic";
 import { CampusMap, mapAvailable, type MapPin } from "./campus-map";
 import { Highlight } from "@/components/highlight";
 
@@ -52,8 +55,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const [sort, setSort] = useSortPref();
   const geo = useGeolocation();
   const live = useLiveSnapshot(rooms, initialCounts);
-  const { isPinned, toggle, isBuildingPinned, toggleBuilding, isZonePinned, toggleZone } = usePins();
-  const zoneIdsOf = (list: PublicRoom[]) => list.flatMap((r) => r.zones.map((z) => z.id));
+  const { isBuildingPinned, toggleBuilding } = usePins();
   // A pin tap on the map opens that building in the All buildings list.
   const [focus, setFocus] = useState<{ id: string; tick: number } | null>(null);
   // View on map in a building header zooms the map to that building.
@@ -89,13 +91,13 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     if (geoStatus === "idle") requestGeo();
   }
 
-  // Per room: free tables and whether its camera unit is offline.
+  // Per room: free seats and whether its camera unit is offline.
   // A unit that paused sharing reads as offline here. Only the admin says paused.
   const stats = new Map<string, { free: number; offlineFor: string | null }>();
   for (const room of rooms) {
     const offline = live.roomPaused(room) || live.roomOffline(room);
     stats.set(room.id, {
-      free: offline ? 0 : freeTables(room.zones, live.countNumbers),
+      free: offline ? 0 : freeSeats(room.zones, live.countNumbers),
       offlineFor: offline ? durationText(live.heartbeat(room), live.now) || "never" : null,
     });
   }
@@ -112,7 +114,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   });
 
   // Areas within a building keep the admin's order. Buildings: by distance
-  // while Nearest is on, otherwise offline last and free tables first. Pins
+  // while Nearest is on, otherwise offline last and free seats first. Pins
   // have their own list.
   const buildGroups = (list: PublicRoom[]) => {
     const byBuilding = new Map<string, { building: Building; rooms: PublicRoom[] }>();
@@ -149,8 +151,16 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
         ? (a.distance ?? Infinity) - (b.distance ?? Infinity) || a.building.name.localeCompare(b.building.name)
         : Number(a.offline) - Number(b.offline) || b.free - a.free || a.building.name.localeCompare(b.building.name)
     );
-  const allGroups = sortGroups(groups);
+  // A pinned building moves to Pinned and leaves All buildings; unpinning
+  // puts it back.
+  const allGroups = sortGroups(groups.filter((g) => !g.pinned));
   const pinnedGroups = sortGroups(groups.filter((g) => g.pinned));
+
+  // Campus totals for the hero, from areas whose camera unit is reporting.
+  const reporting = rooms.filter((r) => stats.get(r.id)?.offlineFor == null);
+  const campusFree = reporting.reduce((sum, r) => sum + (stats.get(r.id)?.free ?? 0), 0);
+  const campusSeats = reporting.reduce((sum, r) => sum + totalSeats(r.zones), 0);
+  const campusBuildings = new Set(rooms.map((r) => r.building_id)).size;
 
   // Every located building goes to the map. A search or Free now hides
   // the pins it leaves out; the map itself stays.
@@ -177,7 +187,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   // show a placeholder rather than a number that may flip to unknown.
   const loading = live.now === 0;
 
-  const renderGroup = (g: Group, inAll: boolean) => (
+  const renderGroup = (g: Group) => (
     <BuildingGroup
       key={g.building.id}
       name={g.building.name}
@@ -188,14 +198,14 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       state={g.state}
       distance={g.distance}
       pinned={g.pinned}
-      onTogglePin={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id), zoneIdsOf(g.rooms))}
+      onTogglePin={() => toggleBuilding(g.building.id)}
       onViewOnMap={
         mapAvailable && g.building.lat != null && g.building.lng != null
           ? () => setMapTarget((t) => ({ id: g.building.id, tick: (t?.tick ?? 0) + 1 }))
           : undefined
       }
       forceOpen={q.length > 0}
-      focus={inAll && focus?.id === g.building.id ? focus.tick : null}
+      focus={focus?.id === g.building.id ? focus.tick : null}
       query={query}
     >
       {g.rooms.map((room) => (
@@ -206,10 +216,6 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           offlineFor={stats.get(room.id)?.offlineFor ?? null}
           updated={relativeTime(live.heartbeat(room), live.now)}
           loading={loading}
-          pinned={isPinned(room.id)}
-          onTogglePin={() => toggle(room.id, room.building_id, zoneIdsOf([room]))}
-          isZonePinned={isZonePinned}
-          onToggleZonePin={(zoneId) => toggleZone(zoneId, room.id, room.building_id)}
           query={query}
         />
       ))}
@@ -218,16 +224,38 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
 
   return (
     <>
-      <Band className="pt-5 pb-9">
-        <Wrap className="flex flex-col gap-2.5">
-          <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">Find a free spot</h1>
-          {reconnecting ? (
-            <p className="text-[13px] text-band-stale">
-              Reconnecting. Counts from {durationText(live.latestUpdate, live.now) || "never"} ago
-            </p>
-          ) : (
-            <p className="text-[13px] text-band-muted">Live seat availability across campus.</p>
-          )}
+      <Band className="overflow-hidden">
+        <Wrap className="flex items-end justify-between gap-10 pt-8 pb-10 md:pt-10 md:pb-12">
+          <div className="flex min-w-0 flex-col gap-6">
+            <h1 className="text-[40px] font-semibold leading-[0.95] tracking-[-0.03em] md:text-[56px]">
+              Find a free spot
+            </h1>
+            <div className="flex flex-col gap-1">
+              {loading ? (
+                <Skeleton className="h-9 w-56 bg-band-2" />
+              ) : (
+                <p className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-mono text-[34px] font-bold leading-none tabular-nums text-band-accent">
+                    {campusFree}
+                  </span>
+                  <span className="text-[15px] text-band-foreground">
+                    {campusFree === 1 ? "seat" : "seats"} free across {campusBuildings}{" "}
+                    {campusBuildings === 1 ? "building" : "buildings"}
+                  </span>
+                </p>
+              )}
+              {reconnecting ? (
+                <p className="text-[13px] text-band-stale">
+                  Reconnecting. Counts from {durationText(live.latestUpdate, live.now) || "never"} ago
+                </p>
+              ) : (
+                <p className="text-[13px] text-band-muted">
+                  {loading ? "\u00a0" : `Updated ${relativeTime(live.latestUpdate, live.now)}`}
+                </p>
+              )}
+            </div>
+          </div>
+          <SeatMosaic free={loading ? 0 : campusFree} total={loading ? 0 : campusSeats} className="hidden md:grid" />
         </Wrap>
       </Band>
 
@@ -237,7 +265,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           <p className="text-[15px] text-muted-foreground">Areas appear here once staff publish them.</p>
         </Wrap>
       ) : (
-        <Wrap className="flex flex-col gap-6 pt-6 pb-12">
+        <Wrap className="flex flex-col gap-8 pt-8 pb-16">
           <CampusMap
             pins={pins}
             position={position}
@@ -280,7 +308,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           {visible.length === 0 ? (
             <div className="flex flex-col gap-3 pt-8">
               <p className="text-[15px] text-muted-foreground">
-                {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free tables right now."}
+                {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free seats right now."}
               </p>
               {q ? (
                 <Button variant="outline" className="self-start" onClick={() => setQuery("")}>
@@ -293,12 +321,14 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           {pinnedGroups.length > 0 ? (
             <>
               <DirectorySection title="Pinned" collapsible>
-                {pinnedGroups.map((g) => renderGroup(g, false))}
+                {pinnedGroups.map(renderGroup)}
               </DirectorySection>
-              <DirectorySection title="All buildings">{allGroups.map((g) => renderGroup(g, true))}</DirectorySection>
+              {allGroups.length > 0 ? (
+                <DirectorySection title="All buildings">{allGroups.map(renderGroup)}</DirectorySection>
+              ) : null}
             </>
           ) : allGroups.length > 0 ? (
-            <section className="flex flex-col gap-4">{allGroups.map((g) => renderGroup(g, true))}</section>
+            <section className="flex flex-col gap-3">{allGroups.map(renderGroup)}</section>
           ) : null}
         </Wrap>
       )}
@@ -318,7 +348,7 @@ interface DirectorySectionProps {
 function DirectorySection({ title, collapsible, children }: DirectorySectionProps) {
   const [open, setOpen] = useState(true);
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2">
       <div className="flex h-8 items-center justify-between">
         <h2 className="text-[13px] font-medium uppercase tracking-[0.04em] text-muted-foreground">{title}</h2>
         {collapsible ? (
@@ -329,11 +359,13 @@ function DirectorySection({ title, collapsible, children }: DirectorySectionProp
             aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
           >
-            <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
+            <ChevronDown className={cn("transition-transform duration-300", open && "rotate-180")} aria-hidden />
           </Button>
         ) : null}
       </div>
-      {open ? <div className="flex flex-col gap-4">{children}</div> : null}
+      <Collapse open={open}>
+        <div className="flex flex-col gap-3">{children}</div>
+      </Collapse>
     </section>
   );
 }
@@ -391,7 +423,7 @@ function BuildingGroup({
     if (focus != null) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [focus]);
   const open = opened || forceOpen;
-  const freeColor = stateColor(state);
+  const freeColor = availabilityColor(state);
   const caption = `${areaCount} ${areaCount === 1 ? "area" : "areas"}${distance != null ? `, ${distanceText(distance)}` : ""}`;
   return (
     <section
@@ -408,7 +440,7 @@ function BuildingGroup({
           if (!forceOpen) setOpened((o) => !o);
         }}
         className={cn(
-          "grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3 bg-building px-4 py-3 text-building-foreground",
+          "grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-0.5 bg-building py-4 pr-4 pl-3 sm:gap-x-4 sm:pr-5 sm:pl-4 text-building-foreground",
           !forceOpen && "cursor-pointer",
           focus != null && "animate-[header-pulse_900ms_ease-out]"
         )}
@@ -420,7 +452,7 @@ function BuildingGroup({
           className="row-span-2 -ml-2 text-building-muted hover:bg-background dark:hover:bg-background"
           pinnedClassName="text-building-foreground"
         />
-        <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.01em]">
+        <h2 className="min-w-0 break-words text-lg font-semibold leading-tight tracking-[-0.01em] sm:text-xl">
           <Highlight text={name} query={query} />
         </h2>
         <p className="col-start-2 row-start-2 flex flex-wrap items-baseline gap-x-3 text-[13px] text-building-muted">
@@ -439,15 +471,15 @@ function BuildingGroup({
             </button>
           ) : null}
         </p>
-        <div className="row-span-2 flex w-[104px] items-baseline justify-end gap-1">
+        <div className="row-span-2 flex items-center justify-end sm:w-[104px]">
           {loading ? (
-            <Skeleton className="h-5 w-14 bg-building-border" />
+            <Skeleton className="h-7 w-16 bg-building-border" />
           ) : (
             <>
-              <span className="font-mono text-xl font-bold tabular-nums" style={{ color: freeColor }}>
+              <CountPill color={freeColor} className="bg-[color-mix(in_oklch,var(--pill)_14%,var(--background))]">
                 {offline ? "?" : free}
-              </span>
-              <span className="text-[13px] text-building-muted">{offline ? "unknown" : "free"}</span>
+                <span className="font-sans text-xs font-semibold">{offline ? "unknown" : "free"}</span>
+              </CountPill>
             </>
           )}
         </div>
@@ -463,10 +495,12 @@ function BuildingGroup({
             setOpened((o) => !o);
           }}
         >
-          <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden />
+          <ChevronDown className={cn("transition-transform duration-300", open && "rotate-180")} aria-hidden />
         </Button>
       </div>
-      {open ? <div className="divide-y border-t">{children}</div> : null}
+      <Collapse open={open}>
+        <div className="divide-y border-t">{children}</div>
+      </Collapse>
     </section>
   );
 }
