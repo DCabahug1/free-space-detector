@@ -43,6 +43,14 @@ interface CampusMapProps {
 const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 const noop = () => () => {};
 const PERSON_ZOOM = 16;
+// Every demo building is on one campus, so the merged dot carries its name.
+const CAMPUS_NAME = "CSUN";
+// Pin circle radius in pixels, stroke included.
+const PIN_RADIUS = 17;
+// Label line: its vertical center sits this far below the pin's center.
+const LABEL_OFFSET = 26;
+const LABEL_HEIGHT = 16;
+const LABEL_FONT = "600 12px DM Sans, sans-serif";
 
 // Google's own points of interest and transit icons stay off, so the only
 // markers on the map are Spot's. Styles need a raster map, and the classic
@@ -64,7 +72,7 @@ const STATE_TOKEN: Record<BuildingState, string> = {
 
 // One pin per building that has a location, in the building's state color
 // with its free total inside and a primary outline, the building's name
-// under it. The person is a primary dot inside a soft halo. Renders nothing without a key, after a load
+// under it where it fits. The person is a primary dot inside a soft halo. Renders nothing without a key, after a load
 // failure, or with no located building, so the page never shows a broken
 // map.
 export function CampusMap({ pins, position, onRequestPosition, onSelect }: CampusMapProps) {
@@ -160,58 +168,80 @@ interface SpotMarkersProps {
 }
 
 // The pins and the person. Rendered only once the map instance exists, so
-// the Google symbol constants are there to read.
+// the Google symbol constants are there to read. A name label is left out
+// when it would cover another pin or a label already placed, so zooming out
+// never stacks text. Once every pin sits within two pin widths of their
+// middle, the circles are one blob, so they merge into one campus dot; a
+// tap on it fits the map to the buildings again.
 function SpotMarkers({ pins, position, colors, onSelect }: SpotMarkersProps) {
   const map = useMap();
-  if (!map || !colors) return null;
+  const zoom = useZoom(map);
+  if (!map || !colors || zoom == null) return null;
+  const shown = pins.filter((p) => p.shown);
+  const points = shown.map((p) => toPixel(p, zoom));
+  const merged = shown.length > 1 && spread(points) < PIN_RADIUS * 4;
+  const labeled = merged ? new Set<string>() : placeLabels(shown, points);
+
+  const pinMarker = (p: Pick<MapPin, "lat" | "lng" | "name" | "free" | "offline" | "state">, onClick: () => void) => (
+    <Marker
+      position={{ lat: p.lat, lng: p.lng }}
+      title={p.name}
+      onClick={onClick}
+      zIndex={2}
+      icon={{
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 15,
+        fillColor: colors.state[p.state],
+        fillOpacity: 1,
+        strokeColor: colors.primary,
+        strokeWeight: 2,
+      }}
+      label={{
+        text: p.offline ? "?" : String(p.free),
+        color: "#ffffff",
+        fontFamily: "JetBrains Mono, ui-monospace, monospace",
+        fontSize: "12px",
+        fontWeight: "700",
+      }}
+    />
+  );
+  const nameMarker = (p: Pick<MapPin, "lat" | "lng" | "name">) => (
+    <Marker
+      position={{ lat: p.lat, lng: p.lng }}
+      clickable={false}
+      zIndex={1}
+      icon={{
+        url: BLANK_ICON,
+        scaledSize: new google.maps.Size(1, 1),
+        anchor: new google.maps.Point(0, 0),
+        labelOrigin: new google.maps.Point(0, LABEL_OFFSET),
+      }}
+      label={{
+        text: p.name,
+        className: "spot-pin-label",
+        color: colors.foreground,
+        fontFamily: "DM Sans, sans-serif",
+        fontSize: "12px",
+        fontWeight: "600",
+      }}
+    />
+  );
+
   return (
     <>
-      {pins
-        .filter((p) => p.shown)
-        .map((p) => (
+      {merged ? (
+        <Fragment key="campus">
+          {pinMarker(campusPin(shown), () => map.fitBounds(boundsOf(shown), 24))}
+          {nameMarker(campusPin(shown))}
+        </Fragment>
+      ) : (
+        shown.map((p) => (
           <Fragment key={p.id}>
-            <Marker
-              position={{ lat: p.lat, lng: p.lng }}
-              title={p.name}
-              onClick={() => onSelect(p.id)}
-              zIndex={2}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 15,
-                fillColor: colors.state[p.state],
-                fillOpacity: 1,
-                strokeColor: colors.primary,
-                strokeWeight: 2,
-              }}
-              label={{
-                text: p.offline ? "?" : String(p.free),
-                color: "#ffffff",
-                fontFamily: "JetBrains Mono, ui-monospace, monospace",
-                fontSize: "12px",
-                fontWeight: "700",
-              }}
-            />
-            <Marker
-              position={{ lat: p.lat, lng: p.lng }}
-              clickable={false}
-              zIndex={1}
-              icon={{
-                url: BLANK_ICON,
-                scaledSize: new google.maps.Size(1, 1),
-                anchor: new google.maps.Point(0, 0),
-                labelOrigin: new google.maps.Point(0, 26),
-              }}
-              label={{
-                text: p.name,
-                className: "spot-pin-label",
-                color: colors.foreground,
-                fontFamily: "DM Sans, sans-serif",
-                fontSize: "12px",
-                fontWeight: "600",
-              }}
-            />
+            {pinMarker(p, () => onSelect(p.id))}
+            {labeled.has(p.id) ? nameMarker(p) : null}
           </Fragment>
-        ))}
+        ))
+      )}
       {position ? (
         <>
           <Marker
@@ -244,6 +274,108 @@ function SpotMarkers({ pins, position, colors, onSelect }: SpotMarkersProps) {
       ) : null}
     </>
   );
+}
+
+// The map's zoom, kept in state so the markers re-place their labels on
+// every zoom step. Panning moves every pin together, so it needs nothing.
+function useZoom(map: google.maps.Map | null): number | null {
+  const [zoom, setZoom] = useState<number | null>(null);
+  useEffect(() => {
+    if (!map) return;
+    const read = () => {
+      const z = map.getZoom();
+      if (z != null) setZoom(z);
+    };
+    read();
+    const listener = map.addListener("zoom_changed", read);
+    return () => listener.remove();
+  }, [map]);
+  return zoom;
+}
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+// Web Mercator world pixels at this zoom. Only the distances between pins
+// matter, so the map's own offset is not needed.
+function toPixel(p: LatLng, zoom: number): Point {
+  const scale = 256 * 2 ** zoom;
+  const sin = Math.sin((p.lat * Math.PI) / 180);
+  return {
+    x: ((p.lng + 180) / 360) * scale,
+    y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale,
+  };
+}
+
+// Largest pixel distance from the middle of the pins to any one of them.
+function spread(points: Point[]): number {
+  const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+  const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+  return Math.max(...points.map((p) => Math.hypot(p.x - cx, p.y - cy)));
+}
+
+interface Box {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+const overlaps = (a: Box, b: Box) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+let measureContext: CanvasRenderingContext2D | null | undefined;
+function labelWidth(text: string): number {
+  if (measureContext === undefined) measureContext = document.createElement("canvas").getContext("2d");
+  if (!measureContext) return text.length * 7;
+  measureContext.font = LABEL_FONT;
+  return measureContext.measureText(text).width + 8;
+}
+
+// The ids whose name label fits: in order, each label is kept only if it
+// clears every pin circle and every label kept before it.
+function placeLabels(pins: MapPin[], points: Point[]): Set<string> {
+  const circles: Box[] = points.map((p) => ({
+    left: p.x - PIN_RADIUS,
+    right: p.x + PIN_RADIUS,
+    top: p.y - PIN_RADIUS,
+    bottom: p.y + PIN_RADIUS,
+  }));
+  const placed: Box[] = [];
+  const ids = new Set<string>();
+  pins.forEach((pin, i) => {
+    const half = labelWidth(pin.name) / 2;
+    const cy = points[i].y + LABEL_OFFSET;
+    const box = {
+      left: points[i].x - half,
+      right: points[i].x + half,
+      top: cy - LABEL_HEIGHT / 2,
+      bottom: cy + LABEL_HEIGHT / 2,
+    };
+    if (circles.some((c) => overlaps(box, c)) || placed.some((b) => overlaps(box, b))) return;
+    placed.push(box);
+    ids.add(pin.id);
+  });
+  return ids;
+}
+
+// The merged dot: in the middle of the buildings, with the campus free
+// total. Unknown when every building is offline, otherwise empty or full
+// only when every reporting building agrees, shared in between.
+function campusPin(pins: MapPin[]) {
+  const reporting = pins.filter((p) => !p.offline);
+  const states = new Set(reporting.map((p) => p.state));
+  const state: BuildingState =
+    reporting.length === 0 ? "unknown" : states.size === 1 && !states.has("shared") ? [...states][0] : "shared";
+  return {
+    name: CAMPUS_NAME,
+    lat: pins.reduce((sum, p) => sum + p.lat, 0) / pins.length,
+    lng: pins.reduce((sum, p) => sum + p.lng, 0) / pins.length,
+    free: reporting.reduce((sum, p) => sum + p.free, 0),
+    offline: reporting.length === 0,
+    state,
+  };
 }
 
 // The classic marker takes color strings, so the state and primary tokens
