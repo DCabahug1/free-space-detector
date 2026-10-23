@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { createBuilding, deleteBuilding, updateBuilding } from "@/app/admin/actions";
 import type { LatLng } from "@/lib/geo";
 import type { Building } from "@/lib/types";
+import { useFormDirty } from "@/hooks/use-form-dirty";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +62,10 @@ export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: Buil
     building && building.lat != null && building.lng != null ? { lat: building.lat, lng: building.lng } : null;
   // The pin, null until placed or after Remove location.
   const [center, setCenter] = useState<LatLng | null>(saved);
+  // Editing saves only once the name or the pin differs from what is stored.
+  const { attach: attachForm, onInput: onFormInput, dirty: formDirty } = useFormDirty();
+  const moved = center?.lat !== saved?.lat || center?.lng !== saved?.lng;
+  const unchanged = building != null && !formDirty && !moved;
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,7 +122,7 @@ export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: Buil
         )}
       </DialogTrigger>
       <DialogContent className={KEY ? "sm:max-w-lg" : undefined}>
-        <form onSubmit={onSubmit} className="space-y-6">
+        <form ref={attachForm} onInput={onFormInput} onSubmit={onSubmit} className="space-y-6">
           <DialogHeader>
             <DialogTitle>{building ? "Building" : "New building"}</DialogTitle>
           </DialogHeader>
@@ -172,7 +177,7 @@ export function BuildingDialog({ building, areaCount = 0, fallbackCenter }: Buil
                 </AlertDialog>
               ) : null}
             </div>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || unchanged}>
               {pending ? (building ? "Saving" : "Creating") : building ? "Save" : "Create building"}
             </Button>
           </DialogFooter>

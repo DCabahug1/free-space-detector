@@ -277,6 +277,10 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
 
   const points = draft.length;
   const editing = selected && !pendingPolygon;
+  // Save stays off until the name, type or capacity differs from the stored zone.
+  const editChanged =
+    selected != null &&
+    JSON.stringify(toInput(fields, [])) !== JSON.stringify(toInput(fieldsFromZone(selected), []));
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
@@ -502,7 +506,9 @@ export function ZoneEditor({ roomId, zones, onZonesChange, counts, liveFrame, no
               helper={`Full at ${fields.capacity || "?"}. Shared from 1.`}
             />
             <div className="flex items-center justify-between">
-              <Button type="submit">Save</Button>
+              <Button type="submit" disabled={!editChanged}>
+                Save
+              </Button>
               <Button type="button" variant="outline" className={deleteTriggerClass} onClick={() => removeZone(selected)}>
                 Delete zone
               </Button>

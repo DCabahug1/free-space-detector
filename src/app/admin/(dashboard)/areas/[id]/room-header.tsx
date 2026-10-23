@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { deleteRoom, updateRoom } from "@/app/admin/actions";
 import type { Building, PublicRoom } from "@/lib/types";
 import { durationText, isOffline } from "@/lib/occupancy";
+import { useFormDirty } from "@/hooks/use-form-dirty";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,8 @@ export function RoomHeader({ room, buildings, zoneCount, now }: RoomHeaderProps)
   const [renameOpen, setRenameOpen] = useState(false);
   const [buildingId, setBuildingId] = useState(room.building_id);
   const [pending, startTransition] = useTransition();
+  const { attach: attachForm, onInput: onFormInput, dirty: formDirty } = useFormDirty();
+  const changed = formDirty || buildingId !== room.building_id;
 
   const unit = [...room.units].sort((a, b) =>
     (b.last_seen ?? "").localeCompare(a.last_seen ?? "")
@@ -93,14 +96,20 @@ export function RoomHeader({ room, buildings, zoneCount, now }: RoomHeaderProps)
             <span className="font-normal text-muted-foreground">{room.building.name}, </span>
             {room.name}
           </h1>
-          <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+          <Dialog
+            open={renameOpen}
+            onOpenChange={(o) => {
+              setRenameOpen(o);
+              if (o) setBuildingId(room.building_id);
+            }}
+          >
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon-sm" aria-label="Rename area">
                 <Pencil />
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <form onSubmit={onRename} className="space-y-6">
+              <form ref={attachForm} onInput={onFormInput} onSubmit={onRename} className="space-y-6">
                 <DialogHeader>
                   <DialogTitle>Building and area</DialogTitle>
                 </DialogHeader>
@@ -135,7 +144,7 @@ export function RoomHeader({ room, buildings, zoneCount, now }: RoomHeaderProps)
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" disabled={pending}>
+                  <Button type="submit" disabled={pending || !changed}>
                     {pending ? "Saving" : "Save"}
                   </Button>
                 </DialogFooter>

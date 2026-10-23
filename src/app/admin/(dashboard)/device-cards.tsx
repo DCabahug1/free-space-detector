@@ -12,6 +12,7 @@ import {
   requestCameraUnitUpdate,
 } from "@/app/admin/actions";
 import { useClock } from "@/hooks/use-clock";
+import { useFormDirty } from "@/hooks/use-form-dirty";
 import { useLiveFrame } from "@/hooks/use-live-frame";
 import { durationText, isOffline } from "@/lib/occupancy";
 import {
@@ -186,6 +187,11 @@ function UnitRow({
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
+  // The area pick lives in state so Save can tell it changed; the name is
+  // checked by the form.
+  const [roomValue, setRoomValue] = useState(unit.room_id ?? NONE);
+  const { attach: attachEditForm, onInput: onEditInput, dirty: editDirty } = useFormDirty();
+  const editChanged = editDirty || roomValue !== (unit.room_id ?? NONE);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -200,7 +206,6 @@ function UnitRow({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const name = String(form.get("name") ?? "");
-    const roomValue = String(form.get("room_id") ?? NONE);
     startTransition(async () => {
       const renamed = await renameCameraUnit(unit.id, name);
       if (renamed.error) {
@@ -299,7 +304,14 @@ function UnitRow({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setDetailsOpen(true)}>Details</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setEditOpen(true)}>Edit</DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              setRoomValue(unit.room_id ?? NONE);
+              setEditOpen(true);
+            }}
+          >
+            Edit
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={onUpdate} disabled={pending || offline || unit.update_requested_at !== null}>
             Update
           </DropdownMenuItem>
@@ -311,7 +323,7 @@ function UnitRow({
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
-          <form onSubmit={onEdit} className="space-y-6">
+          <form ref={attachEditForm} onInput={onEditInput} onSubmit={onEdit} className="space-y-6">
             <DialogHeader>
               <DialogTitle>Edit camera unit</DialogTitle>
             </DialogHeader>
@@ -322,7 +334,7 @@ function UnitRow({
               </div>
               <div className="space-y-2">
                 <Label htmlFor={`unit-room-${unit.id}`}>Area</Label>
-                <Select name="room_id" defaultValue={unit.room_id ?? NONE}>
+                <Select value={roomValue} onValueChange={setRoomValue}>
                   <SelectTrigger id={`unit-room-${unit.id}`} className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -338,7 +350,7 @@ function UnitRow({
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={pending || !editChanged}>
                 {pending ? "Saving" : "Save"}
               </Button>
             </DialogFooter>
