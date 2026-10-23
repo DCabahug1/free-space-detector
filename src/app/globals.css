@@ -282,13 +282,15 @@
   }
 }
 
-/* ZoneTile: the bottom bar flashes to ink for 300 ms when the state changes. */
-@keyframes bar-flash {
+/* ZoneTile: the count pill pulses once for 300 ms when the state changes. */
+@keyframes pill-flash {
   0%,
   100% {
-    background-color: var(--bar);
+    transform: scale(1);
   }
   40% {
-    background-color: var(--foreground);
+    transform: scale(1.08);
+    box-shadow: 0 0 0 2px var(--pill);
   }
 }
+
