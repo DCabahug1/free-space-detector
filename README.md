@@ -411,6 +411,15 @@ cp .env.example .env.local   # then fill in SUPABASE_SERVICE_ROLE_KEY
 pnpm dev
 ```
 
+API route tests (no env file or network needed, Supabase is faked):
+
+```bash
+pnpm test         # run once
+pnpm test:watch   # rerun on save
+```
+
+They live in `src/app/api/__tests__/` and cover `/api/ingest`, `/api/frame`, `/api/pair/register` and `/api/pair/status`: bad bodies, unknown api_keys, the zone filter that stops a key writing another area, heartbeats, and the pairing responses.
+
 Camera unit without a camera, posting fake drifting counts to a local server:
 
 ```bash
