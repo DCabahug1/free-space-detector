@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   APIProvider,
   ControlPosition,
@@ -38,11 +38,17 @@ interface CampusMapProps {
   // Asks for the position again, from the locate control.
   onRequestPosition: () => void;
   onSelect: (buildingId: string) => void;
+  // View on map from the directory: shows the map, scrolls to it and zooms
+  // to that building. The tick changes on every press.
+  target: { id: string; tick: number } | null;
 }
 
 const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 const noop = () => () => {};
 const PERSON_ZOOM = 16;
+const BUILDING_ZOOM = 18;
+// View on map is offered only where the map can render at all.
+export const mapAvailable = Boolean(KEY);
 // Every demo building is on one campus, so the merged dot carries its name.
 const CAMPUS_NAME = "CSUN";
 // Pin circle radius in pixels, stroke included.
@@ -75,8 +81,9 @@ const STATE_TOKEN: Record<BuildingState, string> = {
 // under it where it fits. The person is a primary dot inside a soft halo. Renders nothing without a key, after a load
 // failure, or with no located building, so the page never shows a broken
 // map.
-export function CampusMap({ pins, position, onRequestPosition, onSelect }: CampusMapProps) {
+export function CampusMap({ pins, position, onRequestPosition, onSelect, target }: CampusMapProps) {
   const [pref, setPref] = useMapPref();
+  const ref = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
   const [centerTick, setCenterTick] = useState(0);
   const mounted = useSyncExternalStore(noop, () => true, () => false);
@@ -94,6 +101,14 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect }: Campu
     };
   }, []);
 
+  const targetTick = target?.tick;
+  useEffect(() => {
+    if (targetTick == null) return;
+    setPref("shown");
+    ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetTick]);
+
   if (!KEY || failed || pins.length === 0) return null;
   const shown = pref === "shown";
 
@@ -103,7 +118,7 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect }: Campu
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div ref={ref} className="flex scroll-mt-4 flex-col gap-1">
       <div className="flex justify-end">
         <Button
           variant="ghost"
@@ -130,6 +145,7 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect }: Campu
             >
               <FitPins pins={pins} />
               <CenterOnPerson position={position} tick={centerTick} />
+              <FlyToBuilding pins={pins} target={target} />
               <MapControl position={ControlPosition.RIGHT_BOTTOM}>
                 {/* Same box, shadow and icon colors as Google's own controls in each scheme. */}
                 <button
@@ -144,7 +160,13 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect }: Campu
                   <LocateFixed className="size-[18px]" aria-hidden />
                 </button>
               </MapControl>
-              <SpotMarkers pins={pins} position={position} colors={colors} onSelect={onSelect} />
+              <SpotMarkers
+                pins={pins}
+                position={position}
+                colors={colors}
+                onSelect={onSelect}
+                targetId={target?.id ?? null}
+              />
             </Map>
           </APIProvider>
         </div>
@@ -165,6 +187,8 @@ interface SpotMarkersProps {
   position: LatLng | null;
   colors: TokenColors | null;
   onSelect: (buildingId: string) => void;
+  // The building last viewed from the directory: its name is placed first.
+  targetId: string | null;
 }
 
 // The pins and the person. Rendered only once the map instance exists, so
@@ -173,14 +197,14 @@ interface SpotMarkersProps {
 // never stacks text. Once every pin sits within two pin widths of their
 // middle, the circles are one blob, so they merge into one campus dot; a
 // tap on it fits the map to the buildings again.
-function SpotMarkers({ pins, position, colors, onSelect }: SpotMarkersProps) {
+function SpotMarkers({ pins, position, colors, onSelect, targetId }: SpotMarkersProps) {
   const map = useMap();
   const zoom = useZoom(map);
   if (!map || !colors || zoom == null) return null;
   const shown = pins.filter((p) => p.shown);
   const points = shown.map((p) => toPixel(p, zoom));
   const merged = shown.length > 1 && spread(points) < PIN_RADIUS * 4;
-  const labeled = merged ? new Set<string>() : placeLabels(shown, points);
+  const labeled = merged ? new Set<string>() : placeLabels(shown, points, targetId);
 
   const pinMarker = (p: Pick<MapPin, "lat" | "lng" | "name" | "free" | "offline" | "state">, onClick: () => void) => (
     <Marker
@@ -333,9 +357,10 @@ function labelWidth(text: string): number {
   return measureContext.measureText(text).width + 8;
 }
 
-// The ids whose name label fits: in order, each label is kept only if it
-// clears every pin circle and every label kept before it.
-function placeLabels(pins: MapPin[], points: Point[]): Set<string> {
+// The ids whose name label fits: the first id's label goes first, then in
+// order, each label is kept only if it clears every pin circle and every
+// label kept before it.
+function placeLabels(pins: MapPin[], points: Point[], firstId: string | null): Set<string> {
   const circles: Box[] = points.map((p) => ({
     left: p.x - PIN_RADIUS,
     right: p.x + PIN_RADIUS,
@@ -344,7 +369,9 @@ function placeLabels(pins: MapPin[], points: Point[]): Set<string> {
   }));
   const placed: Box[] = [];
   const ids = new Set<string>();
-  pins.forEach((pin, i) => {
+  const order = pins.map((_, i) => i).sort((a, b) => Number(pins[b].id === firstId) - Number(pins[a].id === firstId));
+  order.forEach((i) => {
+    const pin = pins[i];
     const half = labelWidth(pin.name) / 2;
     const cy = points[i].y + LABEL_OFFSET;
     const box = {
@@ -433,6 +460,27 @@ function FitPins({ pins }: { pins: MapPin[] }) {
     map.fitBounds(boundsOf(pins), 24);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, ids]);
+  return null;
+}
+
+// Zooms to the building on every View on map press. A map that mounts for
+// the press applies its first fit late, so the zoom is set again once the
+// map settles.
+function FlyToBuilding({ pins, target }: { pins: MapPin[]; target: CampusMapProps["target"] }) {
+  const map = useMap();
+  const tick = target?.tick;
+  useEffect(() => {
+    const pin = pins.find((p) => p.id === target?.id);
+    if (!map || !pin) return;
+    const apply = () => {
+      map.setZoom(BUILDING_ZOOM);
+      map.panTo({ lat: pin.lat, lng: pin.lng });
+    };
+    apply();
+    const listener = google.maps.event.addListenerOnce(map, "idle", apply);
+    return () => listener.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, tick]);
   return null;
 }
 

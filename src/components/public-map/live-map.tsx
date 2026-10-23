@@ -20,7 +20,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PinButton } from "./pin-button";
 import { RoomRow } from "./room-row";
-import { CampusMap, type MapPin } from "./campus-map";
+import { CampusMap, mapAvailable, type MapPin } from "./campus-map";
 import { Highlight } from "@/components/highlight";
 
 interface LiveMapProps {
@@ -56,6 +56,8 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const zoneIdsOf = (list: PublicRoom[]) => list.flatMap((r) => r.zones.map((z) => z.id));
   // A pin tap on the map opens that building in the All buildings list.
   const [focus, setFocus] = useState<{ id: string; tick: number } | null>(null);
+  // View on map in a building header zooms the map to that building.
+  const [mapTarget, setMapTarget] = useState<{ id: string; tick: number } | null>(null);
 
   // The position is asked for on load so the map can center on the
   // person; the browser remembers the answer. Nearest kept from an earlier
@@ -187,6 +189,11 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       distance={g.distance}
       pinned={g.pinned}
       onTogglePin={() => toggleBuilding(g.building.id, g.rooms.map((r) => r.id), zoneIdsOf(g.rooms))}
+      onViewOnMap={
+        mapAvailable && g.building.lat != null && g.building.lng != null
+          ? () => setMapTarget((t) => ({ id: g.building.id, tick: (t?.tick ?? 0) + 1 }))
+          : undefined
+      }
       forceOpen={q.length > 0}
       focus={inAll && focus?.id === g.building.id ? focus.tick : null}
       query={query}
@@ -240,6 +247,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
               else requestGeo();
             }}
             onSelect={(id) => setFocus((f) => ({ id, tick: (f?.tick ?? 0) + 1 }))}
+            target={mapTarget}
           />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -341,6 +349,8 @@ interface BuildingGroupProps {
   distance: number | null;
   pinned: boolean;
   onTogglePin: () => void;
+  // Only for a building with a location, while the map can render.
+  onViewOnMap?: () => void;
   // A search keeps every matching building open so its results show.
   forceOpen: boolean;
   // A pin tap on the map: opens the group and scrolls it into view. The
@@ -364,6 +374,7 @@ function BuildingGroup({
   distance,
   pinned,
   onTogglePin,
+  onViewOnMap,
   forceOpen,
   focus,
   query,
@@ -387,8 +398,8 @@ function BuildingGroup({
       ref={ref}
       className="scroll-mt-4 overflow-hidden rounded-lg border border-building-border bg-card text-card-foreground"
     >
-      {/* The whole header toggles the group, like an area row. The pin and
-          the chevron stop the click so they keep their own jobs. After a
+      {/* The whole header toggles the group, like an area row. The pin,
+          View on map and the chevron stop the click so they keep their own jobs. After a
           pin tap the header background pulses once; the key replays the
           animation when the same pin is tapped again. */}
       <div
@@ -412,7 +423,22 @@ function BuildingGroup({
         <h2 className="min-w-0 break-words text-xl font-semibold tracking-[-0.01em]">
           <Highlight text={name} query={query} />
         </h2>
-        <p className="col-start-2 row-start-2 text-[13px] text-building-muted">{caption}</p>
+        <p className="col-start-2 row-start-2 flex flex-wrap items-baseline gap-x-3 text-[13px] text-building-muted">
+          <span>{caption}</span>
+          {onViewOnMap ? (
+            <button
+              type="button"
+              aria-label={`View ${name} on map`}
+              className="rounded-sm font-medium text-building-foreground underline-offset-2 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewOnMap();
+              }}
+            >
+              View on map
+            </button>
+          ) : null}
+        </p>
         <div className="row-span-2 flex w-[104px] items-baseline justify-end gap-1">
           {loading ? (
             <Skeleton className="h-5 w-14 bg-building-border" />
