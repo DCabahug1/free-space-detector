@@ -146,13 +146,14 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect, target 
     else onRequestPosition();
   }
 
-  // Out of focus first, so the list scroll lands on the restored page.
+  // The list scroll waits a frame: out of focus first on touch, and on
+  // desktop Google moves keyboard focus onto the marker on its first click,
+  // which cancels a smooth scroll started in the same frame. The marker
+  // lets go of focus too, so nothing pulls the page back to the map.
   function select(id: string) {
-    if (!focusMode) {
-      onSelect(id);
-      return;
-    }
-    setExpanded(false);
+    if (focusMode) setExpanded(false);
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && ref.current?.contains(active)) active.blur();
     requestAnimationFrame(() => onSelect(id));
   }
 
