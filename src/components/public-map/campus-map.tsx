@@ -10,11 +10,13 @@ import {
   RenderingType,
   useMap,
 } from "@vis.gl/react-google-maps";
-import { LocateFixed } from "lucide-react";
+import { LocateFixed, Maximize2, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import type { LatLng } from "@/lib/geo";
 import type { BuildingState } from "@/lib/occupancy";
 import { useMapPref } from "@/lib/prefs";
+import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
+import { bandIconClass } from "@/components/band";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -80,7 +82,9 @@ const STATE_TOKEN: Record<BuildingState, string> = {
 // with its free total inside and a primary outline, the building's name
 // under it where it fits. The person is a primary dot inside a soft halo. Renders nothing without a key, after a load
 // failure, or with no located building, so the page never shows a broken
-// map.
+// map. On touch devices the inline map is a still preview: a tap opens it
+// full screen (focus), where one finger pans and a pinch zooms the map, never
+// the page. A pin tap there closes focus and jumps to the building.
 export function CampusMap({ pins, position, onRequestPosition, onSelect, target }: CampusMapProps) {
   const [pref, setPref] = useMapPref();
   const ref = useRef<HTMLDivElement>(null);
@@ -90,6 +94,10 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect, target 
   const { resolvedTheme } = useTheme();
   const dark = mounted && resolvedTheme === "dark";
   const colors = useTokenColors(mounted, dark);
+  const coarse = useCoarsePointer();
+  const [expanded, setExpanded] = useState(false);
+  const focusMode = coarse && expanded;
+  const preview = coarse && !expanded;
 
   // An invalid or restricted key fails after the script loads, through
   // this global rather than the provider's onError.
@@ -101,13 +109,34 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect, target 
     };
   }, []);
 
+  // View on map: on touch it opens focus, elsewhere it scrolls to the map.
   const targetTick = target?.tick;
+  const [seenTarget, setSeenTarget] = useState(targetTick);
+  if (targetTick !== seenTarget) {
+    setSeenTarget(targetTick);
+    if (coarse && targetTick != null) setExpanded(true);
+  }
   useEffect(() => {
     if (targetTick == null) return;
     setPref("shown");
-    ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    if (!coarse) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetTick]);
+
+  // Focus holds the page still and closes on Escape.
+  useEffect(() => {
+    if (!focusMode) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = overflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [focusMode]);
 
   if (!KEY || failed || pins.length === 0) return null;
   const shown = pref === "shown";
@@ -116,6 +145,21 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect, target 
     if (position) setCenterTick((t) => t + 1);
     else onRequestPosition();
   }
+
+  // Out of focus first, so the list scroll lands on the restored page.
+  function select(id: string) {
+    if (!focusMode) {
+      onSelect(id);
+      return;
+    }
+    setExpanded(false);
+    requestAnimationFrame(() => onSelect(id));
+  }
+
+  const controlClass = cn(
+    "m-2.5 flex size-10 items-center justify-center rounded-[2px] shadow-[0_1px_4px_-1px_rgba(0,0,0,0.3)]",
+    dark ? "bg-[#444] text-[#b3b3b3] hover:text-white" : "bg-white text-[#666] hover:text-[#333]"
+  );
 
   return (
     <div ref={ref} className="flex scroll-mt-4 flex-col gap-1">
@@ -130,45 +174,79 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect, target 
         </Button>
       </div>
       {shown ? (
-        <div className="h-[240px] w-full overflow-hidden rounded-lg border border-building-border bg-muted md:h-[320px]">
-          <APIProvider apiKey={KEY} onError={() => setFailed(true)}>
-            <Map
-              key={dark ? "dark" : "light"}
-              colorScheme={dark ? "DARK" : "LIGHT"}
-              renderingType={RenderingType.RASTER}
-              styles={MAP_STYLES}
-              defaultBounds={boundsOf(pins)}
-              gestureHandling="cooperative"
-              clickableIcons={false}
-              streetViewControl={false}
-              className="h-full w-full"
-            >
-              <FitPins pins={pins} />
-              <CenterOnPerson position={position} tick={centerTick} />
-              <FlyToBuilding pins={pins} target={target} />
-              <MapControl position={ControlPosition.RIGHT_BOTTOM}>
-                {/* Same box, shadow and icon colors as Google's own controls in each scheme. */}
+        <div className="h-[240px] md:h-[320px]">
+          <div
+            className={cn(
+              focusMode
+                ? "fixed inset-0 z-50 flex h-dvh flex-col bg-background"
+                : "relative h-full w-full overflow-hidden rounded-lg border border-building-border bg-muted"
+            )}
+          >
+            {focusMode ? (
+              <div className="flex h-14 shrink-0 items-center justify-between gap-4 bg-band px-4 text-band-foreground">
+                <span className="text-lg font-semibold">Campus map</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={bandIconClass}
+                  aria-label="Close map"
+                  onClick={() => setExpanded(false)}
+                >
+                  <X aria-hidden />
+                </Button>
+              </div>
+            ) : null}
+            <div className="relative min-h-0 flex-1 h-full">
+              <APIProvider apiKey={KEY} onError={() => setFailed(true)}>
+                <Map
+                  key={dark ? "dark" : "light"}
+                  colorScheme={dark ? "DARK" : "LIGHT"}
+                  renderingType={RenderingType.RASTER}
+                  styles={MAP_STYLES}
+                  defaultBounds={boundsOf(pins)}
+                  gestureHandling={preview ? "none" : focusMode ? "greedy" : "cooperative"}
+                  disableDefaultUI={preview}
+                  clickableIcons={false}
+                  streetViewControl={false}
+                  fullscreenControl={!coarse}
+                  className="h-full w-full"
+                >
+                  <FitPins pins={pins} />
+                  <CenterOnPerson position={position} tick={centerTick} />
+                  <FlyToBuilding pins={pins} target={target} />
+                  {preview ? (
+                    <MapControl position={ControlPosition.RIGHT_TOP}>
+                      <span className={controlClass} aria-hidden>
+                        <Maximize2 className="size-[18px]" />
+                      </span>
+                    </MapControl>
+                  ) : (
+                    <MapControl position={ControlPosition.RIGHT_BOTTOM}>
+                      {/* Same box, shadow and icon colors as Google's own controls in each scheme. */}
+                      <button type="button" onClick={locate} aria-label="Center the map on me" className={controlClass}>
+                        <LocateFixed className="size-[18px]" aria-hidden />
+                      </button>
+                    </MapControl>
+                  )}
+                  <SpotMarkers
+                    pins={pins}
+                    position={position}
+                    colors={colors}
+                    onSelect={select}
+                    targetId={target?.id ?? null}
+                  />
+                </Map>
+              </APIProvider>
+              {preview ? (
                 <button
                   type="button"
-                  onClick={locate}
-                  aria-label="Center the map on me"
-                  className={cn(
-                    "m-2.5 flex size-10 items-center justify-center rounded-[2px] shadow-[0_1px_4px_-1px_rgba(0,0,0,0.3)]",
-                    dark ? "bg-[#444] text-[#b3b3b3] hover:text-white" : "bg-white text-[#666] hover:text-[#333]"
-                  )}
-                >
-                  <LocateFixed className="size-[18px]" aria-hidden />
-                </button>
-              </MapControl>
-              <SpotMarkers
-                pins={pins}
-                position={position}
-                colors={colors}
-                onSelect={onSelect}
-                targetId={target?.id ?? null}
-              />
-            </Map>
-          </APIProvider>
+                  aria-label="Expand map"
+                  className="absolute inset-0 z-10 cursor-pointer"
+                  onClick={() => setExpanded(true)}
+                />
+              ) : null}
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
