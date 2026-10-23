@@ -237,6 +237,28 @@
     letter-spacing: var(--tracking-normal);
     font-feature-settings: "tnum" 1;
   }
+  /* Tailwind 4 leaves buttons on the default cursor. Anything clickable
+     gets the pointer; disabled controls keep the default. */
+  button:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="range"]:not(:disabled),
+  select:not(:disabled),
+  summary,
+  a[href],
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]),
+  [role="menuitem"]:not([data-disabled]),
+  [role="menuitemcheckbox"]:not([data-disabled]),
+  [role="menuitemradio"]:not([data-disabled]),
+  [role="switch"]:not(:disabled),
+  [role="checkbox"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 /* CampusMap: the building name under each pin, with a halo in the page color
