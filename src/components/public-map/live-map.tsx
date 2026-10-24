@@ -52,10 +52,10 @@ interface Group {
 }
 
 // The public map, split in two on wide screens. Left: the hero (headline,
-// campus spot total, update time), the All / Available / Occupied tabs, the
-// search and the Nearest sort, then the building directory as a Pinned
-// list and an All buildings list. Right, sticky: the seat map and the
-// street map. On a phone the panel follows the list.
+// campus spot total, update time), the street map, the All / Available /
+// Occupied tabs, the search and the Nearest sort, then the building
+// directory as a Pinned list and an All buildings list. Right, sticky: the
+// seat map. On a phone the seat map follows the list.
 export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
@@ -315,6 +315,17 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       {hero}
 
       <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-2">
+        <CampusMap
+          pins={pins}
+          position={position}
+          onRequestPosition={() => {
+            if (geoStatus === "denied") toast("Location is off for this site.");
+            else if (geoStatus === "unavailable") toast("Location is not available.");
+            else requestGeo();
+          }}
+          onSelect={focusBuilding}
+          target={mapTarget}
+        />
         <div className="flex flex-col gap-4">
           <TabsPrimitive.Root value={filter} onValueChange={(v) => setFilter(v as Filter)}>
             <TabsPrimitive.List aria-label="Filter areas" className="flex gap-6 border-b">
@@ -386,17 +397,6 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
 
       <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto">
         <SeatMap buildings={seatBuildings} activeId={selected} onSelect={toggleSelected} loading={loading} />
-        <CampusMap
-          pins={pins}
-          position={position}
-          onRequestPosition={() => {
-            if (geoStatus === "denied") toast("Location is off for this site.");
-            else if (geoStatus === "unavailable") toast("Location is not available.");
-            else requestGeo();
-          }}
-          onSelect={focusBuilding}
-          target={mapTarget}
-        />
       </aside>
     </Wrap>
   );
