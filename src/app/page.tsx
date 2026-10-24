@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Band, Wrap } from "@/components/band";
+import { Wrap } from "@/components/band";
 import { SiteHeader } from "@/components/site-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -24,24 +24,22 @@ async function MapLoader() {
 
 function MapSkeleton() {
   return (
-    <>
-      <Band className="pt-5 pb-9">
-        <Wrap className="flex flex-col gap-2.5">
-          <h1 className="text-[44px] font-semibold leading-none tracking-[-0.02em]">Find a free spot</h1>
-          <p className="text-[13px] text-band-muted">Live seat availability across campus.</p>
-        </Wrap>
-      </Band>
-      <Wrap className="flex flex-col gap-6 pt-6 pb-12" aria-busy aria-label="Loading">
-        {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-          <Skeleton className="mt-9 h-[240px] w-full rounded-lg md:h-[320px]" />
-        ) : null}
-        <Skeleton className="h-9 w-full max-w-xs" />
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-8">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-[72px]" />
-          ))}
-        </div>
-      </Wrap>
-    </>
+    <Wrap
+      className="grid max-w-[1280px] gap-x-12 gap-y-10 pt-10 pb-16 md:pt-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]"
+      aria-busy
+      aria-label="Loading"
+    >
+      <div className="flex flex-col gap-5">
+        <h1 className="text-[40px] font-semibold leading-[0.95] tracking-[-0.03em] md:text-[56px]">Find a free spot</h1>
+        <Skeleton className="h-9 w-64" />
+      </div>
+      <div className="flex flex-col gap-3 lg:col-start-1 lg:row-start-2">
+        <Skeleton className="h-10 w-full" />
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-[72px]" />
+        ))}
+      </div>
+      <Skeleton className="hidden h-[420px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:block" />
+    </Wrap>
   );
 }

@@ -38,7 +38,7 @@ export function RoomView({ room, live }: RoomViewProps) {
             <>
               <h2
                 className={cn(
-                  "font-semibold leading-none tracking-[-0.02em] text-state-full",
+                  "font-semibold leading-none tracking-[-0.02em] text-muted-foreground",
                   "text-[26px]"
                 )}
               >
@@ -58,7 +58,7 @@ export function RoomView({ room, live }: RoomViewProps) {
                   "text-[26px]"
                 )}
               >
-                <span className={free > 0 ? "text-state-empty" : "text-state-full"}>{free}</span> free{" "}
+                <span className={free > 0 ? "text-primary" : "text-muted-foreground"}>{free}</span> free{" "}
                 {free === 1 ? "seat" : "seats"}
               </h2>
               <p className={cn("mt-2 text-muted-foreground", "text-[10px]")}>

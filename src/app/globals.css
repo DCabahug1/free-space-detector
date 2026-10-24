@@ -3,42 +3,43 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* tweakcn theme cmvgcddyy000104jtc2lxai96, plus the Spot tokens below each block:
+/* tweakcn theme cmvgcddyy000104jtc2lxai96, recolored to the Spot signage
+   blues (navy and periwinkle on white), plus the Spot tokens below each block:
    state-* for zone states and band-* for the primary header band. */
 :root {
-  --background: oklch(0.9818 0.0054 95.0986);
-  --foreground: oklch(0.3438 0.0269 95.7226);
-  --card: oklch(0.9818 0.0054 95.0986);
-  --card-foreground: oklch(0.1908 0.0020 106.5859);
-  --popover: oklch(1.0000 0 0);
-  --popover-foreground: oklch(0.2671 0.0196 98.9390);
-  --primary: oklch(0.3713 0.0851 242.7839);
-  --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.9245 0.0138 92.9892);
-  --secondary-foreground: oklch(0.4334 0.0177 98.6048);
-  --muted: oklch(0.9341 0.0153 90.2390);
-  --muted-foreground: oklch(0.6059 0.0075 97.4233);
-  --accent: oklch(0.9245 0.0138 92.9892);
-  --accent-foreground: oklch(0.2671 0.0196 98.9390);
+  --background: oklch(0.985 0.004 265);
+  --foreground: oklch(0.24 0.045 272);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.045 272);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.045 272);
+  --primary: oklch(0.27 0.13 272);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.96 0.008 265);
+  --secondary-foreground: oklch(0.35 0.05 272);
+  --muted: oklch(0.96 0.008 265);
+  --muted-foreground: oklch(0.52 0.025 268);
+  --accent: oklch(0.95 0.025 265);
+  --accent-foreground: oklch(0.27 0.13 272);
   /* The theme shipped destructive as ink. Delete reads red in both schemes. */
   --destructive: oklch(0.55 0.19 27);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.8847 0.0069 97.3627);
-  --input: oklch(0.7621 0.0156 98.3528);
-  --ring: oklch(0.3713 0.0851 242.7839);
-  --chart-1: oklch(0.3713 0.0851 242.7839);
+  --border: oklch(0.91 0.012 265);
+  --input: oklch(0.87 0.015 265);
+  --ring: oklch(0.62 0.12 268);
+  --chart-1: oklch(0.27 0.13 272);
   --chart-2: oklch(0.4999 0.0676 236.9657);
   --chart-3: oklch(0.8816 0.0276 93.1280);
   --chart-4: oklch(0.8822 0.0403 298.1792);
-  --chart-5: oklch(0.3002 0.0515 239.9372);
+  --chart-5: oklch(0.34 0.13 272);
   --sidebar: oklch(0.9663 0.0080 98.8792);
   --sidebar-foreground: oklch(0.3590 0.0051 106.6524);
-  --sidebar-primary: oklch(0.3713 0.0851 242.7839);
+  --sidebar-primary: oklch(0.27 0.13 272);
   --sidebar-primary-foreground: oklch(0.9881 0 0);
   --sidebar-accent: oklch(0.9245 0.0138 92.9892);
   --sidebar-accent-foreground: oklch(0.3250 0 0);
   --sidebar-border: oklch(0.9401 0 0);
-  --sidebar-ring: oklch(0.3713 0.0851 242.7839);
+  --sidebar-ring: oklch(0.62 0.12 268);
   --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Georgia, serif;
   --font-mono: JetBrains Mono, ui-monospace, monospace;
@@ -70,49 +71,55 @@
   --band: var(--primary);
   --band-2: var(--chart-5);
   --band-foreground: oklch(1 0 0);
-  --band-muted: oklch(0.82 0.035 243);
-  --band-accent: oklch(0.82 0.10 215);
+  --band-muted: oklch(0.80 0.05 265);
+  --band-accent: oklch(0.82 0.08 265);
   --band-stale: oklch(0.85 0.11 80);
   /* Building group header and its border, on the map and in the admin lists. */
-  --building: var(--accent);
-  --building-foreground: var(--accent-foreground);
-  --building-muted: var(--secondary-foreground);
+  --building: var(--card);
+  --building-foreground: var(--foreground);
+  --building-muted: var(--muted-foreground);
   --building-border: var(--border);
+  /* The two blues from the Spot signage: navy ink and periwinkle. On the
+     seat map a free seat at an empty table is navy, a free seat at a table
+     someone is at is periwinkle, a taken seat is light grey. */
+  --seat-free: var(--primary);
+  --seat-some: oklch(0.74 0.09 266);
+  --seat-taken: oklch(0.91 0.008 265);
 }
 
 .dark {
-  --background: oklch(0.2679 0.0036 106.6427);
-  --foreground: oklch(0.8074 0.0142 93.0137);
-  --card: oklch(0.2679 0.0036 106.6427);
-  --card-foreground: oklch(0.9818 0.0054 95.0986);
-  --popover: oklch(0.3085 0.0035 106.6039);
-  --popover-foreground: oklch(0.9211 0.0040 106.4781);
-  --primary: oklch(0.4558 0.1050 242.6737);
-  --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.9818 0.0054 95.0986);
-  --secondary-foreground: oklch(0.3085 0.0035 106.6039);
-  --muted: oklch(0.2213 0.0038 106.7070);
-  --muted-foreground: oklch(0.7713 0.0169 99.0657);
-  --accent: oklch(0.2130 0.0078 95.4245);
-  --accent-foreground: oklch(0.9663 0.0080 98.8792);
+  --background: oklch(0.185 0 0);
+  --foreground: oklch(0.94 0 0);
+  --card: oklch(0.225 0 0);
+  --card-foreground: oklch(0.94 0 0);
+  --popover: oklch(0.235 0 0);
+  --popover-foreground: oklch(0.94 0 0);
+  --primary: oklch(0.80 0.08 265);
+  --primary-foreground: oklch(0.21 0.12 272);
+  --secondary: oklch(0.26 0 0);
+  --secondary-foreground: oklch(0.90 0 0);
+  --muted: oklch(0.255 0 0);
+  --muted-foreground: oklch(0.72 0 0);
+  --accent: oklch(0.28 0.012 270);
+  --accent-foreground: oklch(0.94 0 0);
   --destructive: oklch(0.6368 0.2078 25.3313);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.3618 0.0101 106.8928);
-  --input: oklch(0.4336 0.0113 100.2195);
-  --ring: oklch(0.4558 0.1050 242.6737);
-  --chart-1: oklch(0.4558 0.1050 242.6737);
+  --border: oklch(0.31 0 0);
+  --input: oklch(0.37 0 0);
+  --ring: oklch(0.80 0.08 265);
+  --chart-1: oklch(0.80 0.08 265);
   --chart-2: oklch(0.4999 0.0676 236.9657);
   --chart-3: oklch(0.2130 0.0078 95.4245);
   --chart-4: oklch(0.3074 0.0516 289.3230);
-  --chart-5: oklch(0.3011 0.0674 243.2367);
+  --chart-5: oklch(0.28 0.10 272);
   --sidebar: oklch(0.2357 0.0024 67.7077);
   --sidebar-foreground: oklch(0.8074 0.0142 93.0137);
-  --sidebar-primary: oklch(0.4558 0.1050 242.6737);
+  --sidebar-primary: oklch(0.80 0.08 265);
   --sidebar-primary-foreground: oklch(0.9881 0 0);
   --sidebar-accent: oklch(0.1680 0.0020 106.6177);
   --sidebar-accent-foreground: oklch(0.8074 0.0142 93.0137);
   --sidebar-border: oklch(0.3618 0.0101 106.8928);
-  --sidebar-ring: oklch(0.4558 0.1050 242.6737);
+  --sidebar-ring: oklch(0.80 0.08 265);
   --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Georgia, serif;
   --font-mono: JetBrains Mono, ui-monospace, monospace;
@@ -138,16 +145,19 @@
   --state-full: oklch(0.63 0.16 30);
   --state-line: oklch(0.68 0.09 240);
   --state-unknown: oklch(0.55 0.012 70);
-  --band: var(--primary);
+  --band: oklch(0.21 0.07 272);
   --band-2: var(--chart-5);
   --band-foreground: oklch(1 0 0);
-  --band-muted: oklch(0.85 0.035 243);
-  --band-accent: oklch(0.82 0.10 215);
+  --band-muted: oklch(0.78 0.04 265);
+  --band-accent: oklch(0.82 0.08 265);
   --band-stale: oklch(0.85 0.11 80);
-  --building: oklch(0.30 0.008 240);
-  --building-foreground: oklch(0.9663 0.0080 98.8792);
-  --building-muted: oklch(0.7713 0.0169 99.0657);
-  --building-border: oklch(0.37 0.008 240);
+  --building: var(--card);
+  --building-foreground: var(--foreground);
+  --building-muted: var(--muted-foreground);
+  --building-border: var(--border);
+  --seat-free: var(--primary);
+  --seat-some: oklch(0.52 0.08 268);
+  --seat-taken: oklch(0.33 0 0);
 }
 
 @theme inline {
@@ -198,6 +208,9 @@
   --color-building-foreground: var(--building-foreground);
   --color-building-muted: var(--building-muted);
   --color-building-border: var(--building-border);
+  --color-seat-free: var(--seat-free);
+  --color-seat-some: var(--seat-some);
+  --color-seat-taken: var(--seat-taken);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -290,7 +303,7 @@
   }
   40% {
     transform: scale(1.08);
-    box-shadow: 0 0 0 2px var(--pill);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 18%, transparent);
   }
 }
 

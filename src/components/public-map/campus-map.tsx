@@ -72,8 +72,10 @@ const MAP_STYLES: google.maps.MapTypeStyle[] = [
 const BLANK_ICON = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>');
 
 const STATE_TOKEN: Record<BuildingState, string> = {
-  empty: "--state-empty",
-  full: "--state-full",
+  // Public map levels: navy empty, periwinkle some seats, grey full.
+  empty: "--primary",
+  some: "--seat-some",
+  full: "--muted-foreground",
   unknown: "--state-unknown",
 };
 
@@ -259,6 +261,8 @@ export function CampusMap({ pins, position, onRequestPosition, onSelect, target 
 interface TokenColors {
   theme: string;
   primary: string;
+  // Navy, for pin labels on a light fill.
+  ink: string;
   foreground: string;
   state: Record<BuildingState, string>;
 }
@@ -303,7 +307,8 @@ function SpotMarkers({ pins, position, colors, onSelect, targetId }: SpotMarkers
       }}
       label={{
         text: p.offline ? "?" : String(p.free),
-        color: "#ffffff",
+        // Navy on the light fills (some seats in light, empty in dark).
+        color: (colors.theme === "dark" ? p.state === "empty" : p.state === "some") ? colors.ink : "#ffffff",
         fontFamily: "JetBrains Mono, ui-monospace, monospace",
         fontSize: "12px",
         fontWeight: "700",
@@ -469,13 +474,13 @@ function placeLabels(pins: MapPin[], points: Point[], firstId: string | null): S
 }
 
 // The merged dot: in the middle of the buildings, with the campus free
-// total. Unknown when every building is offline, green while any reporting
-// building has a free seat, red when none does.
+// total. Unknown when every building is offline, empty or full only when
+// every reporting building is, some seats otherwise.
 function campusPin(pins: MapPin[]) {
   const reporting = pins.filter((p) => !p.offline);
   const states = new Set(reporting.map((p) => p.state));
   const state: BuildingState =
-    reporting.length === 0 ? "unknown" : states.has("empty") ? "empty" : "full";
+    reporting.length === 0 ? "unknown" : states.size === 1 ? [...states][0] : "some";
   return {
     name: CAMPUS_NAME,
     lat: pins.reduce((sum, p) => sum + p.lat, 0) / pins.length,
@@ -500,9 +505,11 @@ function useTokenColors(mounted: boolean, dark: boolean): TokenColors | null {
       setColors({
         theme: dark ? "dark" : "light",
         primary: read("--primary"),
+        ink: read(dark ? "--primary-foreground" : "--primary"),
         foreground: dark ? "#ffffff" : read("--foreground"),
         state: {
           empty: read(STATE_TOKEN.empty),
+          some: read(STATE_TOKEN.some),
           full: read(STATE_TOKEN.full),
           unknown: read(STATE_TOKEN.unknown),
         } as Record<BuildingState, string>,
