@@ -19,7 +19,7 @@ const fontMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Spot",
-  description: "Free seats on campus, live.",
+  description: "Free spots on campus, live.",
 };
 
 export default function RootLayout({

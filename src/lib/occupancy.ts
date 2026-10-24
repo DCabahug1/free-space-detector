@@ -127,17 +127,21 @@ export function seatsFree(zone: Zone, count: number): number {
   return Math.max(0, zone.capacity - count);
 }
 
-// Open seats across zones. A table with one person at a six seat table
-// still has five seats free.
-export function freeSeats(zones: Zone[], counts: Record<string, number | undefined>): number {
-  return zones.reduce((sum, z) => sum + seatsFree(z, counts[z.id] ?? 0), 0);
+function isSpot(zone: Zone): boolean {
+  return zone.type === "seating" && zone.capacity != null;
 }
 
-export function totalSeats(zones: Zone[]): number {
-  return zones.reduce((sum, z) => sum + (z.type === "seating" && z.capacity != null ? z.capacity : 0), 0);
+// Free spots across zones: tables nobody is at. A 2/3 table and a 0/3
+// table make 1 free spot, not 4 free seats.
+export function freeSpots(zones: Zone[], counts: Record<string, number | undefined>): number {
+  return zones.filter((z) => isSpot(z) && (counts[z.id] ?? 0) <= 0).length;
 }
 
-// Public map level, the same rule for a zone, an area and a building:
+export function totalSpots(zones: Zone[]): number {
+  return zones.filter(isSpot).length;
+}
+
+// Public map level for one zone:
 //   empty:   every seat free (no one there)
 //   some:    people there, seats left
 //   full:    no seat left
@@ -152,28 +156,36 @@ export function seatLevel(free: number, total: number, offline: boolean): Level 
 
 export type BuildingState = Level;
 
-// One level for a whole building, for its map pin. Offline (every camera
-// unit) is unknown.
+// One level for a building or an area, for its map pin and its free total.
+// Offline (every camera unit) is unknown. Half or more of the spots free is
+// empty, any spot free or any seat open at a shared table is some, none is
+// full.
 export function buildingState(
   zones: Zone[],
   counts: Record<string, number | undefined>,
   offline: boolean
 ): BuildingState {
-  return seatLevel(freeSeats(zones, counts), totalSeats(zones), offline);
+  if (offline) return "unknown";
+  const total = totalSpots(zones);
+  if (total === 0) return "empty";
+  const free = freeSpots(zones, counts);
+  if (free * 2 >= total) return "empty";
+  if (free > 0) return "some";
+  return zones.some((z) => seatsFree(z, counts[z.id] ?? 0) > 0) ? "some" : "full";
 }
 
-// One line for an area: "Empty, 8 seats", "3 of 8 seats free", "Full, 8 seats".
+// One line for an area: "Empty, 6 spots", "3 of 6 spots free", "Full, 6 spots".
 export function roomSummary(
   zones: Zone[],
   counts: Record<string, number | undefined>
 ): string {
-  const total = totalSeats(zones);
-  if (total === 0) return "No seats";
-  const free = freeSeats(zones, counts);
-  const seats = `${total} ${total === 1 ? "seat" : "seats"}`;
-  if (free >= total) return `Empty, ${seats}`;
-  if (free === 0) return `Full, ${seats}`;
-  return `${free} of ${seats} free`;
+  const total = totalSpots(zones);
+  if (total === 0) return "No spots";
+  const free = freeSpots(zones, counts);
+  const spots = `${total} ${total === 1 ? "spot" : "spots"}`;
+  if (free >= total) return `Empty, ${spots}`;
+  if (!zones.some((z) => seatsFree(z, counts[z.id] ?? 0) > 0)) return `Full, ${spots}`;
+  return `${free} of ${spots} free`;
 }
 
 export const ZONE_TYPE_LABEL: Record<ZoneType, string> = {

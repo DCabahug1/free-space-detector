@@ -1,7 +1,7 @@
 "use client";
 
 import type { PublicRoom } from "@/lib/types";
-import { clockTime, durationText, freeSeats, relativeTime, roomSummary } from "@/lib/occupancy";
+import { clockTime, durationText, freeSpots, relativeTime, roomSummary } from "@/lib/occupancy";
 import type { LiveSnapshot } from "@/hooks/use-live-snapshot";
 import { cn } from "@/lib/utils";
 import { ZoneTile } from "./zone-tile";
@@ -21,7 +21,7 @@ export function RoomView({ room, live }: RoomViewProps) {
   // A unit that paused sharing reads as offline here. Only the admin says paused.
   const offline = room.zones.length > 0 && (live.roomPaused(room) || live.roomOffline(room));
   const offlineFor = offline ? durationText(heartbeat, live.now) || "never" : null;
-  const free = freeSeats(room.zones, live.countNumbers);
+  const free = freeSpots(room.zones, live.countNumbers);
 
   const body =
     room.zones.length === 0 ? (
@@ -59,7 +59,7 @@ export function RoomView({ room, live }: RoomViewProps) {
                 )}
               >
                 <span className={free > 0 ? "text-primary" : "text-muted-foreground"}>{free}</span> free{" "}
-                {free === 1 ? "seat" : "seats"}
+                {free === 1 ? "spot" : "spots"}
               </h2>
               <p className={cn("mt-2 text-muted-foreground", "text-[10px]")}>
                 {roomSummary(room.zones, live.countNumbers)}. Updated {relativeTime(heartbeat, live.now)}

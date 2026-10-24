@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Building, PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
-import { buildingState, durationText, freeSeats, relativeTime, type BuildingState } from "@/lib/occupancy";
+import { buildingState, durationText, freeSpots, relativeTime, type BuildingState } from "@/lib/occupancy";
 import { distanceMeters, distanceText } from "@/lib/geo";
 import { usePins } from "@/lib/pins";
 import { useSortPref } from "@/lib/prefs";
@@ -52,7 +52,7 @@ interface Group {
 }
 
 // The public map, split in two on wide screens. Left: the hero (headline,
-// campus seat total, update time), the All / Available / Occupied tabs, the
+// campus spot total, update time), the All / Available / Occupied tabs, the
 // search and the Nearest sort, then the building directory as a Pinned
 // list and an All buildings list. Right, sticky: the seat map and the
 // street map. On a phone the panel follows the list.
@@ -104,18 +104,18 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     if (geoStatus === "idle") requestGeo();
   }
 
-  // Per room: free seats and whether its camera unit is offline.
+  // Per room: free spots and whether its camera unit is offline.
   // A unit that paused sharing reads as offline here. Only the admin says paused.
   const stats = new Map<string, { free: number; offlineFor: string | null }>();
   for (const room of rooms) {
     const offline = live.roomPaused(room) || live.roomOffline(room);
     stats.set(room.id, {
-      free: offline ? 0 : freeSeats(room.zones, live.countNumbers),
+      free: offline ? 0 : freeSpots(room.zones, live.countNumbers),
       offlineFor: offline ? durationText(live.heartbeat(room), live.now) || "never" : null,
     });
   }
 
-  // Available: reporting with a free seat. Occupied: reporting with none.
+  // Available: reporting with a free spot. Occupied: reporting with none.
   // An offline area is neither, so it shows under All only.
   const q = query.trim().toLowerCase();
   const matches = rooms.filter(
@@ -139,7 +139,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const visible = matches.filter((room) => inFilter(room, filter));
 
   // Areas within a building keep the admin's order. Buildings: by distance
-  // while Nearest is on, otherwise offline last and free seats first. Pins
+  // while Nearest is on, otherwise offline last and free spots first. Pins
   // have their own list.
   const buildGroups = (list: PublicRoom[]) => {
     const byBuilding = new Map<string, { building: Building; rooms: PublicRoom[] }>();
@@ -282,7 +282,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
           <p className="flex flex-wrap items-baseline gap-x-2.5">
             <span className="font-mono text-[34px] font-bold leading-none tabular-nums text-primary">{campusFree}</span>
             <span className="text-base text-foreground">
-              {campusFree === 1 ? "seat" : "seats"} free across {campusBuildings}{" "}
+              {campusFree === 1 ? "spot" : "spots"} free across {campusBuildings}{" "}
               {campusBuildings === 1 ? "building" : "buildings"}
             </span>
           </p>
@@ -360,7 +360,7 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
                 ? `No areas or buildings match "${query.trim()}".`
                 : filter === "occupied"
                   ? "No full areas right now."
-                  : "No areas with free seats right now."}
+                  : "No areas with free spots right now."}
             </p>
             {q ? (
               <Button variant="outline" className="self-start" onClick={() => setQuery("")}>

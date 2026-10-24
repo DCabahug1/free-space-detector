@@ -50,7 +50,7 @@ export function SeatMap({ buildings, activeId, onSelect, loading = false }: Seat
             <button
               type="button"
               onClick={() => onSelect(b.id)}
-              aria-label={`${b.name}: ${b.offline ? "unknown" : `${b.free} seats free`}. Show in list`}
+              aria-label={`${b.name}: ${b.offline ? "unknown" : `${b.free} free ${b.free === 1 ? "spot" : "spots"}`}. Show in list`}
               className={cn(
                 "flex w-full flex-col gap-2 rounded-md px-2 py-2.5 text-left transition-[background-color,opacity] duration-300 hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
                 activeId === b.id && "bg-accent hover:bg-accent",

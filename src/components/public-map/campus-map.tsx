@@ -474,13 +474,19 @@ function placeLabels(pins: MapPin[], points: Point[], firstId: string | null): S
 }
 
 // The merged dot: in the middle of the buildings, with the campus free
-// total. Unknown when every building is offline, empty or full only when
-// every reporting building is, some seats otherwise.
+// total. Unknown when every building is offline, empty while any reporting
+// building is empty, some while any has room, full when all are full.
 function campusPin(pins: MapPin[]) {
   const reporting = pins.filter((p) => !p.offline);
   const states = new Set(reporting.map((p) => p.state));
   const state: BuildingState =
-    reporting.length === 0 ? "unknown" : states.size === 1 ? [...states][0] : "some";
+    reporting.length === 0
+      ? "unknown"
+      : states.has("empty")
+        ? "empty"
+        : states.has("some")
+          ? "some"
+          : "full";
   return {
     name: CAMPUS_NAME,
     lat: pins.reduce((sum, p) => sum + p.lat, 0) / pins.length,

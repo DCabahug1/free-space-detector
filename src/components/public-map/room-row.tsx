@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicRoom } from "@/lib/types";
-import { freeSeats, roomSummary, seatLevel, totalSeats } from "@/lib/occupancy";
+import { buildingState, freeSpots, roomSummary } from "@/lib/occupancy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ZoneTile } from "./zone-tile";
 import { FreePill } from "./count-pill";
@@ -25,16 +25,16 @@ interface RoomRowProps {
   className?: string;
 }
 
-// One directory row: name over the seats caption on the left, the free
-// seats in a pill on the right (with the update time under it once that
+// One directory row: name over the spots caption on the left, the free
+// spots in a pill on the right (with the update time under it once that
 // is a minute or more old), then a chevron. The whole row opens the area's spots as tiles
 // beneath it. Closed by default. Spots keep the admin's order. Hairlines
 // come from the parent (divide-y).
 export function RoomRow({ room, counts, offlineFor, updated = "", loading = false, query = "", className }: RoomRowProps) {
   const [open, setOpen] = useState(false);
   const offline = offlineFor != null;
-  const free = freeSeats(room.zones, counts);
-  const level = seatLevel(free, totalSeats(room.zones), offline);
+  const free = freeSpots(room.zones, counts);
+  const level = buildingState(room.zones, counts, offline);
   const hasZones = room.zones.length > 0;
 
   return (
