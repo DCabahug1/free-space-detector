@@ -1,7 +1,7 @@
 "use client";
 
 import type { PublicRoom } from "@/lib/types";
-import { availabilityColor, buildingState, clockTime, durationText, freeSpots, relativeTime, roomSummary } from "@/lib/occupancy";
+import { clockTime, durationText, freeSpots, relativeTime, roomSummary } from "@/lib/occupancy";
 import type { LiveSnapshot } from "@/hooks/use-live-snapshot";
 import { cn } from "@/lib/utils";
 import { ZoneTile } from "./zone-tile";
@@ -38,7 +38,7 @@ export function RoomView({ room, live }: RoomViewProps) {
             <>
               <h2
                 className={cn(
-                  "font-semibold leading-none tracking-[-0.02em] text-state-full",
+                  "font-semibold leading-none tracking-[-0.02em] text-muted-foreground",
                   "text-[26px]"
                 )}
               >
@@ -58,7 +58,7 @@ export function RoomView({ room, live }: RoomViewProps) {
                   "text-[26px]"
                 )}
               >
-                <span style={{ color: availabilityColor(buildingState(room.zones, live.countNumbers, false)) }}>{free}</span> free{" "}
+                <span className={free > 0 ? "text-primary" : "text-muted-foreground"}>{free}</span> free{" "}
                 {free === 1 ? "spot" : "spots"}
               </h2>
               <p className={cn("mt-2 text-muted-foreground", "text-[10px]")}>

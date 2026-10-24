@@ -6,23 +6,23 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import type { Building, PublicRoom, ZoneCount } from "@/lib/types";
 import { roomTitle } from "@/lib/types";
-import { availabilityColor, buildingState, durationText, freeSpots, relativeTime, totalSpots, type BuildingState } from "@/lib/occupancy";
+import { buildingState, durationText, freeSpots, relativeTime, type BuildingState } from "@/lib/occupancy";
 import { distanceMeters, distanceText } from "@/lib/geo";
 import { usePins } from "@/lib/pins";
 import { useSortPref } from "@/lib/prefs";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useLiveSnapshot } from "@/hooks/use-live-snapshot";
-import { Band, Wrap } from "@/components/band";
+import { Wrap } from "@/components/band";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs as TabsPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { PinButton } from "./pin-button";
 import { RoomRow } from "./room-row";
-import { CountPill } from "./count-pill";
+import { FreePill } from "./count-pill";
 import { Collapse } from "./collapse";
-import { SeatMosaic } from "./seat-mosaic";
+import { SeatMap, type SeatMapBuilding } from "./seat-map";
 import { CampusMap, mapAvailable, type MapPin } from "./campus-map";
 import { Highlight } from "@/components/highlight";
 
@@ -31,7 +31,13 @@ interface LiveMapProps {
   initialCounts: ZoneCount[];
 }
 
-type Filter = "all" | "free";
+type Filter = "all" | "available" | "occupied";
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "available", label: "Available" },
+  { value: "occupied", label: "Occupied" },
+];
 
 interface Group {
   building: Building;
@@ -45,9 +51,11 @@ interface Group {
   pinned: boolean;
 }
 
-// The public map: hero band with the headline and the live line, the campus
-// map, then the search, the Free now filter and the Nearest sort, and the
-// building directory as a Pinned list and an All buildings list.
+// The public map, split in two on wide screens. Left: the hero (headline,
+// campus spot total, update time), the street map, the All / Available /
+// Occupied tabs, the search and the Nearest sort, then the building
+// directory as a Pinned list and an All buildings list. Right, sticky: the
+// seat map. On a phone the seat map follows the list.
 export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
@@ -57,7 +65,12 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const live = useLiveSnapshot(rooms, initialCounts);
   const { isBuildingPinned, toggleBuilding } = usePins();
   // A pin tap on the map opens that building in the All buildings list.
+  // A one-off request to open and scroll to a building, cleared once the
+  // header pulse is done, so a card that remounts later (after a tab
+  // switch) does not scroll the page again.
   const [focus, setFocus] = useState<{ id: string; tick: number } | null>(null);
+  // The building highlighted on the seat map; a second click clears it.
+  const [selected, setSelected] = useState<string | null>(null);
   // View on map in a building header zooms the map to that building.
   const [mapTarget, setMapTarget] = useState<{ id: string; tick: number } | null>(null);
 
@@ -102,16 +115,28 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     });
   }
 
+  // Available: reporting with a free spot. Occupied: reporting with none.
+  // An offline area is neither, so it shows under All only.
   const q = query.trim().toLowerCase();
-  const visible = rooms.filter((room) => {
-    if (filter === "free" && (stats.get(room.id)?.free ?? 0) === 0) return false;
-    if (!q) return true;
-    return (
+  const matches = rooms.filter(
+    (room) =>
+      !q ||
       room.name.toLowerCase().includes(q) ||
       room.building.name.toLowerCase().includes(q) ||
       roomTitle(room).toLowerCase().includes(q)
-    );
-  });
+  );
+  const inFilter = (room: PublicRoom, f: Filter) => {
+    const st = stats.get(room.id);
+    if (f === "all" || !st) return true;
+    if (st.offlineFor != null) return false;
+    return f === "available" ? st.free > 0 : st.free === 0;
+  };
+  const filterCounts: Record<Filter, number> = {
+    all: matches.length,
+    available: matches.filter((r) => inFilter(r, "available")).length,
+    occupied: matches.filter((r) => inFilter(r, "occupied")).length,
+  };
+  const visible = matches.filter((room) => inFilter(room, filter));
 
   // Areas within a building keep the admin's order. Buildings: by distance
   // while Nearest is on, otherwise offline last and free spots first. Pins
@@ -156,15 +181,39 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
   const allGroups = sortGroups(groups.filter((g) => !g.pinned));
   const pinnedGroups = sortGroups(groups.filter((g) => g.pinned));
 
-  // Campus totals for the hero, from areas whose camera unit is reporting.
-  const reporting = rooms.filter((r) => stats.get(r.id)?.offlineFor == null);
-  const campusFree = reporting.reduce((sum, r) => sum + (stats.get(r.id)?.free ?? 0), 0);
-  const campusSpots = reporting.reduce((sum, r) => sum + totalSpots(r.zones), 0);
+  // Campus total for the hero, from areas whose camera unit is reporting.
+  const campusFree = rooms.reduce((sum, r) => sum + (stats.get(r.id)?.free ?? 0), 0);
   const campusBuildings = new Set(rooms.map((r) => r.building_id)).size;
 
-  // Every located building goes to the map. A search or Free now hides
-  // the pins it leaves out; the map itself stays.
+  // Every building goes to the seat map and every located one to the
+  // street map. A search or a tab fades or hides what it leaves out.
   const visibleBuildings = new Set(visible.map((r) => r.building_id));
+  const seatBuildings: SeatMapBuilding[] = sortGroups(buildGroups(rooms)).map((g) => ({
+    id: g.building.id,
+    name: g.building.name,
+    free: g.free,
+    offline: g.offline,
+    shown: visibleBuildings.has(g.building.id),
+    zones: g.rooms.flatMap((r) =>
+      r.zones
+        .filter((z) => z.type === "seating" && z.capacity != null && z.capacity > 0)
+        .map((z) => ({
+          id: z.id,
+          capacity: z.capacity!,
+          taken: Math.min(z.capacity!, live.countNumbers[z.id] ?? 0),
+        }))
+    ),
+  }));
+  const focusBuilding = (id: string) => {
+    setSelected(id);
+    const tick = Date.now();
+    setFocus({ id, tick });
+    setTimeout(() => setFocus((f) => (f?.tick === tick ? null : f)), 1000);
+  };
+  const toggleSelected = (id: string) => {
+    if (selected === id) setSelected(null);
+    else focusBuilding(id);
+  };
   const pins: MapPin[] = buildGroups(rooms).flatMap((g) =>
     g.building.lat != null && g.building.lng != null
       ? [
@@ -193,9 +242,8 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
       name={g.building.name}
       areaCount={g.rooms.length}
       free={g.free}
-      offline={g.offline}
       loading={loading}
-      state={g.state}
+      level={g.state}
       distance={g.distance}
       pinned={g.pinned}
       onTogglePin={() => toggleBuilding(g.building.id)}
@@ -222,117 +270,135 @@ export function LiveMap({ rooms, initialCounts }: LiveMapProps) {
     </BuildingGroup>
   );
 
-  return (
-    <>
-      <Band className="overflow-hidden">
-        <Wrap className="flex items-end justify-between gap-10 pt-8 pb-10 md:pt-10 md:pb-12">
-          <div className="flex min-w-0 flex-col gap-6">
-            <h1 className="text-[40px] font-semibold leading-[0.95] tracking-[-0.03em] md:text-[56px]">
-              Find a free spot
-            </h1>
-            <div className="flex flex-col gap-1">
-              {loading ? (
-                <Skeleton className="h-9 w-56 bg-band-2" />
-              ) : (
-                <p className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-mono text-[34px] font-bold leading-none tabular-nums text-band-accent">
-                    {campusFree}
-                  </span>
-                  <span className="text-[15px] text-band-foreground">
-                    {campusFree === 1 ? "spot" : "spots"} free across {campusBuildings}{" "}
-                    {campusBuildings === 1 ? "building" : "buildings"}
-                  </span>
-                </p>
-              )}
-              {reconnecting ? (
-                <p className="text-[13px] text-band-stale">
-                  Reconnecting. Counts from {durationText(live.latestUpdate, live.now) || "never"} ago
-                </p>
-              ) : (
-                <p className="text-[13px] text-band-muted">
-                  {loading ? "\u00a0" : `Updated ${relativeTime(live.latestUpdate, live.now)}`}
-                </p>
-              )}
-            </div>
-          </div>
-          <SeatMosaic free={loading ? 0 : campusFree} total={loading ? 0 : campusSpots} className="hidden md:grid" />
-        </Wrap>
-      </Band>
+  const hero = (
+    <header className="flex flex-col gap-5 lg:col-start-1 lg:row-start-1">
+      <h1 className="text-[40px] font-semibold leading-[0.95] tracking-[-0.03em] text-foreground md:text-[56px]">
+        Find a free spot
+      </h1>
+      <div className="flex flex-col gap-1.5">
+        {loading ? (
+          <Skeleton className="h-9 w-64" />
+        ) : (
+          <p className="flex flex-wrap items-baseline gap-x-2.5">
+            <span className="font-mono text-[34px] font-bold leading-none tabular-nums text-primary">{campusFree}</span>
+            <span className="text-base text-foreground">
+              {campusFree === 1 ? "spot" : "spots"} free across {campusBuildings}{" "}
+              {campusBuildings === 1 ? "building" : "buildings"}
+            </span>
+          </p>
+        )}
+        <p className="text-[13px] text-muted-foreground">
+          {reconnecting
+            ? `Reconnecting. Counts from ${durationText(live.latestUpdate, live.now) || "never"} ago`
+            : loading
+              ? "\u00a0"
+              : `Updated ${relativeTime(live.latestUpdate, live.now)}`}
+        </p>
+      </div>
+    </header>
+  );
 
-      {rooms.length === 0 ? (
-        <Wrap className="flex flex-col gap-1 py-16">
+  if (rooms.length === 0) {
+    return (
+      <Wrap className="flex max-w-[1280px] flex-col gap-10 pt-10 pb-16">
+        {hero}
+        <div className="flex flex-col gap-1">
           <h2 className="text-2xl font-semibold leading-tight">No areas yet</h2>
           <p className="text-[15px] text-muted-foreground">Areas appear here once staff publish them.</p>
-        </Wrap>
-      ) : (
-        <Wrap className="flex flex-col gap-8 pt-8 pb-16">
-          <CampusMap
-            pins={pins}
-            position={position}
-            onRequestPosition={() => {
-              if (geoStatus === "denied") toast("Location is off for this site.");
-              else if (geoStatus === "unavailable") toast("Location is not available.");
-              else requestGeo();
-            }}
-            onSelect={(id) => setFocus((f) => ({ id, tick: (f?.tick ?? 0) + 1 }))}
-            target={mapTarget}
-          />
+        </div>
+      </Wrap>
+    );
+  }
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+  return (
+    <Wrap className="grid max-w-[1280px] gap-x-12 gap-y-10 pt-10 pb-16 md:pt-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]">
+      {hero}
+
+      <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-2">
+        <CampusMap
+          pins={pins}
+          position={position}
+          onRequestPosition={() => {
+            if (geoStatus === "denied") toast("Location is off for this site.");
+            else if (geoStatus === "unavailable") toast("Location is not available.");
+            else requestGeo();
+          }}
+          onSelect={focusBuilding}
+          target={mapTarget}
+        />
+        <div className="flex flex-col gap-4">
+          <TabsPrimitive.Root value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+            <TabsPrimitive.List aria-label="Filter areas" className="flex gap-6 border-b">
+              {FILTERS.map((f) => (
+                <TabsPrimitive.Trigger
+                  key={f.value}
+                  value={f.value}
+                  className="group relative -mb-px flex items-baseline gap-2 border-b-2 border-transparent pt-1 pb-3 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none data-[state=active]:border-primary data-[state=active]:text-foreground"
+                >
+                  {f.label}
+                  <span className="font-mono text-xs tabular-nums text-muted-foreground group-data-[state=active]:text-primary">
+                    {loading ? "" : filterCounts[f.value]}
+                  </span>
+                </TabsPrimitive.Trigger>
+              ))}
+            </TabsPrimitive.List>
+          </TabsPrimitive.Root>
+          <div className="flex items-center gap-3">
             <Input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Area or building"
+              placeholder="Search an area or building"
               aria-label="Search areas"
-              className="w-full sm:max-w-xs"
+              className="h-10 min-w-0 flex-1 bg-card"
             />
-            <div className="flex items-center justify-between gap-3">
-              <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-                <TabsList>
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="free">Free now</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              <Button
-                variant={nearest ? "default" : "outline"}
-                aria-pressed={nearest}
-                disabled={nearest && geoStatus === "locating"}
-                onClick={toggleNearest}
-              >
-                {nearest && geoStatus === "locating" ? "Finding you" : "Nearest"}
-              </Button>
-            </div>
+            <Button
+              variant={nearest ? "default" : "outline"}
+              className="h-10 bg-card"
+              aria-pressed={nearest}
+              disabled={nearest && geoStatus === "locating"}
+              onClick={toggleNearest}
+            >
+              {nearest && geoStatus === "locating" ? "Finding you" : "Nearest"}
+            </Button>
           </div>
+        </div>
 
-          {visible.length === 0 ? (
-            <div className="flex flex-col gap-3 pt-8">
-              <p className="text-[15px] text-muted-foreground">
-                {q ? `No areas or buildings match "${query.trim()}".` : "No areas with free spots right now."}
-              </p>
-              {q ? (
-                <Button variant="outline" className="self-start" onClick={() => setQuery("")}>
-                  Clear search
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+        {visible.length === 0 ? (
+          <div className="flex flex-col gap-3 pt-6">
+            <p className="text-[15px] text-muted-foreground">
+              {q
+                ? `No areas or buildings match "${query.trim()}".`
+                : filter === "occupied"
+                  ? "No full areas right now."
+                  : "No areas with free spots right now."}
+            </p>
+            {q ? (
+              <Button variant="outline" className="self-start" onClick={() => setQuery("")}>
+                Clear search
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
-          {pinnedGroups.length > 0 ? (
-            <>
-              <DirectorySection title="Pinned" collapsible>
-                {pinnedGroups.map(renderGroup)}
-              </DirectorySection>
-              {allGroups.length > 0 ? (
-                <DirectorySection title="All buildings">{allGroups.map(renderGroup)}</DirectorySection>
-              ) : null}
-            </>
-          ) : allGroups.length > 0 ? (
-            <section className="flex flex-col gap-3">{allGroups.map(renderGroup)}</section>
-          ) : null}
-        </Wrap>
-      )}
-    </>
+        {pinnedGroups.length > 0 ? (
+          <>
+            <DirectorySection title="Pinned" collapsible>
+              {pinnedGroups.map(renderGroup)}
+            </DirectorySection>
+            {allGroups.length > 0 ? (
+              <DirectorySection title="All buildings">{allGroups.map(renderGroup)}</DirectorySection>
+            ) : null}
+          </>
+        ) : allGroups.length > 0 ? (
+          <section className="flex flex-col gap-3">{allGroups.map(renderGroup)}</section>
+        ) : null}
+      </div>
+
+      <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto">
+        <SeatMap buildings={seatBuildings} activeId={selected} onSelect={toggleSelected} loading={loading} />
+      </aside>
+    </Wrap>
   );
 }
 
@@ -374,10 +440,9 @@ interface BuildingGroupProps {
   name: string;
   areaCount: number;
   free: number;
-  offline: boolean;
   // The clock has not started: a placeholder stands in for the count.
   loading: boolean;
-  state: BuildingState;
+  level: BuildingState;
   distance: number | null;
   pinned: boolean;
   onTogglePin: () => void;
@@ -400,9 +465,8 @@ function BuildingGroup({
   name,
   areaCount,
   free,
-  offline,
   loading,
-  state,
+  level,
   distance,
   pinned,
   onTogglePin,
@@ -413,17 +477,21 @@ function BuildingGroup({
   children,
 }: BuildingGroupProps) {
   const [opened, setOpened] = useState(false);
-  const [seenFocus, setSeenFocus] = useState<number | null>(null);
+  // Starts at the current focus, so a card mounted while a request is
+  // still live (a tab switch) neither opens nor scrolls for it.
+  const [seenFocus, setSeenFocus] = useState<number | null>(focus);
   const ref = useRef<HTMLElement>(null);
   if (focus != null && focus !== seenFocus) {
     setSeenFocus(focus);
     setOpened(true);
   }
+  const [mountedFocus] = useState(focus);
   useEffect(() => {
-    if (focus != null) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }, [focus]);
+    if (focus != null && focus !== mountedFocus) {
+      ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }, [focus, mountedFocus]);
   const open = opened || forceOpen;
-  const freeColor = availabilityColor(state);
   const caption = `${areaCount} ${areaCount === 1 ? "area" : "areas"}${distance != null ? `, ${distanceText(distance)}` : ""}`;
   return (
     <section
@@ -440,19 +508,24 @@ function BuildingGroup({
           if (!forceOpen) setOpened((o) => !o);
         }}
         className={cn(
-          "grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-0.5 bg-building py-4 pr-4 pl-3 sm:gap-x-4 sm:pr-5 sm:pl-4 text-building-foreground",
-          !forceOpen && "cursor-pointer",
-          focus != null && "animate-[header-pulse_900ms_ease-out]"
+          "grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-0.5 bg-building py-4 pr-4 pl-3 text-building-foreground transition-colors sm:gap-x-4 sm:pr-5 sm:pl-4",
+          !forceOpen && "cursor-pointer hover:bg-muted/50",
+          focus != null && focus !== mountedFocus && "animate-[header-pulse_900ms_ease-out]"
         )}
       >
         <PinButton
           pinned={pinned}
           name={name}
           onClick={onTogglePin}
-          className="row-span-2 -ml-2 text-building-muted hover:bg-background dark:hover:bg-background"
+          className="row-span-2 -ml-2 text-building-muted hover:bg-muted dark:hover:bg-muted"
           pinnedClassName="text-building-foreground"
         />
-        <h2 className="min-w-0 break-words text-lg font-semibold leading-tight tracking-[-0.01em] sm:text-xl">
+        <h2
+          className={cn(
+            "min-w-0 break-words text-lg font-semibold leading-tight tracking-[-0.01em] transition-colors sm:text-xl",
+            level === "full" && "text-muted-foreground"
+          )}
+        >
           <Highlight text={name} query={query} />
         </h2>
         <p className="col-start-2 row-start-2 flex flex-wrap items-baseline gap-x-3 text-[13px] text-building-muted">
@@ -476,15 +549,12 @@ function BuildingGroup({
             <Skeleton className="h-7 w-16 bg-building-border" />
           ) : (
             <>
-              <CountPill color={freeColor} className="bg-[color-mix(in_oklch,var(--pill)_14%,var(--background))]">
-                {offline ? "?" : free}
-                <span className="font-sans text-xs font-semibold">{offline ? "unknown" : "free"}</span>
-              </CountPill>
+              <FreePill level={level} free={free} />
             </>
           )}
         </div>
         <Button
-          className="row-span-2 text-building-muted hover:bg-background dark:hover:bg-background"
+          className="row-span-2 text-building-muted hover:bg-muted dark:hover:bg-muted"
           variant="ghost"
           size="icon-sm"
           aria-label={open ? `Hide areas in ${name}` : `Show areas in ${name}`}

@@ -117,22 +117,9 @@ export function clockTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-// The public map's colors: green for an empty spot, amber for one people
-// are sharing, red when full. Busy reads red like the other full state.
-export function availabilityColor(state: TileState | BuildingState): string {
-  switch (state) {
-    case "full":
-    case "busy":
-      return "var(--state-full)";
-    case "shared":
-    case "some":
-      return "var(--state-shared)";
-    case "unknown":
-      return "var(--state-unknown)";
-    default:
-      return "var(--state-empty)";
-  }
-}
+// The public map does not use the state colors. It speaks in three levels
+// of emphasis in navy, periwinkle and grey (count-pill.tsx). The admin
+// canvas and the camera unit monitor keep stateColor.
 
 // Open seats in one zone: capacity minus the people at it, never below 0.
 export function seatsFree(zone: Zone, count: number): number {
@@ -154,12 +141,25 @@ export function totalSpots(zones: Zone[]): number {
   return zones.filter(isSpot).length;
 }
 
-export type BuildingState = "empty" | "shared" | "full" | "unknown";
+// Public map level for one zone:
+//   empty:   every seat free (no one there)
+//   some:    people there, seats left
+//   full:    no seat left
+//   unknown: the camera unit is offline
+export type Level = "empty" | "some" | "full" | "unknown";
 
-// One state for a building or an area, for its map pin and its free total.
+export function seatLevel(free: number, total: number, offline: boolean): Level {
+  if (offline) return "unknown";
+  if (free <= 0) return "full";
+  return free >= total ? "empty" : "some";
+}
+
+export type BuildingState = Level;
+
+// One level for a building or an area, for its map pin and its free total.
 // Offline (every camera unit) is unknown. Half or more of the spots free is
-// empty (green), any spot free or any seat open at a shared table is shared
-// (amber), none is full (red).
+// empty, any spot free or any seat open at a shared table is some, none is
+// full.
 export function buildingState(
   zones: Zone[],
   counts: Record<string, number | undefined>,
@@ -170,18 +170,22 @@ export function buildingState(
   if (total === 0) return "empty";
   const free = freeSpots(zones, counts);
   if (free * 2 >= total) return "empty";
-  if (free > 0) return "shared";
-  return zones.some((z) => seatsFree(z, counts[z.id] ?? 0) > 0) ? "shared" : "full";
+  if (free > 0) return "some";
+  return zones.some((z) => seatsFree(z, counts[z.id] ?? 0) > 0) ? "some" : "full";
 }
 
-// One line for an area: "3 of 6 spots free".
+// One line for an area: "Empty, 6 spots", "3 of 6 spots free", "Full, 6 spots".
 export function roomSummary(
   zones: Zone[],
   counts: Record<string, number | undefined>
 ): string {
   const total = totalSpots(zones);
   if (total === 0) return "No spots";
-  return `${freeSpots(zones, counts)} of ${total} ${total === 1 ? "spot" : "spots"} free`;
+  const free = freeSpots(zones, counts);
+  const spots = `${total} ${total === 1 ? "spot" : "spots"}`;
+  if (free >= total) return `Empty, ${spots}`;
+  if (!zones.some((z) => seatsFree(z, counts[z.id] ?? 0) > 0)) return `Full, ${spots}`;
+  return `${free} of ${spots} free`;
 }
 
 export const ZONE_TYPE_LABEL: Record<ZoneType, string> = {

@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 export function SiteHeader() {
   return (
     <Band>
-      <Wrap className="flex h-14 items-center justify-between gap-4">
+      <Wrap className="flex h-14 max-w-[1280px] items-center justify-between gap-4">
         <Link href="/" className="text-lg font-semibold">
           Spot
         </Link>

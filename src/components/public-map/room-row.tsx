@@ -4,10 +4,10 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicRoom } from "@/lib/types";
-import { availabilityColor, buildingState, freeSpots, roomSummary } from "@/lib/occupancy";
+import { buildingState, freeSpots, roomSummary } from "@/lib/occupancy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ZoneTile } from "./zone-tile";
-import { CountPill } from "./count-pill";
+import { FreePill } from "./count-pill";
 import { Collapse } from "./collapse";
 import { Highlight } from "@/components/highlight";
 
@@ -34,7 +34,7 @@ export function RoomRow({ room, counts, offlineFor, updated = "", loading = fals
   const [open, setOpen] = useState(false);
   const offline = offlineFor != null;
   const free = freeSpots(room.zones, counts);
-  const freeColor = availabilityColor(buildingState(room.zones, counts, offline));
+  const level = buildingState(room.zones, counts, offline);
   const hasZones = room.zones.length > 0;
 
   return (
@@ -51,13 +51,20 @@ export function RoomRow({ room, counts, offlineFor, updated = "", loading = fals
         onClick={() => setOpen((o) => !o)}
       >
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="break-words text-[15px] font-medium leading-snug">
+          <span
+            className={cn(
+              "break-words text-[15px] font-medium leading-snug transition-colors",
+              level === "full" && "text-muted-foreground"
+            )}
+          >
             <Highlight text={room.name} query={query} />
           </span>
           {loading ? (
             <Skeleton className="h-[13px] w-32" />
           ) : (
-            <span className={cn("text-[13px]", offline ? "text-state-full" : "text-muted-foreground")}>
+            <span
+              className={cn("text-[13px]", level === "empty" ? "font-medium text-primary" : "text-muted-foreground")}
+            >
               {offline ? `Camera unit offline, ${offlineFor}` : roomSummary(room.zones, counts)}
             </span>
           )}
@@ -69,10 +76,7 @@ export function RoomRow({ room, counts, offlineFor, updated = "", loading = fals
             <Skeleton className="h-7 w-16" />
           ) : (
             <>
-              <CountPill color={freeColor}>
-                {offline ? "?" : free}
-                <span className="font-sans text-xs font-semibold">{offline ? "unknown" : "free"}</span>
-              </CountPill>
+              <FreePill level={level} free={free} />
               {/* The hero carries "Updated just now" for the campus, so a
                   row only speaks up once its own update falls behind. */}
               {!offline && updated && updated !== "just now" ? (
