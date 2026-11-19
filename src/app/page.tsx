@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Wrap } from "@/components/band";
 import { SiteHeader } from "@/components/site-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createPublicClient } from "@/lib/supabase/public";
+import { connection } from "next/server";
 import { loadPublicSnapshot } from "@/lib/public-data";
 import { LiveMap } from "@/components/public-map/live-map";
 
@@ -18,7 +18,9 @@ export default function Home() {
 }
 
 async function MapLoader() {
-  const { rooms, counts } = await loadPublicSnapshot(createPublicClient());
+  // The demo store is live state: read it per request, not in a prerender.
+  await connection();
+  const { rooms, counts } = loadPublicSnapshot();
   return <LiveMap rooms={rooms.filter((r) => r.published)} initialCounts={counts} />;
 }
 

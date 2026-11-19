@@ -3,40 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { demoDb, newId, type StoredUnit } from "@/lib/demo-store";
 import { slugify } from "@/lib/slug";
+
+// Demo build: every action below mutates the in-memory store in
+// src/lib/demo-store.ts instead of Supabase. Validation is unchanged.
 
 export type ActionResult = { error?: string };
 
 // ---------- auth ----------
 
-export type SignInState = { error?: string };
-
-export async function signIn(
-  _prev: SignInState,
-  formData: FormData
-): Promise<SignInState> {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/admin");
-
-  if (!email || !password) {
-    return { error: "Wrong email or password." };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    return { error: "Wrong email or password." };
-  }
-
-  redirect(next.startsWith("/admin") ? next : "/admin");
-}
-
+// No login in the demo. Sign out just leaves the admin app.
 export async function signOut() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  redirect("/admin/login");
+  redirect("/");
 }
 
 // ---------- buildings and rooms ----------
@@ -49,17 +28,14 @@ const roomSchema = z.object({
 
 export type RoomInput = z.infer<typeof roomSchema>;
 
-type Db = Awaited<ReturnType<typeof createClient>>;
-
 // A slug unique within the building: "floor-2", then "floor-2-2".
-async function uniqueRoomSlug(supabase: Db, buildingId: string, name: string, exceptId?: string) {
+function uniqueRoomSlug(buildingId: string, name: string, exceptId?: string) {
   const base = slugify(name);
-  const { data } = await supabase
-    .from("rooms")
-    .select("id, slug")
-    .eq("building_id", buildingId)
-    .like("slug", `${base}%`);
-  const taken = new Set((data ?? []).filter((r) => r.id !== exceptId).map((r) => r.slug as string));
+  const taken = new Set(
+    demoDb()
+      .rooms.filter((r) => r.building_id === buildingId && r.id !== exceptId)
+      .map((r) => r.slug)
+  );
   if (!taken.has(base)) return base;
   for (let n = 2; n < 100; n++) {
     if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
@@ -73,27 +49,21 @@ export async function createRoom(input: RoomInput): Promise<ActionResult & { id?
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid area." };
   }
-  const supabase = await createClient();
-  const slug = await uniqueRoomSlug(supabase, parsed.data.buildingId, parsed.data.name);
-  const { count } = await supabase
-    .from("rooms")
-    .select("id", { count: "exact", head: true })
-    .eq("building_id", parsed.data.buildingId);
-  const { data, error } = await supabase
-    .from("rooms")
-    .insert({
-      building_id: parsed.data.buildingId,
-      name: parsed.data.name,
-      slug,
-      description: parsed.data.description || null,
-      sort_order: count ?? 0,
-    })
-    .select("id")
-    .single();
-  if (error) return { error: error.message };
+  const db = demoDb();
+  if (!db.buildings.some((b) => b.id === parsed.data.buildingId)) return { error: "Pick a building." };
+  const id = newId();
+  db.rooms.push({
+    id,
+    building_id: parsed.data.buildingId,
+    name: parsed.data.name,
+    slug: uniqueRoomSlug(parsed.data.buildingId, parsed.data.name),
+    description: parsed.data.description || null,
+    published: false,
+    sort_order: db.rooms.filter((r) => r.building_id === parsed.data.buildingId).length,
+  });
 
   revalidatePath("/admin");
-  return { id: data.id as string };
+  return { id };
 }
 
 // Renames an area, changes its description, or moves it to another building.
@@ -102,18 +72,16 @@ export async function updateRoom(roomId: string, input: RoomInput): Promise<Acti
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid area." };
   }
-  const supabase = await createClient();
-  const slug = await uniqueRoomSlug(supabase, parsed.data.buildingId, parsed.data.name, roomId);
-  const { error } = await supabase
-    .from("rooms")
-    .update({
-      building_id: parsed.data.buildingId,
-      name: parsed.data.name,
-      slug,
-      description: parsed.data.description || null,
-    })
-    .eq("id", roomId);
-  if (error) return { error: error.message };
+  const db = demoDb();
+  const room = db.rooms.find((r) => r.id === roomId);
+  if (!room) return { error: "Area not found." };
+  if (!db.buildings.some((b) => b.id === parsed.data.buildingId)) return { error: "Pick a building." };
+  Object.assign(room, {
+    building_id: parsed.data.buildingId,
+    name: parsed.data.name,
+    slug: uniqueRoomSlug(parsed.data.buildingId, parsed.data.name, roomId),
+    description: parsed.data.description || null,
+  });
 
   revalidatePath("/admin");
   revalidatePath(`/admin/areas/${roomId}`);
@@ -131,11 +99,8 @@ const buildingSchema = z
 
 export type BuildingInput = z.infer<typeof buildingSchema>;
 
-async function buildingSlugTaken(supabase: Db, slug: string, exceptId?: string) {
-  let q = supabase.from("buildings").select("id").eq("slug", slug);
-  if (exceptId) q = q.neq("id", exceptId);
-  const { data } = await q.maybeSingle();
-  return data != null;
+function buildingSlugTaken(slug: string, exceptId?: string) {
+  return demoDb().buildings.some((b) => b.slug === slug && b.id !== exceptId);
 }
 
 // A building on its own, with no areas yet. Its location is optional.
@@ -144,40 +109,30 @@ export async function createBuilding(input: BuildingInput): Promise<ActionResult
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid building." };
   }
-  const supabase = await createClient();
   const slug = slugify(parsed.data.name);
-  if (await buildingSlugTaken(supabase, slug)) return { error: "A building with that name already exists." };
+  if (buildingSlugTaken(slug)) return { error: "A building with that name already exists." };
 
-  const { data, error } = await supabase
-    .from("buildings")
-    .insert({ name: parsed.data.name, slug, lat: parsed.data.lat, lng: parsed.data.lng })
-    .select("id")
-    .single();
-  if (error) return { error: error.message };
+  const id = newId();
+  demoDb().buildings.push({ id, name: parsed.data.name, slug, lat: parsed.data.lat, lng: parsed.data.lng });
 
   revalidatePath("/admin");
   revalidatePath("/");
-  return { id: data.id as string };
+  return { id };
 }
 
 // Renames a building and its slug, and sets or clears its map location.
-// The area URLs under it change with the name.
 export async function updateBuilding(buildingId: string, input: BuildingInput): Promise<ActionResult> {
   const parsed = buildingSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid building." };
   }
-  const supabase = await createClient();
   const slug = slugify(parsed.data.name);
-  if (await buildingSlugTaken(supabase, slug, buildingId)) {
+  if (buildingSlugTaken(slug, buildingId)) {
     return { error: "A building with that name already exists." };
   }
-
-  const { error } = await supabase
-    .from("buildings")
-    .update({ name: parsed.data.name, slug, lat: parsed.data.lat, lng: parsed.data.lng })
-    .eq("id", buildingId);
-  if (error) return { error: error.message };
+  const building = demoDb().buildings.find((b) => b.id === buildingId);
+  if (!building) return { error: "Building not found." };
+  Object.assign(building, { name: parsed.data.name, slug, lat: parsed.data.lat, lng: parsed.data.lng });
 
   revalidatePath("/admin");
   revalidatePath("/");
@@ -190,11 +145,11 @@ const idList = z.array(z.string().uuid()).min(1).max(200);
 export async function reorderRooms(buildingId: string, roomIds: string[]): Promise<ActionResult> {
   const parsed = idList.safeParse(roomIds);
   if (!parsed.success) return { error: "Invalid order." };
-  const supabase = await createClient();
-  for (const [i, id] of parsed.data.entries()) {
-    const { error } = await supabase.from("rooms").update({ sort_order: i }).eq("id", id).eq("building_id", buildingId);
-    if (error) return { error: error.message };
-  }
+  const db = demoDb();
+  parsed.data.forEach((id, i) => {
+    const room = db.rooms.find((r) => r.id === id && r.building_id === buildingId);
+    if (room) room.sort_order = i;
+  });
   revalidatePath("/admin");
   revalidatePath("/");
   return {};
@@ -204,24 +159,32 @@ export async function reorderRooms(buildingId: string, roomIds: string[]): Promi
 export async function reorderZones(roomId: string, zoneIds: string[]): Promise<ActionResult> {
   const parsed = idList.safeParse(zoneIds);
   if (!parsed.success) return { error: "Invalid order." };
-  const supabase = await createClient();
-  for (const [i, id] of parsed.data.entries()) {
-    const { error } = await supabase.from("zones").update({ sort_order: i }).eq("id", id).eq("room_id", roomId);
-    if (error) return { error: error.message };
-  }
+  const db = demoDb();
+  parsed.data.forEach((id, i) => {
+    const zone = db.zones.find((z) => z.id === id && z.room_id === roomId);
+    if (zone) zone.sort_order = i;
+  });
   revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
   return {};
 }
 
-// Deletes a building with its areas. Zones and counts cascade with the
-// areas; camera units paired there stay registered, unpaired.
+// Same cascade as the database: zones and counts go with the area, camera
+// units stay registered, unpaired.
+function removeRooms(roomIds: Set<string>) {
+  const db = demoDb();
+  const zoneIds = new Set(db.zones.filter((z) => roomIds.has(z.room_id)).map((z) => z.id));
+  db.rooms = db.rooms.filter((r) => !roomIds.has(r.id));
+  db.zones = db.zones.filter((z) => !zoneIds.has(z.id));
+  for (const id of zoneIds) db.counts.delete(id);
+  for (const u of db.units) if (u.room_id && roomIds.has(u.room_id)) u.room_id = null;
+}
+
+// Deletes a building with its areas.
 export async function deleteBuilding(buildingId: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error: roomsError } = await supabase.from("rooms").delete().eq("building_id", buildingId);
-  if (roomsError) return { error: roomsError.message };
-  const { error } = await supabase.from("buildings").delete().eq("id", buildingId);
-  if (error) return { error: error.message };
+  const db = demoDb();
+  removeRooms(new Set(db.rooms.filter((r) => r.building_id === buildingId).map((r) => r.id)));
+  db.buildings = db.buildings.filter((b) => b.id !== buildingId);
 
   revalidatePath("/admin");
   revalidatePath("/");
@@ -232,12 +195,9 @@ export async function setRoomPublished(
   roomId: string,
   published: boolean
 ): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("rooms")
-    .update({ published })
-    .eq("id", roomId);
-  if (error) return { error: error.message };
+  const room = demoDb().rooms.find((r) => r.id === roomId);
+  if (!room) return { error: "Area not found." };
+  room.published = published;
 
   revalidatePath("/admin");
   revalidatePath(`/admin/areas/${roomId}`);
@@ -246,9 +206,7 @@ export async function setRoomPublished(
 }
 
 export async function deleteRoom(roomId: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("rooms").delete().eq("id", roomId);
-  if (error) return { error: error.message };
+  removeRooms(new Set([roomId]));
   revalidatePath("/admin");
   revalidatePath("/");
   redirect("/admin");
@@ -288,18 +246,22 @@ export async function createZone(
   const { data, error } = normalizeZone(input);
   if (error || !data) return { error };
 
-  const supabase = await createClient();
-  const { count } = await supabase.from("zones").select("id", { count: "exact", head: true }).eq("room_id", roomId);
-  const { data: row, error: dbError } = await supabase
-    .from("zones")
-    .insert({ room_id: roomId, ...data, sort_order: count ?? 0 })
-    .select("id")
-    .single();
-  if (dbError) return { error: dbError.message };
+  const db = demoDb();
+  if (!db.rooms.some((r) => r.id === roomId)) return { error: "Area not found." };
+  const id = newId();
+  const now = new Date().toISOString();
+  db.zones.push({
+    id,
+    room_id: roomId,
+    ...data,
+    sort_order: db.zones.filter((z) => z.room_id === roomId).length,
+    created_at: now,
+  });
+  db.counts.set(id, { zone_id: id, count: 0, updated_at: now });
 
   revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
-  return { id: row.id as string };
+  return { id };
 }
 
 export async function updateZone(
@@ -310,12 +272,9 @@ export async function updateZone(
   const { data, error } = normalizeZone(input);
   if (error || !data) return { error };
 
-  const supabase = await createClient();
-  const { error: dbError } = await supabase
-    .from("zones")
-    .update(data)
-    .eq("id", zoneId);
-  if (dbError) return { error: dbError.message };
+  const zone = demoDb().zones.find((z) => z.id === zoneId);
+  if (!zone) return { error: "Zone not found." };
+  Object.assign(zone, data);
 
   revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
@@ -326,9 +285,9 @@ export async function deleteZone(
   zoneId: string,
   roomId: string
 ): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("zones").delete().eq("id", zoneId);
-  if (error) return { error: error.message };
+  const db = demoDb();
+  db.zones = db.zones.filter((z) => z.id !== zoneId);
+  db.counts.delete(zoneId);
 
   revalidatePath(`/admin/areas/${roomId}`);
   revalidatePath("/");
@@ -350,50 +309,40 @@ const pairSchema = z.object({
 // before the move goes through.
 export type UnitTransfer = { id: string; name: string; from: string };
 
-type UnitHome = {
-  id: string;
-  name: string;
-  room_id: string | null;
-  rooms: { name: string; buildings: { name: string } | { name: string }[] | null } | null;
-};
-
-function homeLabel(unit: UnitHome) {
-  const b = unit.rooms?.buildings;
-  const building = Array.isArray(b) ? b[0] : b;
-  return unit.rooms ? `${building?.name ?? ""}, ${unit.rooms.name}` : "";
+function homeLabel(unit: StoredUnit) {
+  const db = demoDb();
+  const room = db.rooms.find((r) => r.id === unit.room_id);
+  const building = room && db.buildings.find((b) => b.id === room.building_id);
+  return room ? `${building?.name ?? ""}, ${room.name}` : "";
 }
 
 // Moves a unit to a room. Without allowTransfer, a unit paired to a different
 // room is left alone and the caller gets a transfer to confirm.
-async function moveUnit(
-  supabase: Db,
-  unit: UnitHome,
+function moveUnit(
+  unit: StoredUnit,
   roomId: string,
   allowTransfer: boolean
-): Promise<ActionResult & { unit?: { id: string; name: string }; transfer?: UnitTransfer }> {
+): ActionResult & { unit?: { id: string; name: string }; transfer?: UnitTransfer } {
+  if (!demoDb().rooms.some((r) => r.id === roomId)) return { error: "Pick an area." };
   if (unit.room_id && unit.room_id !== roomId && !allowTransfer) {
     return { transfer: { id: unit.id, name: unit.name, from: homeLabel(unit) } };
   }
-  // The unit is alive (it is showing its code or polling), so stamp the
-  // heartbeat now. Its own posts take over within the offline window.
-  const { error } = await supabase
-    .from("camera_units")
-    .update({ room_id: roomId, last_seen: new Date().toISOString() })
-    .eq("id", unit.id);
-  if (error) return { error: error.message };
+  const before = unit.room_id;
+  unit.room_id = roomId;
+  // A real unit stops showing its code once claimed.
+  unit.pair_code = null;
+  unit.last_seen = new Date().toISOString();
 
   revalidatePath("/admin");
   revalidatePath(`/admin/areas/${roomId}`);
-  if (unit.room_id && unit.room_id !== roomId) revalidatePath(`/admin/areas/${unit.room_id}`);
+  if (before && before !== roomId) revalidatePath(`/admin/areas/${before}`);
   revalidatePath("/");
   return { unit: { id: unit.id, name: unit.name } };
 }
 
-const UNIT_HOME = "id, name, room_id, rooms(name, buildings(name))";
-
 // Claims a camera unit by its 6-digit pair code and assigns it to a room.
-// The camera unit polls /api/pair/status until this lands. The code of a
-// unit paired to another room comes back as a transfer until confirmed.
+// The code of a unit paired to another room comes back as a transfer until
+// confirmed.
 export async function pairCameraUnit(
   pairCode: string,
   roomId: string,
@@ -403,16 +352,9 @@ export async function pairCameraUnit(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("camera_units")
-    .select(UNIT_HOME)
-    .eq("pair_code", parsed.data.pair_code)
-    .maybeSingle();
-  if (error) return { error: error.message };
-  if (!data) return { error: "No camera unit is showing that code." };
-  return moveUnit(supabase, data as unknown as UnitHome, parsed.data.room_id, allowTransfer);
+  const unit = demoDb().units.find((u) => u.pair_code === parsed.data.pair_code);
+  if (!unit) return { error: "No camera unit is showing that code." };
+  return moveUnit(unit, parsed.data.room_id, allowTransfer);
 }
 
 // Assigns a unit to a room by id, or unpairs it with null. Same transfer
@@ -422,28 +364,17 @@ export async function assignCameraUnit(
   roomId: string | null,
   allowTransfer = false
 ): Promise<ActionResult & { unit?: { id: string; name: string }; transfer?: UnitTransfer }> {
-  const supabase = await createClient();
+  const unit = demoDb().units.find((u) => u.id === unitId);
+  if (!unit) return { error: "Camera unit not found." };
   if (roomId === null) {
-    const { data: before } = await supabase
-      .from("camera_units")
-      .select("room_id")
-      .eq("id", unitId)
-      .maybeSingle();
-    const { error } = await supabase.from("camera_units").update({ room_id: null }).eq("id", unitId);
-    if (error) return { error: error.message };
+    const before = unit.room_id;
+    unit.room_id = null;
     revalidatePath("/admin");
-    if (before?.room_id) revalidatePath(`/admin/areas/${before.room_id}`);
+    if (before) revalidatePath(`/admin/areas/${before}`);
     revalidatePath("/");
     return {};
   }
-  const { data, error } = await supabase
-    .from("camera_units")
-    .select(UNIT_HOME)
-    .eq("id", unitId)
-    .maybeSingle();
-  if (error) return { error: error.message };
-  if (!data) return { error: "Camera unit not found." };
-  return moveUnit(supabase, data as unknown as UnitHome, roomId, allowTransfer);
+  return moveUnit(unit, roomId, allowTransfer);
 }
 
 export async function renameCameraUnit(
@@ -452,36 +383,27 @@ export async function renameCameraUnit(
 ): Promise<ActionResult> {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Name the camera unit." };
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("camera_units")
-    .update({ name: trimmed })
-    .eq("id", unitId);
-  if (error) return { error: error.message };
+  const unit = demoDb().units.find((u) => u.id === unitId);
+  if (!unit) return { error: "Camera unit not found." };
+  unit.name = trimmed.slice(0, 80);
   revalidatePath("/admin");
   return {};
 }
 
-// Asks a camera unit to pull the latest code. It sees the request on its
-// next status poll (every 20 s), pulls, and restarts itself if anything
-// came in.
+// Asks a camera unit to pull the latest code. The store clears the request
+// after a short delay, as a real unit would on its next poll.
 export async function requestCameraUnitUpdate(unitId: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("camera_units")
-    .update({ update_requested_at: new Date().toISOString() })
-    .eq("id", unitId);
-  if (error) return { error: error.message };
+  const unit = demoDb().units.find((u) => u.id === unitId);
+  if (!unit) return { error: "Camera unit not found." };
+  unit.update_requested_at = new Date().toISOString();
   revalidatePath("/admin");
   return {};
 }
 
-// Removes a camera unit's record. The physical unit re-registers itself with
-// a fresh pair code the next time its script starts.
+// Removes a camera unit's record.
 export async function deleteCameraUnit(unitId: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("camera_units").delete().eq("id", unitId);
-  if (error) return { error: error.message };
+  const db = demoDb();
+  db.units = db.units.filter((u) => u.id !== unitId);
   revalidatePath("/admin");
   return {};
 }

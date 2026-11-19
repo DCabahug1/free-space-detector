@@ -2,15 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useClock } from "@/hooks/use-clock";
-import { createClient } from "@/lib/supabase/client";
 import type { PublicRoom, ZoneCount } from "@/lib/types";
 import { isOffline } from "@/lib/occupancy";
 
-// Live counts and heartbeats for the public pages. Realtime on zone_counts
-// first (every ingest post, heartbeat included, bumps updated_at), a poll of
-// zone_counts and camera_units.last_seen as the fallback for networks that
-// block the websocket.
-const POLL_MS = 15_000;
+// Live counts and heartbeats for the public pages. The demo build has no
+// Realtime: it polls /api/live, which reads the in-memory demo store.
+const POLL_MS = 5_000;
 
 export type Connection = "connecting" | "live" | "reconnecting";
 
@@ -46,61 +43,28 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
   const zoneKey = rooms.flatMap((r) => r.zones.map((z) => z.id)).join(",");
 
   useEffect(() => {
-    const unitIds = unitKey ? unitKey.split(",") : [];
-    const zoneIds = zoneKey ? zoneKey.split(",") : [];
-    // The browser client is a singleton, so every subscriber needs its own
-    // channel name or the second .on() throws.
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`zone_counts:${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "zone_counts" },
-        (payload) => {
-          if (payload.eventType === "DELETE") {
-            const old = payload.old as Partial<ZoneCount>;
-            if (!old.zone_id) return;
-            setCounts((prev) => {
-              const next = { ...prev };
-              delete next[old.zone_id!];
-              return next;
-            });
-            return;
-          }
-          const row = payload.new as ZoneCount;
-          setCounts((prev) => ({ ...prev, [row.zone_id]: row }));
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          wasLive.current = true;
-          setConnection("live");
-        } else if (wasLive.current) {
-          setConnection("reconnecting");
-        }
-      });
+    const unitIds = new Set(unitKey ? unitKey.split(",") : []);
+    const zoneIds = new Set(zoneKey ? zoneKey.split(",") : []);
+    let cancelled = false;
 
     async function poll() {
-      if (zoneIds.length > 0) {
-        const { data } = await supabase
-          .from("zone_counts")
-          .select("zone_id, count, updated_at")
-          .in("zone_id", zoneIds);
-        if (data) {
-          const rows = data as ZoneCount[];
-          setCounts((prev) => ({ ...prev, ...Object.fromEntries(rows.map((c) => [c.zone_id, c])) }));
-        }
-      }
-      if (unitIds.length > 0) {
-        const { data } = await supabase
-          .from("camera_units")
-          .select("id, last_seen, paused")
-          .in("id", unitIds);
-        if (data) {
-          const rows = data as { id: string; last_seen: string | null; paused: boolean }[];
-          setLastSeen((prev) => ({ ...prev, ...Object.fromEntries(rows.map((u) => [u.id, u.last_seen])) }));
-          setPaused((prev) => ({ ...prev, ...Object.fromEntries(rows.map((u) => [u.id, u.paused])) }));
-        }
+      try {
+        const res = await fetch("/api/live", { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as {
+          counts: ZoneCount[];
+          units: { id: string; last_seen: string | null; paused: boolean }[];
+        };
+        if (cancelled) return;
+        const rows = data.counts.filter((c) => zoneIds.has(c.zone_id));
+        const units = data.units.filter((u) => unitIds.has(u.id));
+        setCounts((prev) => ({ ...prev, ...Object.fromEntries(rows.map((c) => [c.zone_id, c])) }));
+        setLastSeen((prev) => ({ ...prev, ...Object.fromEntries(units.map((u) => [u.id, u.last_seen])) }));
+        setPaused((prev) => ({ ...prev, ...Object.fromEntries(units.map((u) => [u.id, u.paused])) }));
+        wasLive.current = true;
+        setConnection("live");
+      } catch {
+        if (!cancelled && wasLive.current) setConnection("reconnecting");
       }
     }
     // Right away as well: a zone drawn a moment ago, or a page opened from
@@ -108,8 +72,8 @@ export function useLiveSnapshot(rooms: PublicRoom[], initialCounts: ZoneCount[])
     void poll();
     const pollTimer = setInterval(poll, POLL_MS);
     return () => {
+      cancelled = true;
       clearInterval(pollTimer);
-      supabase.removeChannel(channel);
     };
   }, [zoneKey, unitKey]);
 

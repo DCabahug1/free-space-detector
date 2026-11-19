@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { createPublicClient } from "@/lib/supabase/public";
+import { connection } from "next/server";
+import { demoDb } from "@/lib/demo-store";
 
 type Params = Promise<{ building: string; area: string }>;
 
@@ -16,7 +17,8 @@ export default function AreaRedirect({ params }: { params: Params }) {
 }
 
 async function Redirector({ params }: { params: Params }) {
+  await connection();
   const { building } = await params;
-  const { data } = await createPublicClient().from("buildings").select("name").eq("slug", building).maybeSingle();
+  const data = demoDb().buildings.find((b) => b.slug === building);
   return redirect(data?.name ? `/?q=${encodeURIComponent(data.name)}` : "/");
 }

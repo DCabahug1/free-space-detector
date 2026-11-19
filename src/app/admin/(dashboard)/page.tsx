@@ -1,11 +1,10 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { bySortThenName, demoDb } from "@/lib/demo-store";
 import { frameUrl } from "@/lib/camera-units";
-import type { Building } from "@/lib/types";
 import { AdminHeader } from "@/components/admin-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AdminRoom, AdminUnit } from "./admin-types";
+import { loadAdminUnits, type AdminRoom } from "./admin-types";
 import { AdminTabs } from "./admin-tabs";
 import { DeviceCards, PairDialog } from "./device-cards";
 import { OverviewCaption } from "./overview-caption";
@@ -26,104 +25,28 @@ export default function AdminOverview({ searchParams }: OverviewProps) {
   );
 }
 
-type RoomRow = {
-  id: string;
-  building_id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  published: boolean;
-  sort_order: number;
-  buildings: Building | Building[] | null;
-  zones: { count: number }[];
-  camera_units: { id: string; name: string; last_seen: string | null; paused: boolean }[];
-};
-
-type UnitRow = {
-  id: string;
-  name: string;
-  pair_code: string | null;
-  room_id: string | null;
-  last_seen: string | null;
-  paused: boolean;
-  version: string | null;
-  update_requested_at: string | null;
-  rooms: { id: string; name: string; buildings: { id: string; name: string } | { id: string; name: string }[] | null } | null;
-};
-
-function one<T>(v: T | T[] | null): T | null {
-  return Array.isArray(v) ? (v[0] ?? null) : v;
-}
-
 async function Overview({ searchParams }: OverviewProps) {
-  // The Supabase session read uses Date.now(), which cacheComponents rejects
-  // during prerender. Render these admin pages at request time.
+  // The demo store is live state: read it per request, not in a prerender.
   await connection();
   const { code, tab } = await searchParams;
   const initialCode = code && /^\d{6}$/.test(code) ? code : "";
-  const supabase = await createClient();
-  const [{ data: roomRows, error }, { data: unitRows }, { data: buildingRows }] = await Promise.all([
-    supabase
-      .from("rooms")
-      .select(
-        "id, building_id, name, slug, description, published, sort_order, buildings(id, name, slug, lat, lng), zones(count), camera_units(id, name, last_seen, paused)"
-      )
-      .order("sort_order")
-      .order("name"),
-    supabase
-      .from("camera_units")
-      .select("id, name, pair_code, room_id, last_seen, paused, version, update_requested_at, rooms(id, name, buildings(id, name))")
-      .order("created_at"),
-    supabase.from("buildings").select("id, name, slug, lat, lng").order("name"),
-  ]);
-
-  if (error) {
-    return (
-      <>
-        <AdminHeader />
-        <main className="mx-auto w-full max-w-[1120px] px-4 pt-6">
-          <p className="text-sm text-destructive">{error.message}</p>
-        </main>
-      </>
-    );
-  }
-
-  const rooms: AdminRoom[] = ((roomRows ?? []) as unknown as RoomRow[])
-    .map((r) => {
-      const building = one(r.buildings);
-      if (!building) return null;
-      return {
-        id: r.id,
-        building_id: r.building_id,
-        name: r.name,
-        slug: r.slug,
-        description: r.description,
-        published: r.published,
-        sort_order: r.sort_order,
+  const db = demoDb();
+  const rooms: AdminRoom[] = [...db.rooms].sort(bySortThenName).flatMap((r) => {
+    const building = db.buildings.find((b) => b.id === r.building_id);
+    if (!building) return [];
+    return [
+      {
+        ...r,
         building,
-        zoneCount: r.zones?.[0]?.count ?? 0,
-        units: r.camera_units ?? [],
-      };
-    })
-    .filter((r): r is AdminRoom => r !== null);
-
-  const units: AdminUnit[] = ((unitRows ?? []) as unknown as UnitRow[]).map((u) => {
-    const room = u.rooms;
-    const building = room ? one(room.buildings) : null;
-    return {
-      id: u.id,
-      name: u.name,
-      pair_code: u.pair_code,
-      room_id: u.room_id,
-      last_seen: u.last_seen,
-      paused: u.paused,
-      version: u.version,
-      update_requested_at: u.update_requested_at,
-      room: room && building ? { id: room.id, name: room.name, building } : null,
-    };
+        zoneCount: db.zones.filter((z) => z.room_id === r.id).length,
+        units: db.units
+          .filter((u) => u.room_id === r.id)
+          .map((u) => ({ id: u.id, name: u.name, last_seen: u.last_seen, paused: u.paused })),
+      },
+    ];
   });
-
-  const buildings = (buildingRows ?? []) as Building[];
+  const units = loadAdminUnits();
+  const buildings = [...db.buildings].sort((a, b) => a.name.localeCompare(b.name));
   const published = rooms.filter((r) => r.published).length;
   // Where a new building's location map opens: another located building.
   const located = buildings.find((b) => b.lat != null && b.lng != null);

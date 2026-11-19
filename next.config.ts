@@ -9,7 +9,11 @@ const nextConfig: NextConfig = {
   // Camera units moved onto the admin overview. Older QR codes still point
   // here, and the query string (?code=) carries over.
   async redirects() {
-    return [{ source: "/admin/camera-units", destination: "/admin", permanent: false }];
+    return [
+      { source: "/admin/camera-units", destination: "/admin", permanent: false },
+      // Demo build: no login, old links go straight to the admin app.
+      { source: "/admin/login", destination: "/admin", permanent: false },
+    ];
   },
   partialPrefetching: true,
   turbopack: {

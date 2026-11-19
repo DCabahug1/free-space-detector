@@ -2,6 +2,8 @@
 
 Repo working name: free-space-detector. Live at https://csun-spot.vercel.app.
 
+> **Demo branch.** This build runs with no Supabase, no login, no camera units and no env vars. All data lives in an in-memory store (`src/lib/demo-store.ts`, seeded from `supabase/seed/csun_campus.sql`) that nudges counts every few seconds and resets when the server restarts. The rest of this README describes the production setup on `main`.
+
 Camera units count people inside hand-drawn zones. The counts, never the video, go to a Next.js app on Vercel and a Supabase database. Students open a public map and see which tables are free right now.
 
 See `CLAUDE.md` for the project brief and `docs/DESIGN.md` for the UI spec. The camera unit has its own guide in `camera-unit/README.md`.
